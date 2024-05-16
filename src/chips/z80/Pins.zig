@@ -1,0 +1,17 @@
+//! Z80 pin pin list
+
+D: [8]comptime_int,
+A: [16]comptime_int,
+M1: comptime_int,
+MREQ: comptime_int,
+IORQ: comptime_int,
+RD: comptime_int,
+WR: comptime_int,
+RFSH: comptime_int,
+HALT: comptime_int,
+WAIT: comptime_int,
+INT: comptime_int,
+NMI: comptime_int,
+RESET: comptime_int,
+BUSRQ: comptime_int,
+BUSAK: comptime_int,
