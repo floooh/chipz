@@ -1,4 +1,4 @@
-//! Z80 pin pin list
+//! Z80 pin list
 
 D: [8]comptime_int,
 A: [16]comptime_int,
