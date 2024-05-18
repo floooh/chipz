@@ -12,10 +12,10 @@ pub fn decode(allocator: std.mem.Allocator) void {
 
 fn decodeMain() void {
     for (0..256) |i| {
-        const op: u8 = @intCast(i);
-        const x: u2 = @intCast((i >> 6) & 3);
-        const y: u3 = @intCast((i >> 3) & 7);
-        const z: u3 = @intCast(i & 7);
+        const op: u8 = @truncate(i);
+        const x: u2 = @truncate((i >> 6) & 3);
+        const y: u3 = @truncate((i >> 3) & 7);
+        const z: u3 = @truncate(i & 7);
         switch (x) {
             0 => {
                 // quadrant 0
