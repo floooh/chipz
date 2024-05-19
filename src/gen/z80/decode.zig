@@ -5,13 +5,29 @@ const allocPrint = std.fmt.allocPrint;
 
 var alloc: std.mem.Allocator = undefined;
 
-// global array, referencing each other via slices
-var actions = FixedArray(?[]const u8, 1024 * 1024){};
-var tcycles = FixedArray(TCycle, 256 * 1024){};
-var mcycles = FixedArray(MCycle, 64 * 1024){};
-var main_ops = FixedArray(Op, 256){};
-var ed_ops = FixedArray(Op, 256){};
-var cb_ops = FixedArray(Op, 256){};
+fn FixedArray(comptime T: type, comptime C: usize, def: T) type {
+    return struct {
+        items: [C]T = [_]T{def} ** C,
+        len: usize = 0,
+
+        fn add(self: *@This(), items: []const T) []T {
+            assert(self.len < (C + items.len));
+            const res = self.items[self.len..(self.len + items.len)];
+            for (items) |item| {
+                self.items[self.len] = item;
+                self.len += 1;
+            }
+            return res;
+        }
+    };
+}
+
+var actions = FixedArray(?[]const u8, 1024 * 1024, null){};
+var tcycles = FixedArray(TCycle, 256 * 1024, .{}){};
+var mcycles = FixedArray(MCycle, 64 * 1024, .{}){};
+var main_ops = [_]Op{.{}} ** 256;
+var ed_ops = [_]Op{.{}} ** 256;
+var cb_ops = [_]Op{.{}} ** 256;
 // TODO: special decoder block 'ops'
 
 // formatted print into allocated slice
@@ -20,7 +36,7 @@ fn f(comptime fmt_str: []const u8, args: anytype) []const u8 {
 }
 
 fn mainOp(opcode: usize, op: Op) void {
-    main_ops.items[opcode] = op;
+    main_ops[opcode] = op;
 }
 
 // see http://www.z80.info/decoding.htm
@@ -175,29 +191,12 @@ const MCycle = struct {
 // an Op is a collection of MCycles
 const Op = struct {
     // disassembly
-    dasm: []const u8,
+    dasm: []const u8 = "",
     // slice into mcycles array
     mcycles: []MCycle = &.{},
 };
 
 // a generic fixed-capacity array
-fn FixedArray(comptime T: type, comptime C: usize) type {
-    return struct {
-        items: [C]T = undefined,
-        len: usize = 0,
-
-        fn add(self: *@This(), items: []const T) []T {
-            assert(self.len < (C + items.len));
-            const res = self.items[self.len..(self.len + items.len)];
-            for (items) |item| {
-                self.items[self.len] = item;
-                self.len += 1;
-            }
-            return res;
-        }
-    };
-}
-
 fn step() []const u8 {
     return "break :step_next";
 }
@@ -257,7 +256,7 @@ pub fn decode(allocator: std.mem.Allocator) void {
 }
 
 pub fn dump() void {
-    for (main_ops.items, 0..) |op, opcode| {
+    for (main_ops, 0..) |op, opcode| {
         if (op.mcycles.len > 0) {
             print("{X} => {s}:\n", .{ opcode, op.dasm });
             for (op.mcycles) |mcycle| {
