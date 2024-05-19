@@ -1,9 +1,11 @@
 const std = @import("std");
-const GeneralPurposeAllocator = std.heap.GeneralPurposeAllocator;
-const decode = @import("decode.zig").decode;
+const dec = @import("decode.zig");
 
 pub fn main() !void {
-    var gpa = GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.testing.expect(gpa.deinit() == .ok) catch @panic("leak");
-    decode(gpa.allocator());
+    var arena = std.heap.ArenaAllocator.init(gpa.allocator());
+    defer arena.deinit();
+    dec.decode(arena.allocator());
+    dec.dump();
 }
