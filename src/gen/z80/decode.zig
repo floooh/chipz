@@ -5,8 +5,22 @@ const allocPrint = std.fmt.allocPrint;
 
 var alloc: std.mem.Allocator = undefined;
 
+// global array, referencing each other via slices
+var actions = FixedArray(?[]const u8, 1024 * 1024){};
+var tcycles = FixedArray(TCycle, 256 * 1024){};
+var mcycles = FixedArray(MCycle, 64 * 1024){};
+var main_ops = FixedArray(Op, 256){};
+var ed_ops = FixedArray(Op, 256){};
+var cb_ops = FixedArray(Op, 256){};
+// TODO: special decoder block 'ops'
+
+// formatted print into allocated slice
 fn f(comptime fmt_str: []const u8, args: anytype) []const u8 {
     return allocPrint(alloc, fmt_str, args) catch @panic("allocation failed");
+}
+
+fn mainOp(opcode: usize, op: Op) void {
+    main_ops.items[opcode] = op;
 }
 
 // see http://www.z80.info/decoding.htm
@@ -184,18 +198,12 @@ fn FixedArray(comptime T: type, comptime C: usize) type {
     };
 }
 
-// global array, referencing each other via slices
-var actions = FixedArray(?[]const u8, 1024 * 1024){};
-var tcycles = FixedArray(TCycle, 256 * 1024){};
-var mcycles = FixedArray(MCycle, 64 * 1024){};
-var main_ops = FixedArray(Op, 256){};
-var ed_ops = FixedArray(Op, 256){};
-var cb_ops = FixedArray(Op, 256){};
-// TODO: special decoder block 'ops'
+fn step() []const u8 {
+    return "break :step_next";
+}
 
-// wait state check
 fn wait() []const u8 {
-    return "if (!wait(pins)) break track_int_bits";
+    return "if (!wait(pins)) break :track_int_bits";
 }
 
 fn mreq_rd(addr: []const u8) []const u8 {
@@ -214,7 +222,7 @@ fn fetch(action: ?[]const u8) MCycle {
     return .{
         .type = .Overlapped,
         .tcycles = tcycles.add(&.{
-            .{ .actions = actions.add(&.{ action, "pins=self.fetch(pins)", "break step_next" }) },
+            .{ .actions = actions.add(&.{ action, "break :fetch_next" }) },
         }),
     };
 }
@@ -223,9 +231,9 @@ fn mread(abus: []const u8, dst: []const u8, action: ?[]const u8) MCycle {
     return .{
         .type = .Read,
         .tcycles = tcycles.add(&.{
-            .{ .actions = actions.add(&.{null}) },
-            .{ .actions = actions.add(&.{ wait(), mreq_rd(abus) }) },
-            .{ .actions = actions.add(&.{ gd(dst), action }) },
+            .{ .actions = actions.add(&.{step()}) },
+            .{ .actions = actions.add(&.{ wait(), mreq_rd(abus), step() }) },
+            .{ .actions = actions.add(&.{ gd(dst), action, step() }) },
         }),
     };
 }
@@ -234,9 +242,9 @@ fn mwrite(abus: []const u8, src: []const u8, action: ?[]const u8) MCycle {
     return .{
         .type = .Write,
         .tcycles = tcycles.add(&.{
-            .{ .actions = actions.add(&.{null}) },
-            .{ .actions = actions.add(&.{ wait(), mreq_wr(abus, src), action }) },
-            .{ .actions = actions.add(&.{null}) },
+            .{ .actions = actions.add(&.{step()}) },
+            .{ .actions = actions.add(&.{ wait(), mreq_wr(abus, src), action, step() }) },
+            .{ .actions = actions.add(&.{step()}) },
         }),
     };
 }
@@ -310,54 +318,59 @@ fn decodeED() void {}
 
 fn decodeCB() void {}
 
-fn halt(op: u8) void {
-    print("{X}: HALT\n", .{op});
+fn halt(opcode: u8) void {
+    mainOp(opcode, .{
+        .dasm = "HALT",
+        .mcycles = mcycles.add(&.{
+            fetch("pins=self.halt(pins)"),
+        }),
+    });
 }
 
 fn @"LD (HL),r"(opcode: u8, z: u3) void {
-    main_ops.items[opcode] = .{
+    mainOp(opcode, .{
         .dasm = f("LD (HL),{s}", .{R.strAsmV(z)}),
         .mcycles = mcycles.add(&.{
             mwrite("self.addr()", R.rrv(z), null),
             fetch(null),
         }),
-    };
+    });
 }
 
 fn @"LD r,(HL)"(opcode: u8, y: u3) void {
-    main_ops.items[opcode] = .{
+    mainOp(opcode, .{
         .dasm = f("LD {s},(HL)", .{R.strAsmV(y)}),
         .mcycles = mcycles.add(&.{
             mread("self.addr()", R.rrv(y), null),
             fetch(null),
         }),
-    };
+    });
 }
 
 fn @"LD r,r"(opcode: u8, y: u3, z: u3) void {
-    main_ops.items[opcode] = .{
+    mainOp(opcode, .{
         .dasm = f("LD {s},{s}", .{ R.strAsmV(y), R.strAsmV(z) }),
         .mcycles = mcycles.add(&.{
             fetch(f("{s}={s}", .{ R.rv(y), R.rv(z) })),
         }),
-    };
+    });
 }
 
 fn @"ALU (HL)"(opcode: u8, y: u3) void {
-    main_ops.items[opcode] = .{
+    mainOp(opcode, .{
         .dasm = f("{s} (HL)", .{ALU.strAsmV(y)}),
         .mcycles = mcycles.add(&.{
             mread("self.addr()", "self.dlatch", null),
             fetch(f("{s}(self.dlatch)", .{ALU.funv(y)})),
         }),
-    };
+    });
 }
 
 fn @"ALU r"(opcode: u8, y: u3, z: u3) void {
-    main_ops.items[opcode] = .{
+    mainOp(opcode, .{
         .dasm = f("{s} {s}", .{ ALU.strAsmV(y), R.strAsmV(z) }),
         .mcycles = mcycles.add(&.{
             fetch(f("{s}({s})", .{ ALU.funv(y), R.rv(z) })),
         }),
-    };
+    });
 }
