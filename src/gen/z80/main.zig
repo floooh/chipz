@@ -1,5 +1,6 @@
 const std = @import("std");
 const dec = @import("decode.zig");
+const acc = @import("accumulate.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -7,5 +8,5 @@ pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(gpa.allocator());
     defer arena.deinit();
     dec.decode(arena.allocator());
-    dec.dump();
+    acc.dump();
 }
