@@ -1,8 +1,12 @@
 //! action functions are low-level tcycle building blocks
 const f = @import("formatter.zig").f;
 
-pub fn step() []const u8 {
+pub fn next() []const u8 {
     return "break :step_next";
+}
+
+pub fn fetch_next() []const u8 {
+    return "break :fetch_next";
 }
 
 pub fn wait() []const u8 {
