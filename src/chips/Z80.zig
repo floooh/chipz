@@ -83,7 +83,7 @@ im: u2,
 iff1: bool,
 iff2: bool,
 
-/// initialize a Z80 instance, return
+/// initialize a Z80 instance
 pub fn init() Self {
     return .{
         .step = 0,
@@ -100,7 +100,7 @@ pub fn init() Self {
     };
 }
 
-/// start execution at a new address, return pin mask
+/// start execution at a new address
 pub fn prefetch(self: *Self, addr: u16) void {
     self.pc = addr;
     // start at the overlapped cycle of the NOP instruction
