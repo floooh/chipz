@@ -108,7 +108,7 @@ pub fn prefetch(self: *Self, addr: u16) void {
 }
 
 /// execute one tick
-pub fn tick(self: *Self, comptime P: anytype, comptime Bus: anytype, bus: Bus) Bus {
+pub fn tick(self: *Self, comptime P: Pins, comptime Bus: anytype, bus: Bus) Bus {
     _ = self;
     const m1 = (1 << P.M1);
     const halt = (1 << P.HALT);
