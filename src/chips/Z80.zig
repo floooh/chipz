@@ -3,7 +3,7 @@ const expect = std.testing.expect;
 
 const Self = @This();
 
-const Pins = struct {
+pub const Pins = struct {
     D: [8]comptime_int,
     A: [16]comptime_int,
     M1: comptime_int,
@@ -21,7 +21,7 @@ const Pins = struct {
     BUSAK: comptime_int,
 };
 
-const DefaultPins = Pins{
+pub const DefaultPins = Pins{
     .D = .{ 0, 1, 2, 3, 4, 5, 6, 7 },
     .A = .{ 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23 },
     .M1 = 24,
@@ -116,15 +116,4 @@ pub fn tick(self: *Self, comptime P: Pins, comptime Bus: anytype, bus: Bus) Bus 
     // => code generated stuff will go here
     //<CODEGEN
     return bus | m1 | halt;
-}
-
-test "init" {
-    const z80 = Self.init();
-    try expect(z80.af2 == 0xFFFF);
-}
-
-test "tick" {
-    var z80 = Self.init();
-    const bus = z80.tick(DefaultPins, u64, 0);
-    try expect(bus == (1 << 24) | (1 << 30));
 }
