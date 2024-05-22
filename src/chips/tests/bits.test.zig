@@ -2,11 +2,16 @@ const expect = @import("std").testing.expect;
 const bits = @import("../bits.zig");
 
 test "mask" {
-    try expect(bits.mask(u64, &.{ 0, 1, 2, 3 }) == 15);
+    try expect(bits.mask(&.{ 0, 1, 2, 3 }) == 15);
     const dbits: [8]comptime_int = .{ 0, 1, 2, 3, 4, 5, 6, 7 };
-    try expect(bits.mask(u32, &dbits) == 255);
+    try expect(bits.mask(&dbits) == 255);
     const abits: [16]comptime_int = .{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
-    try expect(bits.mask(u32, &abits) == 65535);
+    try expect(bits.mask(&abits) == 65535);
+}
+
+test "bit" {
+    try expect(bits.bit(31) == 1 << 31);
+    try expect(bits.bit(2) == 4);
 }
 
 test "setAddr" {

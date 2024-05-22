@@ -1,13 +1,14 @@
 const expect = @import("std").testing.expect;
-const Z80 = @import("../Z80.zig");
+const Z80 = @import("../z80.zig").Z80;
+const DefaultPins = @import("../z80.zig").DefaultPins;
 
 test "init" {
-    const z80 = Z80.init();
-    try expect(z80.af2 == 0xFFFF);
+    const cpu = Z80(DefaultPins, u64){};
+    try expect(cpu.af2 == 0xFFFF);
 }
 
 test "tick" {
-    var z80 = Z80.init();
-    const bus = z80.tick(Z80.DefaultPins, u64, 0);
+    var cpu = Z80(DefaultPins, u64){};
+    const bus = cpu.tick(0);
     try expect(bus == (1 << 24) | (1 << 30));
 }
