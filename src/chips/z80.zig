@@ -117,29 +117,29 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             return bus | bit(HALT);
         }
 
-        inline fn tu8(v: anytype) u8 {
+        inline fn trn8(v: anytype) u8 {
             return @as(u8, @truncate(v));
         }
 
-        inline fn szFlags(v: u8) u8 {
-            return if (v != 0) (v & SF) else ZF;
+        inline fn szFlags(val: u9) u8 {
+            const v8 = trn8(val);
+            return if (v8 != 0) (v8 & SF) else ZF;
         }
 
-        inline fn szyxchFlags(acc: u8, val: u8, res9: u9) u8 {
-            const res8 = tu8(res9);
-            return szFlags(res8) | (res8 & (YF | XF)) | (tu8(res9 >> 8) & CF) | ((acc ^ val ^ res8) & HF);
+        inline fn szyxchFlags(acc: u9, val: u8, res: u9) u8 {
+            return szFlags(res) | trn8((res & (YF | XF)) | ((res >> 8) & CF) | ((acc ^ val ^ res) & HF));
         }
 
-        inline fn addFlags(acc: u8, val: u8, res: u9) u8 {
-            return szyxchFlags(acc, val, res) | ((((val ^ acc ^ 0x80) & (val ^ tu8(res))) >> 5) & VF);
+        inline fn addFlags(acc: u9, val: u8, res: u9) u8 {
+            return szyxchFlags(acc, val, res) | trn8((((val ^ acc ^ 0x80) & (val ^ res)) >> 5) & VF);
         }
 
-        inline fn subFlags(acc: u8, val: u8, res: u9) u8 {
-            return NF | szyxchFlags(acc, val, res) | tu8((((val ^ acc) & (res ^ acc)) >> 5) & VF);
+        inline fn subFlags(acc: u9, val: u8, res: u9) u8 {
+            return NF | szyxchFlags(acc, val, res) | trn8((((val ^ acc) & (res ^ acc)) >> 5) & VF);
         }
 
-        inline fn cpFlags(acc: u8, val: u8, res: u9) u8 {
-            return NF | szFlags(res) | tu8((val & (YF | XF)) | ((res >> 8) & CF) | ((acc ^ val ^ res) & HF) | ((((val ^ acc) & (res ^ acc)) >> 5) & VF));
+        inline fn cpFlags(acc: u9, val: u8, res: u9) u8 {
+            return NF | szFlags(res) | trn8((val & (YF | XF)) | ((res >> 8) & CF) | ((acc ^ val ^ res) & HF) | ((((val ^ acc) & (res ^ acc)) >> 5) & VF));
         }
 
         inline fn szpFlags(val: u8) u8 {
@@ -148,8 +148,8 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
 
         fn add8(self: *Self, val: u8) void {
             const acc: u9 = self.r[A];
-            const res: u9 = acc +% val;
-            self.r[F] = addFlags(self.r[A], val, res);
+            const res: u9 = acc + val;
+            self.r[F] = addFlags(acc, val, res);
             self.r[A] = @truncate(res);
         }
 
