@@ -99,9 +99,33 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             self.step = 0;
         }
 
+        fn halt(self: *Self, bus: Bus) Bus {
+            self.pc -%= 1;
+            return bus & bit(HALT);
+        }
+
         pub fn tick(self: *Self, bus: Bus) Bus {
             _ = self;
             return bus | bit(M1) | bit(HALT);
         }
     };
+}
+
+//==============================================================================
+// ████████ ███████ ███████ ████████ ███████
+//    ██    ██      ██         ██    ██
+//    ██    █████   ███████    ██    ███████
+//    ██    ██           ██    ██         ██
+//    ██    ███████ ███████    ██    ███████
+//==============================================================================
+
+test "init" {
+    const cpu = Z80(DefaultPins, u64){};
+    try expect(cpu.af2 == 0xFFFF);
+}
+
+test "tick" {
+    var cpu = Z80(DefaultPins, u64){};
+    const bus = cpu.tick(0);
+    try expect(bus == (1 << 24) | (1 << 30));
 }
