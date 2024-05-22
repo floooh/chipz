@@ -8,6 +8,7 @@ const getAddr = bits.getAddr;
 const setData = bits.setData;
 const getData = bits.getData;
 
+/// map chip pin names to bit positions
 pub const Pins = struct {
     D: [8]comptime_int,
     A: [16]comptime_int,
@@ -26,6 +27,7 @@ pub const Pins = struct {
     BUSAK: comptime_int,
 };
 
+/// a default pin declaration (mainly useful for testing)
 pub const DefaultPins = Pins{
     .D = .{ 0, 1, 2, 3, 4, 5, 6, 7 },
     .A = .{ 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23 },
@@ -62,6 +64,17 @@ pub const WZH = 13;
 pub const SPL = 14;
 pub const SPH = 15;
 pub const NumRegs = 16;
+
+// flag bits
+pub const CF = 1 << 0;
+pub const NF = 1 << 1;
+pub const VF = 1 << 2;
+pub const PF = VF;
+pub const XF = 1 << 3;
+pub const HF = 1 << 4;
+pub const YF = 1 << 5;
+pub const ZF = 1 << 6;
+pub const SF = 1 << 7;
 
 pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
     const M1 = P.M1;
@@ -101,7 +114,85 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
 
         fn halt(self: *Self, bus: Bus) Bus {
             self.pc -%= 1;
-            return bus & bit(HALT);
+            return bus | bit(HALT);
+        }
+
+        inline fn tu8(v: anytype) u8 {
+            return @as(u8, @truncate(v));
+        }
+
+        inline fn szFlags(v: u8) u8 {
+            return if (v != 0) (v & SF) else ZF;
+        }
+
+        inline fn szyxchFlags(acc: u8, val: u8, res9: u9) u8 {
+            const res8 = tu8(res9);
+            return szFlags(res8) | (res8 & (YF | XF)) | (tu8(res9 >> 8) & CF) | ((acc ^ val ^ res8) & HF);
+        }
+
+        inline fn addFlags(acc: u8, val: u8, res: u9) u8 {
+            return szyxchFlags(acc, val, res) | ((((val ^ acc ^ 0x80) & (val ^ tu8(res))) >> 5) & VF);
+        }
+
+        inline fn subFlags(acc: u8, val: u8, res: u9) u8 {
+            return NF | szyxchFlags(acc, val, res) | tu8((((val ^ acc) & (res ^ acc)) >> 5) & VF);
+        }
+
+        inline fn cpFlags(acc: u8, val: u8, res: u9) u8 {
+            return NF | szFlags(res) | tu8((val & (YF | XF)) | ((res >> 8) & CF) | ((acc ^ val ^ res) & HF) | ((((val ^ acc) & (res ^ acc)) >> 5) & VF));
+        }
+
+        inline fn szpFlags(val: u8) u8 {
+            return szFlags(val) | (((@popCount(val) << 2) & PF) ^ PF) | (val & (YF | XF));
+        }
+
+        fn add8(self: *Self, val: u8) void {
+            const acc: u9 = self.r[A];
+            const res: u9 = acc +% val;
+            self.r[F] = addFlags(self.r[A], val, res);
+            self.r[A] = @truncate(res);
+        }
+
+        fn adc8(self: *Self, val: u8) void {
+            const acc: u9 = self.r[A];
+            const res: u9 = acc + val + (self.r[F] & CF);
+            self.r[F] = addFlags(acc, val, res);
+            self.r[A] = @truncate(res);
+        }
+
+        fn sub8(self: *Self, val: u8) void {
+            const acc: u9 = self.r[A];
+            const res: u9 = acc -% val;
+            self.r[F] = subFlags(acc, val, res);
+            self.r[A] = @truncate(res);
+        }
+
+        fn sbc8(self: *Self, val: u8) void {
+            const acc: u9 = self.r[A];
+            const res: u9 = acc -% val -% (self.r[F] & CF);
+            self.r[F] = subFlags(acc, val, res);
+            self.r[A] = @truncate(res);
+        }
+
+        fn and8(self: *Self, val: u8) void {
+            self.r[A] &= val;
+            self.r[F] = szpFlags(self.r[A]) | HF;
+        }
+
+        fn xor8(self: *Self, val: u8) void {
+            self.r[A] ^= val;
+            self.r[F] = szpFlags(self.r[A]);
+        }
+
+        fn or8(self: *Self, val: u8) void {
+            self.r[A] |= val;
+            self.r[F] = szpFlags(self.r[A]);
+        }
+
+        fn cp8(self: *Self, val: u8) void {
+            const acc: u9 = self.r[A];
+            const res: u9 = acc -% val;
+            self.r[F] = cpFlags(acc, val, res);
         }
 
         pub fn tick(self: *Self, bus: Bus) Bus {
@@ -128,4 +219,26 @@ test "tick" {
     var cpu = Z80(DefaultPins, u64){};
     const bus = cpu.tick(0);
     try expect(bus == (1 << 24) | (1 << 30));
+}
+
+test "halt" {
+    const HALT = bit(DefaultPins.HALT);
+    var cpu = Z80(DefaultPins, u64){};
+    const bus = cpu.halt(0);
+    try expect(cpu.pc == 0xFFFF);
+    try expect(bus == HALT);
+}
+
+test "szFlags" {
+    const Cpu = Z80(DefaultPins, u64);
+    try expect(Cpu.szFlags(0) == ZF);
+    try expect(Cpu.szFlags(0x40) == 0);
+    try expect(Cpu.szFlags(0x84) == SF);
+}
+
+test "add8" {
+    var cpu = Z80(DefaultPins, u64){};
+    cpu.add8(1);
+    try expect(cpu.r[A] == 0);
+    try expect((cpu.r[F] & ZF) == ZF);
 }
