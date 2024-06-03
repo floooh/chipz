@@ -16,6 +16,11 @@ pub inline fn bit(comptime b: comptime_int) comptime_int {
     return 1 << b;
 }
 
+// test if single bit is set
+pub inline fn tst(comptime bus: comptime_int, comptime b: comptime_int) bool {
+    return 0 != (bus & bit(b));
+}
+
 /// set address bus pins
 pub inline fn setAddr(comptime pins: anytype, bus: anytype, addr: u16) @TypeOf(bus) {
     const Bus = @TypeOf(bus);
