@@ -11,5 +11,5 @@ pub fn main() !void {
     dec.decode(arena.allocator());
     //acc.dump();
     gen.generate();
-    gen.dump();
+    try gen.write(arena.allocator(), "src/chips/z80.zig");
 }
