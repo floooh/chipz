@@ -9,14 +9,12 @@ const TCycle = types.TCycle;
 const MCycle = types.MCycle;
 const Op = types.Op;
 
-var initialized = false;
-
 var actions = BoundedArray(?[]const u8, 1024 * 1024){};
 var tcycles = BoundedArray(TCycle, 256 * 1024){};
 var mcycles = BoundedArray(MCycle, 64 * 1024){};
-var main_ops = [_]Op{.{}} ** 256;
-var ed_ops = [_]Op{.{}} ** 256;
-var cb_ops = [_]Op{.{}} ** 256;
+pub var main_ops = [_]Op{.{}} ** 256;
+pub var ed_ops = [_]Op{.{}} ** 256;
+pub var cb_ops = [_]Op{.{}} ** 256;
 // TODO: Op block for 'special stuff'
 
 // take a slice of actions and duplicate into heap-backed slice (not including the actual string payload!)
@@ -40,25 +38,31 @@ pub fn mc(s: []const MCycle) []MCycle {
     return mcycles.slice()[start..mcycles.len];
 }
 
-pub fn mainOp(opcode: usize, op: Op) void {
-    main_ops[opcode] = op;
+pub fn op(opcode: usize, o: Op) void {
+    main_ops[opcode] = o;
 }
 
 pub fn dump() void {
-    for (main_ops, 0..) |op, opcode| {
-        if (op.mcycles.len > 0) {
-            print("{X} => {s}:\n", .{ opcode, op.dasm });
-            for (op.mcycles) |mcycle| {
-                print("  type: {any}\n", .{mcycle.type});
-                print("  tcycles:\n", .{});
+    for (main_ops, 0..) |o, opcode| {
+        if (o.mcycles.len > 0) {
+            print("{X} => {s}:\n", .{ opcode, o.dasm });
+            for (o.mcycles) |mcycle| {
+                print("  {s}\n", .{mcycle.type.str()});
                 for (mcycle.tcycles, 0..) |tcycle, i| {
-                    print("    {}: ", .{i});
+                    print("    T{}: ", .{i});
+                    if (tcycle.wait) {
+                        print("Wait; ", .{});
+                    }
                     for (tcycle.actions) |action_or_null| {
                         if (action_or_null) |action| {
                             print("{s}; ", .{action});
                         }
                     }
-                    print("\n", .{});
+                    if (tcycle.fetch) {
+                        print("Fetch;\n", .{});
+                    } else {
+                        print("Next;\n", .{});
+                    }
                 }
             }
         }

@@ -1,69 +1,71 @@
 //! op structure declarations
-const mainOp = @import("accumulate.zig").mainOp;
-const formatter = @import("formatter.zig");
-const f = formatter.f;
+const op = @import("accumulate.zig").op;
+const f = @import("formatter.zig").f;
 const types = @import("types.zig");
 const R = types.R;
+const r = types.r;
+const rr = types.rr;
 const ALU = types.ALU;
+const alu = types.alu;
 const mc = @import("accumulate.zig").mc;
 const mcycles = @import("mcycles.zig");
 const mread = mcycles.mread;
-const fetch = mcycles.fetch;
+const overlapped = mcycles.overlapped;
 const mwrite = mcycles.mwrite;
 
-pub fn halt(opcode: u8) void {
-    mainOp(opcode, .{
+pub fn halt(code: u8) void {
+    op(code, .{
         .dasm = "HALT",
         .mcycles = mc(&.{
-            fetch("pins=self.halt(pins)"),
+            overlapped("bus = self.halt(bus)"),
         }),
     });
 }
 
-pub fn @"LD (HL),r"(opcode: u8, z: u3) void {
-    mainOp(opcode, .{
-        .dasm = f("LD (HL),{s}", .{R.strAsmV(z)}),
+pub fn @"LD (HL),r"(code: u8, z: u3) void {
+    op(code, .{
+        .dasm = f("LD (HL),{s}", .{R.dasm(z)}),
         .mcycles = mc(&.{
-            mwrite("self.addr()", R.rrv(z), null),
-            fetch(null),
+            mwrite("self.addr()", rr(z), null),
+            overlapped(null),
         }),
     });
 }
 
-pub fn @"LD r,(HL)"(opcode: u8, y: u3) void {
-    mainOp(opcode, .{
-        .dasm = f("LD {s},(HL)", .{R.strAsmV(y)}),
+pub fn @"LD r,(HL)"(code: u8, y: u3) void {
+    op(code, .{
+        .dasm = f("LD {s},(HL)", .{R.dasm(y)}),
         .mcycles = mc(&.{
-            mread("self.addr()", R.rrv(y), null),
-            fetch(null),
+            mread("self.addr()", rr(y), null),
+            overlapped(null),
         }),
     });
 }
 
-pub fn @"LD r,r"(opcode: u8, y: u3, z: u3) void {
-    mainOp(opcode, .{
-        .dasm = f("LD {s},{s}", .{ R.strAsmV(y), R.strAsmV(z) }),
+pub fn @"LD r,r"(code: u8, y: u3, z: u3) void {
+    op(code, .{
+        .dasm = f("LD {s},{s}", .{ R.dasm(y), R.dasm(z) }),
         .mcycles = mc(&.{
-            fetch(f("{s}={s}", .{ R.rv(y), R.rv(z) })),
+            overlapped(f("{s} = {s}", .{ r(y), r(z) })),
         }),
     });
 }
 
-pub fn @"ALU (HL)"(opcode: u8, y: u3) void {
-    mainOp(opcode, .{
-        .dasm = f("{s} (HL)", .{ALU.strAsmV(y)}),
+pub fn @"ALU (HL)"(code: u8, y: u3) void {
+    op(code, .{
+        .dasm = f("{s} (HL)", .{ALU.dasm(y)}),
         .mcycles = mc(&.{
             mread("self.addr()", "self.dlatch", null),
-            fetch(f("{s}(self.dlatch)", .{ALU.funv(y)})),
+            overlapped(f("{s}(self.dlatch)", .{alu(y)})),
         }),
     });
 }
 
-pub fn @"ALU r"(opcode: u8, y: u3, z: u3) void {
-    mainOp(opcode, .{
-        .dasm = f("{s} {s}", .{ ALU.strAsmV(y), R.strAsmV(z) }),
+pub fn @"ALU r"(code: u8, y: u3, z: u3) void {
+    op(code, .{
+        .dasm = f("{s} {s}", .{ ALU.dasm(y), R.dasm(z) }),
         .mcycles = mc(&.{
-            fetch(f("{s}({s})", .{ ALU.funv(y), R.rv(z) })),
+            overlapped(f("{s}({s})", .{ alu(y), r(z) })),
         }),
     });
 }

@@ -4,6 +4,18 @@ const f = @import("formatter.zig").f;
 pub const TCycle = struct {
     // slice into actions array
     actions: []?[]const u8 = &.{},
+    wait: bool = false, // if true check for wait state
+    fetch: bool = false, // if true, fetch next instruction
+
+    pub fn numValidActions(self: *const TCycle) usize {
+        var num: usize = 0;
+        for (self.actions) |actionOrNull| {
+            if (actionOrNull != null) {
+                num += 1;
+            }
+        }
+        return num;
+    }
 };
 
 // an mcycle is a collection of tcycles
@@ -16,6 +28,10 @@ pub const MCycle = struct {
         Out,
         Generic,
         Overlapped,
+
+        pub fn str(t: Type) []const u8 {
+            return @tagName(t);
+        }
     };
     type: Type = .Invalid,
     // slice into tcycles array
@@ -41,36 +57,30 @@ pub const R = enum(u3) {
     @"(HL)",
     A,
 
-    // emit register access without mapping H and L to IXL/IYL and IXH/IYH
-    pub fn rr(e: R) []const u8 {
-        return f("self.r[{s}]", .{@tagName(e)});
-    }
-
-    // emit register access with mapping H and L to IXL/IYL and IXH/IYH
-    pub fn r(e: R) []const u8 {
-        if ((e == .H) or (e == .L)) {
-            return f("self.r[{s}+self.rixy]", .{@tagName(e)});
-        } else {
-            return rr(e);
+    pub fn asEnum(any: anytype) R {
+        if (@TypeOf(any) != u3 and @TypeOf(any) != R) {
+            @compileError("arg must be of type u3 or R!");
         }
+        return if (@TypeOf(any) == R) any else @enumFromInt(any);
     }
 
-    pub fn rv(v: u3) []const u8 {
-        return r(@enumFromInt(v));
-    }
-
-    pub fn rrv(v: u3) []const u8 {
-        return rr(@enumFromInt(v));
-    }
-
-    pub fn strAsm(e: R) []const u8 {
-        return @tagName(e);
-    }
-
-    pub fn strAsmV(v: u3) []const u8 {
-        return strAsm(@enumFromInt(v));
+    pub fn dasm(any: anytype) []const u8 {
+        return @tagName(asEnum(any));
     }
 };
+
+pub fn r(any: anytype) []const u8 {
+    const e = R.asEnum(any);
+    if ((e == .H) or (e == .L)) {
+        return f("self.r[{s} + self.rixy]", .{@tagName(e)});
+    } else {
+        return f("self.r[{s}]", .{@tagName(e)});
+    }
+}
+
+pub fn rr(any: anytype) []const u8 {
+    return f("self.r[{s}]", .{@tagName(R.asEnum(any))});
+}
 
 pub const RP = enum(u2) {
     BC,
@@ -78,22 +88,21 @@ pub const RP = enum(u2) {
     HL,
     SP,
 
-    pub fn str(e: RP) []const u8 {
-        return @tagName(e);
+    fn asEnum(any: anytype) RP {
+        if (@TypeOf(any) != u2 and @TypeOf(any) != RP) {
+            @compileError("arg must be of type u2 or RP");
+        }
+        return if (@TypeOf(any) == RP) any else @enumFromInt(any);
     }
 
-    pub fn strV(v: u2) []const u8 {
-        return str(@enumFromInt(v));
-    }
-
-    pub fn strAsm(e: RP) []const u8 {
-        return @tagName(e);
-    }
-
-    pub fn strAsmV(v: u2) []const u8 {
-        return strAsm(@enumFromInt(v));
+    pub fn dasm(any: anytype) []const u8 {
+        return @tagName(asEnum(any));
     }
 };
+
+pub fn rp(any: anytype) []const u8 {
+    return @tagName(RP.asEnum(any));
+}
 
 pub const RP2 = enum(u2) {
     BC,
@@ -101,22 +110,21 @@ pub const RP2 = enum(u2) {
     HL,
     AF,
 
-    pub fn str(e: RP) []const u8 {
-        return @tagName(e);
+    fn asEnum(any: anytype) RP2 {
+        if (@TypeOf(any) != u2 and @TypeOf(any) != RP2) {
+            @compileError("arg must be of type u2 or RP2");
+        }
+        return if (@TypeOf(any) == RP2) any else @enumFromInt(any);
     }
 
-    pub fn strV(v: u2) []const u8 {
-        return str(@enumFromInt(v));
-    }
-
-    pub fn strAsm(e: RP) []const u8 {
-        return @tagName(e);
-    }
-
-    pub fn strAsmV(v: u2) []const u8 {
-        return strAsm(@enumFromInt(v));
+    pub fn dasm(any: anytype) []const u8 {
+        return @tagName(asEnum(any));
     }
 };
+
+pub fn rp2(any: anytype) []const u8 {
+    return @tagName(RP2.asEnum(any));
+}
 
 pub const ALU = enum(u3) {
     ADD,
@@ -128,31 +136,30 @@ pub const ALU = enum(u3) {
     OR,
     CP,
 
-    pub fn fun(e: ALU) []const u8 {
-        return switch (e) {
-            .ADD => "self.add8",
-            .ADC => "self.adc8",
-            .SUB => "self.sub8",
-            .SBC => "self.sbc8",
-            .AND => "self.and8",
-            .XOR => "self.xor8",
-            .OR => "self.or8",
-            .CP => "self.cp8",
-        };
+    fn asEnum(any: anytype) ALU {
+        if (@TypeOf(any) != u3 and @TypeOf(any) != ALU) {
+            @compileError("arg must be of type u3 or ALU");
+        }
+        return if (@TypeOf(any) == ALU) any else @enumFromInt(any);
     }
 
-    pub fn funv(v: u3) []const u8 {
-        return fun(@enumFromInt(v));
-    }
-
-    pub fn strAsm(e: ALU) []const u8 {
-        return @tagName(e);
-    }
-
-    pub fn strAsmV(v: u3) []const u8 {
-        return strAsm(@enumFromInt(v));
+    pub fn dasm(any: anytype) []const u8 {
+        return @tagName(asEnum(any));
     }
 };
+
+pub fn alu(any: anytype) []const u8 {
+    return switch (ALU.asEnum(any)) {
+        .ADD => "self.add8",
+        .ADC => "self.adc8",
+        .SUB => "self.sub8",
+        .SBC => "self.sbc8",
+        .AND => "self.and8",
+        .XOR => "self.xor8",
+        .OR => "self.or8",
+        .CP => "self.cp8",
+    };
+}
 
 pub const CC = enum(u3) { NZ, Z, NC, C, PO, PE, P, M };
 pub const ROT = enum(u3) { RLC, RRC, RL, RR, SLA, SRA, SLL, SRL };
