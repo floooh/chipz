@@ -196,8 +196,15 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         }
 
         pub fn tick(self: *Self, bus: Bus) Bus {
-            _ = self;
-            return bus | bit(M1) | bit(HALT);
+            next: {
+                fetch: {
+                    switch (self.step) {
+                        // BEGIN CODEGEN
+                        // END CODEGEN
+                    }
+                }
+            }
+            return bus;
         }
     };
 }
