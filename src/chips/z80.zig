@@ -185,9 +185,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             self.set16(SPL, sp);
         }
 
-        inline fn setAddr(bus: Bus, addr: u16) Bus {
+        pub inline fn setAddr(bus: Bus, addr: u16) Bus {
             const m: Bus = comptime mask(&P.A);
             return (bus & ~m) | (@as(Bus, addr) << P.A[0]);
+        }
+
+        pub inline fn getAddr(bus: Bus) u16 {
+            return @truncate(bus >> P.A[0]);
         }
 
         inline fn setAddrData(bus: Bus, addr: u16, data: u8) Bus {
@@ -195,10 +199,15 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             return (bus & ~m) | (@as(Bus, addr) << P.A[0]) | (@as(Bus, data) << P.D[0]);
         }
 
-        inline fn getData(bus: Bus) u8 {
+        pub inline fn getData(bus: Bus) u8 {
             return @truncate(bus >> P.D[0]);
         }
         const gd = getData;
+
+        pub inline fn setData(bus: Bus, data: u8) Bus {
+            const m: Bus = comptime mask(&P.D);
+            return (bus & ~m) | (@as(Bus, data) << P.D[0]);
+        }
 
         inline fn mrd(bus: Bus, addr: u16) Bus {
             return setAddr(bus, addr) | comptime mask(&.{ MREQ, RD });
@@ -1366,11 +1375,25 @@ test "setAddr" {
     try expect(bus == 0x1234 << 8);
 }
 
+test "getAddr" {
+    const CPU = Z80(DefaultPins, u64);
+    var bus: u64 = 0;
+    bus = CPU.setAddr(bus, 0x1234);
+    try expect(CPU.getAddr(bus) == 0x1234);
+}
+
 test "setAddrData" {
     const CPU = Z80(DefaultPins, u64);
     var bus: u64 = 0;
     bus = CPU.setAddrData(bus, 0x1234, 0x56);
     try expect(bus == 0x123456);
+}
+
+test "setData" {
+    const CPU = Z80(DefaultPins, u64);
+    var bus: u64 = 0;
+    bus = CPU.setData(bus, 0x56);
+    try expect(bus == 0x56);
 }
 
 test "getData" {
