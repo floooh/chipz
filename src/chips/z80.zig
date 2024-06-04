@@ -4,9 +4,6 @@ const bits = @import("bits.zig");
 const tst = bits.tst;
 const bit = bits.bit;
 const mask = bits.mask;
-const getAddr = bits.getAddr;
-const setData = bits.setData;
-const getData = bits.getData;
 
 /// map chip pin names to bit positions
 pub const Pins = struct {
@@ -130,11 +127,16 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             return (bus & ~m) | (@as(Bus, addr) << P.A[0]) | (@as(Bus, data) << P.D[0]);
         }
 
-        inline fn mread(bus: Bus, addr: u16) Bus {
+        inline fn getData(bus: Bus) u8 {
+            return @truncate(bus >> P.D[0]);
+        }
+        const gd = getData;
+
+        inline fn mrd(bus: Bus, addr: u16) Bus {
             return setAddr(bus, addr) | comptime mask(.{ MREQ, RD });
         }
 
-        inline fn mwrite(bus: Bus, addr: u16, data: u8) Bus {
+        inline fn mwr(bus: Bus, addr: u16, data: u8) Bus {
             return setAddrData(bus, addr, data) | comptime mask(.{ MREQ, WR });
         }
 
