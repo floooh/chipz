@@ -1,3 +1,4 @@
+const std = @import("std");
 const bits = @import("../chips/bits.zig");
 const z80 = @import("../chips/z80.zig");
 
@@ -24,4 +25,6 @@ fn tick() void {
     // FIXME: IORQ
 }
 
-pub fn main() void {}
+pub fn main() void {
+    std.debug.print("FIXME!\n", .{});
+}
