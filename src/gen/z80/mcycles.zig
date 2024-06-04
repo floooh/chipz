@@ -4,8 +4,8 @@ const accum = @import("accumulate.zig");
 const ac = accum.ac;
 const tc = accum.tc;
 const actions = @import("actions.zig");
-const mreq_rd = actions.mreq_rd;
-const mreq_wr = actions.mreq_wr;
+const mrd = actions.mrd;
+const mwr = actions.mwr;
 const gd = actions.gd;
 
 pub fn overlapped(action: ?[]const u8) MCycle {
@@ -22,7 +22,7 @@ pub fn mread(abus: []const u8, dst: []const u8, action: ?[]const u8) MCycle {
         .type = .Read,
         .tcycles = tc(&.{
             .{},
-            .{ .wait = true, .actions = ac(&.{mreq_rd(abus)}) },
+            .{ .wait = true, .actions = ac(&.{mrd(abus)}) },
             .{ .actions = ac(&.{ gd(dst), action }) },
         }),
     };
@@ -33,7 +33,7 @@ pub fn mwrite(abus: []const u8, src: []const u8, action: ?[]const u8) MCycle {
         .type = .Write,
         .tcycles = tc(&.{
             .{},
-            .{ .wait = true, .actions = ac(&.{ mreq_wr(abus, src), action }) },
+            .{ .wait = true, .actions = ac(&.{ mwr(abus, src), action }) },
             .{},
         }),
     };

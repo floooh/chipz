@@ -10,6 +10,6 @@ pub fn main() !void {
     defer arena.deinit();
     dec.decode(arena.allocator());
     //acc.dump();
-    gen.generate();
+    try gen.generate();
     try gen.write(arena.allocator(), "src/chips/z80.zig");
 }

@@ -6,16 +6,6 @@ pub const TCycle = struct {
     actions: []?[]const u8 = &.{},
     wait: bool = false, // if true check for wait state
     fetch: bool = false, // if true, fetch next instruction
-
-    pub fn numValidActions(self: *const TCycle) usize {
-        var num: usize = 0;
-        for (self.actions) |actionOrNull| {
-            if (actionOrNull != null) {
-                num += 1;
-            }
-        }
-        return num;
-    }
 };
 
 // an mcycle is a collection of tcycles
