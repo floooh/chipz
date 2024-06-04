@@ -4,7 +4,6 @@ const bits = @import("bits.zig");
 const tst = bits.tst;
 const bit = bits.bit;
 const mask = bits.mask;
-const setAddr = bits.setAddr;
 const getAddr = bits.getAddr;
 const setData = bits.setData;
 const getData = bits.getData;
@@ -78,6 +77,9 @@ pub const ZF = 1 << 6;
 pub const SF = 1 << 7;
 
 pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
+    const MREQ = P.MREQ;
+    const RD = P.RD;
+    const WR = P.WR;
     const HALT = P.HALT;
     const WAIT = P.WAIT;
 
@@ -116,6 +118,28 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         fn halt(self: *Self, bus: Bus) Bus {
             self.pc -%= 1;
             return bus | bit(HALT);
+        }
+
+        inline fn setAddr(bus: Bus, addr: u16) Bus {
+            const m: Bus = comptime mask(&P.A);
+            return (bus & ~m) | (@as(Bus, addr) << P.A[0]);
+        }
+
+        inline fn setAddrData(bus: Bus, addr: u16, data: u8) Bus {
+            const m: Bus = comptime (mask(&P.A) | mask(&P.D));
+            return (bus & ~m) | (@as(Bus, addr) << P.A[0]) | (@as(Bus, data) << P.D[0]);
+        }
+
+        inline fn mread(bus: Bus, addr: u16) Bus {
+            return setAddr(bus, addr) | comptime mask(.{ MREQ, RD });
+        }
+
+        inline fn mwrite(bus: Bus, addr: u16, data: u8) Bus {
+            return setAddrData(bus, addr, data) | comptime mask(.{ MREQ, WR });
+        }
+
+        inline fn wait(bus: Bus) bool {
+            return tst(bus, WAIT);
         }
 
         inline fn trn8(v: anytype) u8 {
