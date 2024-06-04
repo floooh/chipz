@@ -120,7 +120,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
 
         inline fn get16(self: *const Self, comptime lo: comptime_int) u16 {
             // NOTE: this should result in a single 16-bit read
-            return (@as(u16, self.r[lo]) << 8) | self.r[lo + 1];
+            return (@as(u16, self.r[lo + 1]) << 8) | self.r[lo];
         }
 
         inline fn set16(self: *Self, comptime lo: comptime_int, val: u16) void {
@@ -185,11 +185,6 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             self.set16(SPL, sp);
         }
 
-        fn halt(self: *Self, bus: Bus) Bus {
-            self.pc -%= 1;
-            return bus | bit(HALT);
-        }
-
         inline fn setAddr(bus: Bus, addr: u16) Bus {
             const m: Bus = comptime mask(&P.A);
             return (bus & ~m) | (@as(Bus, addr) << P.A[0]);
@@ -244,6 +239,11 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
 
         inline fn szpFlags(val: u8) u8 {
             return szFlags(val) | (((@popCount(val) << 2) & PF) ^ PF) | (val & (YF | XF));
+        }
+
+        fn halt(self: *Self, bus: Bus) Bus {
+            self.pc -%= 1;
+            return bus | bit(HALT);
         }
 
         fn add8(self: *Self, val: u8) void {
@@ -1295,10 +1295,108 @@ test "init" {
     try expect(cpu.af2 == 0xFFFF);
 }
 
+// FIXME FIXME FIXME
 test "tick" {
     var cpu = Z80(DefaultPins, u64){};
+    cpu.step = 0x40;
     const bus = cpu.tick(0);
-    try expect(bus == (1 << 24) | (1 << 30));
+    try expect(bus == 0);
+}
+
+test "bc" {
+    var cpu = Z80(DefaultPins, u64){};
+    cpu.setBC(0x2345);
+    try expect(cpu.r[C] == 0x45);
+    try expect(cpu.r[B] == 0x23);
+    try expect(cpu.BC() == 0x2345);
+}
+
+test "de" {
+    var cpu = Z80(DefaultPins, u64){};
+    cpu.setDE(0x3456);
+    try expect(cpu.r[E] == 0x56);
+    try expect(cpu.r[D] == 0x34);
+    try expect(cpu.DE() == 0x3456);
+}
+
+test "hl" {
+    var cpu = Z80(DefaultPins, u64){};
+    cpu.setHL(0x1234);
+    try expect(cpu.r[L] == 0x34);
+    try expect(cpu.r[H] == 0x12);
+    try expect(cpu.HL() == 0x1234);
+}
+
+test "ix" {
+    var cpu = Z80(DefaultPins, u64){};
+    cpu.setIX(0x4567);
+    try expect(cpu.r[IXL] == 0x67);
+    try expect(cpu.r[IXH] == 0x45);
+    try expect(cpu.IX() == 0x4567);
+}
+
+test "iy" {
+    var cpu = Z80(DefaultPins, u64){};
+    cpu.setIY(0x5678);
+    try expect(cpu.r[IYL] == 0x78);
+    try expect(cpu.r[IYH] == 0x56);
+    try expect(cpu.IY() == 0x5678);
+}
+
+test "wz" {
+    var cpu = Z80(DefaultPins, u64){};
+    cpu.setWZ(0x6789);
+    try expect(cpu.r[WZL] == 0x89);
+    try expect(cpu.r[WZH] == 0x67);
+    try expect(cpu.WZ() == 0x6789);
+}
+
+test "sp" {
+    var cpu = Z80(DefaultPins, u64){};
+    cpu.setSP(0x789A);
+    try expect(cpu.r[SPL] == 0x9A);
+    try expect(cpu.r[SPH] == 0x78);
+    try expect(cpu.SP() == 0x789A);
+}
+
+test "setAddr" {
+    const CPU = Z80(DefaultPins, u64);
+    var bus: u64 = 0;
+    bus = CPU.setAddr(bus, 0x1234);
+    try expect(bus == 0x1234 << 8);
+}
+
+test "setAddrData" {
+    const CPU = Z80(DefaultPins, u64);
+    var bus: u64 = 0;
+    bus = CPU.setAddrData(bus, 0x1234, 0x56);
+    try expect(bus == 0x123456);
+}
+
+test "getData" {
+    const CPU = Z80(DefaultPins, u64);
+    var bus: u64 = 0;
+    bus = CPU.setAddrData(bus, 0x1234, 0x56);
+    try expect(CPU.getData(bus) == 0x56);
+}
+
+test "mrd" {
+    const P = DefaultPins;
+    const CPU = Z80(P, u64);
+    try expect(CPU.mrd(0, 0x1234) == (0x123400 | bit(P.MREQ) | bit(P.RD)));
+}
+
+test "mwr" {
+    const P = DefaultPins;
+    const CPU = Z80(P, u64);
+    try expect(CPU.mwr(0, 0x1234, 0x56) == (0x123456 | bit(P.MREQ) | bit(P.WR)));
+}
+
+test "wait" {
+    const P = DefaultPins;
+    const CPU = Z80(P, u64);
+    try expect(CPU.wait(0) == false);
+    try expect(CPU.wait(bit(P.WAIT)) == true);
 }
 
 test "halt" {
