@@ -201,524 +201,653 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                 fetch: {
                     switch (self.step) {
                         // BEGIN CODEGEN
+                        // LD B,B
                         0x40 => {
                             self.r[B] = self.r[B];
                             break :fetch;
-                        }, // LD B,B
+                        },
+                        // LD B,C
                         0x41 => {
                             self.r[B] = self.r[C];
                             break :fetch;
-                        }, // LD B,C
+                        },
+                        // LD B,D
                         0x42 => {
                             self.r[B] = self.r[D];
                             break :fetch;
-                        }, // LD B,D
+                        },
+                        // LD B,E
                         0x43 => {
                             self.r[B] = self.r[E];
                             break :fetch;
-                        }, // LD B,E
+                        },
+                        // LD B,H
                         0x44 => {
                             self.r[B] = self.r[H + self.rixy];
                             break :fetch;
-                        }, // LD B,H
+                        },
+                        // LD B,L
                         0x45 => {
                             self.r[B] = self.r[L + self.rixy];
                             break :fetch;
-                        }, // LD B,L
+                        },
+                        // LD B,(HL)
                         0x46 => {
                             self.step = 0x300;
                             break :next;
-                        }, // LD B,(HL)
+                        },
+                        // LD B,A
                         0x47 => {
                             self.r[B] = self.r[A];
                             break :fetch;
-                        }, // LD B,A
+                        },
+                        // LD C,B
                         0x48 => {
                             self.r[C] = self.r[B];
                             break :fetch;
-                        }, // LD C,B
+                        },
+                        // LD C,C
                         0x49 => {
                             self.r[C] = self.r[C];
                             break :fetch;
-                        }, // LD C,C
+                        },
+                        // LD C,D
                         0x4A => {
                             self.r[C] = self.r[D];
                             break :fetch;
-                        }, // LD C,D
+                        },
+                        // LD C,E
                         0x4B => {
                             self.r[C] = self.r[E];
                             break :fetch;
-                        }, // LD C,E
+                        },
+                        // LD C,H
                         0x4C => {
                             self.r[C] = self.r[H + self.rixy];
                             break :fetch;
-                        }, // LD C,H
+                        },
+                        // LD C,L
                         0x4D => {
                             self.r[C] = self.r[L + self.rixy];
                             break :fetch;
-                        }, // LD C,L
+                        },
+                        // LD C,(HL)
                         0x4E => {
                             self.step = 0x303;
                             break :next;
-                        }, // LD C,(HL)
+                        },
+                        // LD C,A
                         0x4F => {
                             self.r[C] = self.r[A];
                             break :fetch;
-                        }, // LD C,A
+                        },
+                        // LD D,B
                         0x50 => {
                             self.r[D] = self.r[B];
                             break :fetch;
-                        }, // LD D,B
+                        },
+                        // LD D,C
                         0x51 => {
                             self.r[D] = self.r[C];
                             break :fetch;
-                        }, // LD D,C
+                        },
+                        // LD D,D
                         0x52 => {
                             self.r[D] = self.r[D];
                             break :fetch;
-                        }, // LD D,D
+                        },
+                        // LD D,E
                         0x53 => {
                             self.r[D] = self.r[E];
                             break :fetch;
-                        }, // LD D,E
+                        },
+                        // LD D,H
                         0x54 => {
                             self.r[D] = self.r[H + self.rixy];
                             break :fetch;
-                        }, // LD D,H
+                        },
+                        // LD D,L
                         0x55 => {
                             self.r[D] = self.r[L + self.rixy];
                             break :fetch;
-                        }, // LD D,L
+                        },
+                        // LD D,(HL)
                         0x56 => {
                             self.step = 0x306;
                             break :next;
-                        }, // LD D,(HL)
+                        },
+                        // LD D,A
                         0x57 => {
                             self.r[D] = self.r[A];
                             break :fetch;
-                        }, // LD D,A
+                        },
+                        // LD E,B
                         0x58 => {
                             self.r[E] = self.r[B];
                             break :fetch;
-                        }, // LD E,B
+                        },
+                        // LD E,C
                         0x59 => {
                             self.r[E] = self.r[C];
                             break :fetch;
-                        }, // LD E,C
+                        },
+                        // LD E,D
                         0x5A => {
                             self.r[E] = self.r[D];
                             break :fetch;
-                        }, // LD E,D
+                        },
+                        // LD E,E
                         0x5B => {
                             self.r[E] = self.r[E];
                             break :fetch;
-                        }, // LD E,E
+                        },
+                        // LD E,H
                         0x5C => {
                             self.r[E] = self.r[H + self.rixy];
                             break :fetch;
-                        }, // LD E,H
+                        },
+                        // LD E,L
                         0x5D => {
                             self.r[E] = self.r[L + self.rixy];
                             break :fetch;
-                        }, // LD E,L
+                        },
+                        // LD E,(HL)
                         0x5E => {
                             self.step = 0x309;
                             break :next;
-                        }, // LD E,(HL)
+                        },
+                        // LD E,A
                         0x5F => {
                             self.r[E] = self.r[A];
                             break :fetch;
-                        }, // LD E,A
+                        },
+                        // LD H,B
                         0x60 => {
                             self.r[H + self.rixy] = self.r[B];
                             break :fetch;
-                        }, // LD H,B
+                        },
+                        // LD H,C
                         0x61 => {
                             self.r[H + self.rixy] = self.r[C];
                             break :fetch;
-                        }, // LD H,C
+                        },
+                        // LD H,D
                         0x62 => {
                             self.r[H + self.rixy] = self.r[D];
                             break :fetch;
-                        }, // LD H,D
+                        },
+                        // LD H,E
                         0x63 => {
                             self.r[H + self.rixy] = self.r[E];
                             break :fetch;
-                        }, // LD H,E
+                        },
+                        // LD H,H
                         0x64 => {
                             self.r[H + self.rixy] = self.r[H + self.rixy];
                             break :fetch;
-                        }, // LD H,H
+                        },
+                        // LD H,L
                         0x65 => {
                             self.r[H + self.rixy] = self.r[L + self.rixy];
                             break :fetch;
-                        }, // LD H,L
+                        },
+                        // LD H,(HL)
                         0x66 => {
                             self.step = 0x30C;
                             break :next;
-                        }, // LD H,(HL)
+                        },
+                        // LD H,A
                         0x67 => {
                             self.r[H + self.rixy] = self.r[A];
                             break :fetch;
-                        }, // LD H,A
+                        },
+                        // LD L,B
                         0x68 => {
                             self.r[L + self.rixy] = self.r[B];
                             break :fetch;
-                        }, // LD L,B
+                        },
+                        // LD L,C
                         0x69 => {
                             self.r[L + self.rixy] = self.r[C];
                             break :fetch;
-                        }, // LD L,C
+                        },
+                        // LD L,D
                         0x6A => {
                             self.r[L + self.rixy] = self.r[D];
                             break :fetch;
-                        }, // LD L,D
+                        },
+                        // LD L,E
                         0x6B => {
                             self.r[L + self.rixy] = self.r[E];
                             break :fetch;
-                        }, // LD L,E
+                        },
+                        // LD L,H
                         0x6C => {
                             self.r[L + self.rixy] = self.r[H + self.rixy];
                             break :fetch;
-                        }, // LD L,H
+                        },
+                        // LD L,L
                         0x6D => {
                             self.r[L + self.rixy] = self.r[L + self.rixy];
                             break :fetch;
-                        }, // LD L,L
+                        },
+                        // LD L,(HL)
                         0x6E => {
                             self.step = 0x30F;
                             break :next;
-                        }, // LD L,(HL)
+                        },
+                        // LD L,A
                         0x6F => {
                             self.r[L + self.rixy] = self.r[A];
                             break :fetch;
-                        }, // LD L,A
+                        },
+                        // LD (HL),B
                         0x70 => {
                             self.step = 0x312;
                             break :next;
-                        }, // LD (HL),B
+                        },
+                        // LD (HL),C
                         0x71 => {
                             self.step = 0x315;
                             break :next;
-                        }, // LD (HL),C
+                        },
+                        // LD (HL),D
                         0x72 => {
                             self.step = 0x318;
                             break :next;
-                        }, // LD (HL),D
+                        },
+                        // LD (HL),E
                         0x73 => {
                             self.step = 0x31B;
                             break :next;
-                        }, // LD (HL),E
+                        },
+                        // LD (HL),H
                         0x74 => {
                             self.step = 0x31E;
                             break :next;
-                        }, // LD (HL),H
+                        },
+                        // LD (HL),L
                         0x75 => {
                             self.step = 0x321;
                             break :next;
-                        }, // LD (HL),L
+                        },
+                        // HALT
                         0x76 => {
                             bus = self.halt(bus);
                             break :fetch;
-                        }, // HALT
+                        },
+                        // LD (HL),A
                         0x77 => {
                             self.step = 0x324;
                             break :next;
-                        }, // LD (HL),A
+                        },
+                        // LD A,B
                         0x78 => {
                             self.r[A] = self.r[B];
                             break :fetch;
-                        }, // LD A,B
+                        },
+                        // LD A,C
                         0x79 => {
                             self.r[A] = self.r[C];
                             break :fetch;
-                        }, // LD A,C
+                        },
+                        // LD A,D
                         0x7A => {
                             self.r[A] = self.r[D];
                             break :fetch;
-                        }, // LD A,D
+                        },
+                        // LD A,E
                         0x7B => {
                             self.r[A] = self.r[E];
                             break :fetch;
-                        }, // LD A,E
+                        },
+                        // LD A,H
                         0x7C => {
                             self.r[A] = self.r[H + self.rixy];
                             break :fetch;
-                        }, // LD A,H
+                        },
+                        // LD A,L
                         0x7D => {
                             self.r[A] = self.r[L + self.rixy];
                             break :fetch;
-                        }, // LD A,L
+                        },
+                        // LD A,(HL)
                         0x7E => {
                             self.step = 0x327;
                             break :next;
-                        }, // LD A,(HL)
+                        },
+                        // LD A,A
                         0x7F => {
                             self.r[A] = self.r[A];
                             break :fetch;
-                        }, // LD A,A
+                        },
+                        // ADD B
                         0x80 => {
                             self.add8(self.r[B]);
                             break :fetch;
-                        }, // ADD B
+                        },
+                        // ADD C
                         0x81 => {
                             self.add8(self.r[C]);
                             break :fetch;
-                        }, // ADD C
+                        },
+                        // ADD D
                         0x82 => {
                             self.add8(self.r[D]);
                             break :fetch;
-                        }, // ADD D
+                        },
+                        // ADD E
                         0x83 => {
                             self.add8(self.r[E]);
                             break :fetch;
-                        }, // ADD E
+                        },
+                        // ADD H
                         0x84 => {
                             self.add8(self.r[H + self.rixy]);
                             break :fetch;
-                        }, // ADD H
+                        },
+                        // ADD L
                         0x85 => {
                             self.add8(self.r[L + self.rixy]);
                             break :fetch;
-                        }, // ADD L
+                        },
+                        // ADD (HL)
                         0x86 => {
                             self.step = 0x32A;
                             break :next;
-                        }, // ADD (HL)
+                        },
+                        // ADD A
                         0x87 => {
                             self.add8(self.r[A]);
                             break :fetch;
-                        }, // ADD A
+                        },
+                        // ADC B
                         0x88 => {
                             self.adc8(self.r[B]);
                             break :fetch;
-                        }, // ADC B
+                        },
+                        // ADC C
                         0x89 => {
                             self.adc8(self.r[C]);
                             break :fetch;
-                        }, // ADC C
+                        },
+                        // ADC D
                         0x8A => {
                             self.adc8(self.r[D]);
                             break :fetch;
-                        }, // ADC D
+                        },
+                        // ADC E
                         0x8B => {
                             self.adc8(self.r[E]);
                             break :fetch;
-                        }, // ADC E
+                        },
+                        // ADC H
                         0x8C => {
                             self.adc8(self.r[H + self.rixy]);
                             break :fetch;
-                        }, // ADC H
+                        },
+                        // ADC L
                         0x8D => {
                             self.adc8(self.r[L + self.rixy]);
                             break :fetch;
-                        }, // ADC L
+                        },
+                        // ADC (HL)
                         0x8E => {
                             self.step = 0x32D;
                             break :next;
-                        }, // ADC (HL)
+                        },
+                        // ADC A
                         0x8F => {
                             self.adc8(self.r[A]);
                             break :fetch;
-                        }, // ADC A
+                        },
+                        // SUB B
                         0x90 => {
                             self.sub8(self.r[B]);
                             break :fetch;
-                        }, // SUB B
+                        },
+                        // SUB C
                         0x91 => {
                             self.sub8(self.r[C]);
                             break :fetch;
-                        }, // SUB C
+                        },
+                        // SUB D
                         0x92 => {
                             self.sub8(self.r[D]);
                             break :fetch;
-                        }, // SUB D
+                        },
+                        // SUB E
                         0x93 => {
                             self.sub8(self.r[E]);
                             break :fetch;
-                        }, // SUB E
+                        },
+                        // SUB H
                         0x94 => {
                             self.sub8(self.r[H + self.rixy]);
                             break :fetch;
-                        }, // SUB H
+                        },
+                        // SUB L
                         0x95 => {
                             self.sub8(self.r[L + self.rixy]);
                             break :fetch;
-                        }, // SUB L
+                        },
+                        // SUB (HL)
                         0x96 => {
                             self.step = 0x330;
                             break :next;
-                        }, // SUB (HL)
+                        },
+                        // SUB A
                         0x97 => {
                             self.sub8(self.r[A]);
                             break :fetch;
-                        }, // SUB A
+                        },
+                        // SBC B
                         0x98 => {
                             self.sbc8(self.r[B]);
                             break :fetch;
-                        }, // SBC B
+                        },
+                        // SBC C
                         0x99 => {
                             self.sbc8(self.r[C]);
                             break :fetch;
-                        }, // SBC C
+                        },
+                        // SBC D
                         0x9A => {
                             self.sbc8(self.r[D]);
                             break :fetch;
-                        }, // SBC D
+                        },
+                        // SBC E
                         0x9B => {
                             self.sbc8(self.r[E]);
                             break :fetch;
-                        }, // SBC E
+                        },
+                        // SBC H
                         0x9C => {
                             self.sbc8(self.r[H + self.rixy]);
                             break :fetch;
-                        }, // SBC H
+                        },
+                        // SBC L
                         0x9D => {
                             self.sbc8(self.r[L + self.rixy]);
                             break :fetch;
-                        }, // SBC L
+                        },
+                        // SBC (HL)
                         0x9E => {
                             self.step = 0x333;
                             break :next;
-                        }, // SBC (HL)
+                        },
+                        // SBC A
                         0x9F => {
                             self.sbc8(self.r[A]);
                             break :fetch;
-                        }, // SBC A
+                        },
+                        // AND B
                         0xA0 => {
                             self.and8(self.r[B]);
                             break :fetch;
-                        }, // AND B
+                        },
+                        // AND C
                         0xA1 => {
                             self.and8(self.r[C]);
                             break :fetch;
-                        }, // AND C
+                        },
+                        // AND D
                         0xA2 => {
                             self.and8(self.r[D]);
                             break :fetch;
-                        }, // AND D
+                        },
+                        // AND E
                         0xA3 => {
                             self.and8(self.r[E]);
                             break :fetch;
-                        }, // AND E
+                        },
+                        // AND H
                         0xA4 => {
                             self.and8(self.r[H + self.rixy]);
                             break :fetch;
-                        }, // AND H
+                        },
+                        // AND L
                         0xA5 => {
                             self.and8(self.r[L + self.rixy]);
                             break :fetch;
-                        }, // AND L
+                        },
+                        // AND (HL)
                         0xA6 => {
                             self.step = 0x336;
                             break :next;
-                        }, // AND (HL)
+                        },
+                        // AND A
                         0xA7 => {
                             self.and8(self.r[A]);
                             break :fetch;
-                        }, // AND A
+                        },
+                        // XOR B
                         0xA8 => {
                             self.xor8(self.r[B]);
                             break :fetch;
-                        }, // XOR B
+                        },
+                        // XOR C
                         0xA9 => {
                             self.xor8(self.r[C]);
                             break :fetch;
-                        }, // XOR C
+                        },
+                        // XOR D
                         0xAA => {
                             self.xor8(self.r[D]);
                             break :fetch;
-                        }, // XOR D
+                        },
+                        // XOR E
                         0xAB => {
                             self.xor8(self.r[E]);
                             break :fetch;
-                        }, // XOR E
+                        },
+                        // XOR H
                         0xAC => {
                             self.xor8(self.r[H + self.rixy]);
                             break :fetch;
-                        }, // XOR H
+                        },
+                        // XOR L
                         0xAD => {
                             self.xor8(self.r[L + self.rixy]);
                             break :fetch;
-                        }, // XOR L
+                        },
+                        // XOR (HL)
                         0xAE => {
                             self.step = 0x339;
                             break :next;
-                        }, // XOR (HL)
+                        },
+                        // XOR A
                         0xAF => {
                             self.xor8(self.r[A]);
                             break :fetch;
-                        }, // XOR A
+                        },
+                        // OR B
                         0xB0 => {
                             self.or8(self.r[B]);
                             break :fetch;
-                        }, // OR B
+                        },
+                        // OR C
                         0xB1 => {
                             self.or8(self.r[C]);
                             break :fetch;
-                        }, // OR C
+                        },
+                        // OR D
                         0xB2 => {
                             self.or8(self.r[D]);
                             break :fetch;
-                        }, // OR D
+                        },
+                        // OR E
                         0xB3 => {
                             self.or8(self.r[E]);
                             break :fetch;
-                        }, // OR E
+                        },
+                        // OR H
                         0xB4 => {
                             self.or8(self.r[H + self.rixy]);
                             break :fetch;
-                        }, // OR H
+                        },
+                        // OR L
                         0xB5 => {
                             self.or8(self.r[L + self.rixy]);
                             break :fetch;
-                        }, // OR L
+                        },
+                        // OR (HL)
                         0xB6 => {
                             self.step = 0x33C;
                             break :next;
-                        }, // OR (HL)
+                        },
+                        // OR A
                         0xB7 => {
                             self.or8(self.r[A]);
                             break :fetch;
-                        }, // OR A
+                        },
+                        // CP B
                         0xB8 => {
                             self.cp8(self.r[B]);
                             break :fetch;
-                        }, // CP B
+                        },
+                        // CP C
                         0xB9 => {
                             self.cp8(self.r[C]);
                             break :fetch;
-                        }, // CP C
+                        },
+                        // CP D
                         0xBA => {
                             self.cp8(self.r[D]);
                             break :fetch;
-                        }, // CP D
+                        },
+                        // CP E
                         0xBB => {
                             self.cp8(self.r[E]);
                             break :fetch;
-                        }, // CP E
+                        },
+                        // CP H
                         0xBC => {
                             self.cp8(self.r[H + self.rixy]);
                             break :fetch;
-                        }, // CP H
+                        },
+                        // CP L
                         0xBD => {
                             self.cp8(self.r[L + self.rixy]);
                             break :fetch;
-                        }, // CP L
+                        },
+                        // CP (HL)
                         0xBE => {
                             self.step = 0x33F;
                             break :next;
-                        }, // CP (HL)
+                        },
+                        // CP A
                         0xBF => {
                             self.cp8(self.r[A]);
                             break :fetch;
-                        }, // CP A
+                        },
+                        // LD B,(HL) (contined...)
                         0x300 => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mread(bus, self.addr());
                             self.step = 0x301;
                             break :next;
-                        }, // LD B,(HL) (cont...)
+                        },
                         0x301 => {
                             self.r[B] = gd(bus);
                             self.step = 0x302;
@@ -727,12 +856,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         0x302 => {
                             break :fetch;
                         },
+                        // LD C,(HL) (contined...)
                         0x303 => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mread(bus, self.addr());
                             self.step = 0x304;
                             break :next;
-                        }, // LD C,(HL) (cont...)
+                        },
                         0x304 => {
                             self.r[C] = gd(bus);
                             self.step = 0x305;
@@ -741,12 +871,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         0x305 => {
                             break :fetch;
                         },
+                        // LD D,(HL) (contined...)
                         0x306 => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mread(bus, self.addr());
                             self.step = 0x307;
                             break :next;
-                        }, // LD D,(HL) (cont...)
+                        },
                         0x307 => {
                             self.r[D] = gd(bus);
                             self.step = 0x308;
@@ -755,12 +886,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         0x308 => {
                             break :fetch;
                         },
+                        // LD E,(HL) (contined...)
                         0x309 => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mread(bus, self.addr());
                             self.step = 0x30A;
                             break :next;
-                        }, // LD E,(HL) (cont...)
+                        },
                         0x30A => {
                             self.r[E] = gd(bus);
                             self.step = 0x30B;
@@ -769,12 +901,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         0x30B => {
                             break :fetch;
                         },
+                        // LD H,(HL) (contined...)
                         0x30C => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mread(bus, self.addr());
                             self.step = 0x30D;
                             break :next;
-                        }, // LD H,(HL) (cont...)
+                        },
                         0x30D => {
                             self.r[H] = gd(bus);
                             self.step = 0x30E;
@@ -783,12 +916,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         0x30E => {
                             break :fetch;
                         },
+                        // LD L,(HL) (contined...)
                         0x30F => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mread(bus, self.addr());
                             self.step = 0x310;
                             break :next;
-                        }, // LD L,(HL) (cont...)
+                        },
                         0x310 => {
                             self.r[L] = gd(bus);
                             self.step = 0x311;
@@ -797,12 +931,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         0x311 => {
                             break :fetch;
                         },
+                        // LD (HL),B (contined...)
                         0x312 => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mwrite(bus, self.addr(), self.r[B]);
                             self.step = 0x313;
                             break :next;
-                        }, // LD (HL),B (cont...)
+                        },
                         0x313 => {
                             self.step = 0x314;
                             break :next;
@@ -810,12 +945,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         0x314 => {
                             break :fetch;
                         },
+                        // LD (HL),C (contined...)
                         0x315 => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mwrite(bus, self.addr(), self.r[C]);
                             self.step = 0x316;
                             break :next;
-                        }, // LD (HL),C (cont...)
+                        },
                         0x316 => {
                             self.step = 0x317;
                             break :next;
@@ -823,12 +959,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         0x317 => {
                             break :fetch;
                         },
+                        // LD (HL),D (contined...)
                         0x318 => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mwrite(bus, self.addr(), self.r[D]);
                             self.step = 0x319;
                             break :next;
-                        }, // LD (HL),D (cont...)
+                        },
                         0x319 => {
                             self.step = 0x31A;
                             break :next;
@@ -836,12 +973,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         0x31A => {
                             break :fetch;
                         },
+                        // LD (HL),E (contined...)
                         0x31B => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mwrite(bus, self.addr(), self.r[E]);
                             self.step = 0x31C;
                             break :next;
-                        }, // LD (HL),E (cont...)
+                        },
                         0x31C => {
                             self.step = 0x31D;
                             break :next;
@@ -849,12 +987,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         0x31D => {
                             break :fetch;
                         },
+                        // LD (HL),H (contined...)
                         0x31E => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mwrite(bus, self.addr(), self.r[H]);
                             self.step = 0x31F;
                             break :next;
-                        }, // LD (HL),H (cont...)
+                        },
                         0x31F => {
                             self.step = 0x320;
                             break :next;
@@ -862,12 +1001,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         0x320 => {
                             break :fetch;
                         },
+                        // LD (HL),L (contined...)
                         0x321 => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mwrite(bus, self.addr(), self.r[L]);
                             self.step = 0x322;
                             break :next;
-                        }, // LD (HL),L (cont...)
+                        },
                         0x322 => {
                             self.step = 0x323;
                             break :next;
@@ -875,12 +1015,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         0x323 => {
                             break :fetch;
                         },
+                        // LD (HL),A (contined...)
                         0x324 => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mwrite(bus, self.addr(), self.r[A]);
                             self.step = 0x325;
                             break :next;
-                        }, // LD (HL),A (cont...)
+                        },
                         0x325 => {
                             self.step = 0x326;
                             break :next;
@@ -888,12 +1029,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         0x326 => {
                             break :fetch;
                         },
+                        // LD A,(HL) (contined...)
                         0x327 => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mread(bus, self.addr());
                             self.step = 0x328;
                             break :next;
-                        }, // LD A,(HL) (cont...)
+                        },
                         0x328 => {
                             self.r[A] = gd(bus);
                             self.step = 0x329;
@@ -902,12 +1044,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         0x329 => {
                             break :fetch;
                         },
+                        // ADD (HL) (contined...)
                         0x32A => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mread(bus, self.addr());
                             self.step = 0x32B;
                             break :next;
-                        }, // ADD (HL) (cont...)
+                        },
                         0x32B => {
                             self.dlatch = gd(bus);
                             self.step = 0x32C;
@@ -917,12 +1060,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                             self.add8(self.dlatch);
                             break :fetch;
                         },
+                        // ADC (HL) (contined...)
                         0x32D => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mread(bus, self.addr());
                             self.step = 0x32E;
                             break :next;
-                        }, // ADC (HL) (cont...)
+                        },
                         0x32E => {
                             self.dlatch = gd(bus);
                             self.step = 0x32F;
@@ -932,12 +1076,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                             self.adc8(self.dlatch);
                             break :fetch;
                         },
+                        // SUB (HL) (contined...)
                         0x330 => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mread(bus, self.addr());
                             self.step = 0x331;
                             break :next;
-                        }, // SUB (HL) (cont...)
+                        },
                         0x331 => {
                             self.dlatch = gd(bus);
                             self.step = 0x332;
@@ -947,12 +1092,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                             self.sub8(self.dlatch);
                             break :fetch;
                         },
+                        // SBC (HL) (contined...)
                         0x333 => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mread(bus, self.addr());
                             self.step = 0x334;
                             break :next;
-                        }, // SBC (HL) (cont...)
+                        },
                         0x334 => {
                             self.dlatch = gd(bus);
                             self.step = 0x335;
@@ -962,12 +1108,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                             self.sbc8(self.dlatch);
                             break :fetch;
                         },
+                        // AND (HL) (contined...)
                         0x336 => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mread(bus, self.addr());
                             self.step = 0x337;
                             break :next;
-                        }, // AND (HL) (cont...)
+                        },
                         0x337 => {
                             self.dlatch = gd(bus);
                             self.step = 0x338;
@@ -977,12 +1124,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                             self.and8(self.dlatch);
                             break :fetch;
                         },
+                        // XOR (HL) (contined...)
                         0x339 => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mread(bus, self.addr());
                             self.step = 0x33A;
                             break :next;
-                        }, // XOR (HL) (cont...)
+                        },
                         0x33A => {
                             self.dlatch = gd(bus);
                             self.step = 0x33B;
@@ -992,12 +1140,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                             self.xor8(self.dlatch);
                             break :fetch;
                         },
+                        // OR (HL) (contined...)
                         0x33C => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mread(bus, self.addr());
                             self.step = 0x33D;
                             break :next;
-                        }, // OR (HL) (cont...)
+                        },
                         0x33D => {
                             self.dlatch = gd(bus);
                             self.step = 0x33E;
@@ -1007,12 +1156,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                             self.or8(self.dlatch);
                             break :fetch;
                         },
+                        // CP (HL) (contined...)
                         0x33F => {
                             if (tst(bus, WAIT)) break :next;
                             bus = mread(bus, self.addr());
                             self.step = 0x340;
                             break :next;
-                        }, // CP (HL) (cont...)
+                        },
                         0x340 => {
                             self.dlatch = gd(bus);
                             self.step = 0x341;
