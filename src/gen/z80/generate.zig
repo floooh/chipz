@@ -82,7 +82,9 @@ fn addLine(file: fs.File, line: []const u8) !void {
 pub fn write(allocator: Allocator, path: []const u8) !void {
     const max_size = 5 * 1024 * 1024;
     const src = try fs.cwd().readFileAlloc(allocator, path, max_size);
-    const dst = try fs.cwd().openFile(path, .{ .mode = .write_only, .lock = .exclusive });
+    const dst = try fs.cwd().createFile(path, .{ .truncate = true, .lock = .exclusive });
+    defer dst.close();
+
     var in_replace = false;
     var skip = false;
     var it = mem.splitScalar(u8, src, '\n');
