@@ -118,6 +118,73 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             self.step = 0;
         }
 
+        inline fn get16(self: *const Self, comptime lo: comptime_int) u16 {
+            // NOTE: this should result in a single 16-bit read
+            return (@as(u16, self.r[lo]) << 8) | self.r[lo + 1];
+        }
+
+        inline fn set16(self: *Self, comptime lo: comptime_int, val: u16) void {
+            // NOTE: this should result in a single 16-bit write
+            self.r[lo] = @truncate(val);
+            self.r[lo + 1] = @truncate(val >> 8);
+        }
+
+        pub inline fn BC(self: *const Self) u16 {
+            return self.get16(C);
+        }
+
+        pub inline fn setBC(self: *Self, bc: u16) void {
+            self.set16(C, bc);
+        }
+
+        pub inline fn DE(self: *const Self) u16 {
+            return self.get16(E);
+        }
+
+        pub inline fn setDE(self: *Self, de: u16) void {
+            self.set16(E, de);
+        }
+
+        pub inline fn HL(self: *const Self) u16 {
+            return self.get16(L);
+        }
+
+        pub inline fn setHL(self: *Self, hl: u16) void {
+            self.set16(L, hl);
+        }
+
+        pub inline fn IX(self: *const Self) u16 {
+            return self.get16(IXL);
+        }
+
+        pub inline fn setIX(self: *Self, ix: u16) void {
+            self.set16(IXL, ix);
+        }
+
+        pub inline fn IY(self: *const Self) u16 {
+            return self.get16(IYL);
+        }
+
+        pub inline fn setIY(self: *Self, iy: u16) void {
+            self.set16(IYL, iy);
+        }
+
+        pub inline fn WZ(self: *const Self) u16 {
+            return self.get16(WZL);
+        }
+
+        pub inline fn setWZ(self: *Self, wz: u16) void {
+            self.set16(WZL, wz);
+        }
+
+        pub inline fn SP(self: *const Self) u16 {
+            return self.get16(SPL);
+        }
+
+        pub inline fn setSP(self: *Self, sp: u16) void {
+            self.set16(SPL, sp);
+        }
+
         fn halt(self: *Self, bus: Bus) Bus {
             self.pc -%= 1;
             return bus | bit(HALT);
