@@ -73,10 +73,28 @@ fn gen_tcycle(opcode_step_index: usize, op: Op, tcycle: TCycle, tcount: usize) !
     try lines.append("},");
 }
 
-fn addLine(file: fs.File, line: []const u8) !void {
-    try file.writeAll("    " ** 6);
+fn addLine(file: fs.File, prefix: []const u8, line: []const u8) !void {
+    try file.writeAll(prefix);
     try file.writeAll(line);
     try file.writeAll("\n");
+}
+
+const BeginEndState = struct {
+    inside: bool,
+    skip: bool,
+};
+
+fn checkBeginEnd(line: []const u8, file: fs.File, comptime key: []const u8, cur_state: BeginEndState) !BeginEndState {
+    const trimmed = mem.trim(u8, line, " \t");
+    if (mem.eql(u8, trimmed, "// BEGIN " ++ key)) {
+        try file.writeAll(line);
+        try file.writeAll("\n");
+        return .{ .inside = true, .skip = false };
+    }
+    if (mem.eql(u8, trimmed, "// END " ++ key)) {
+        return .{ .inside = false, .skip = cur_state.skip };
+    }
+    return cur_state;
 }
 
 pub fn write(allocator: Allocator, path: []const u8) !void {
@@ -85,30 +103,32 @@ pub fn write(allocator: Allocator, path: []const u8) !void {
     const dst = try fs.cwd().createFile(path, .{ .truncate = true, .lock = .exclusive });
     defer dst.close();
 
-    var in_replace = false;
-    var skip = false;
+    var decode = BeginEndState{ .inside = false, .skip = false };
+    var consts = BeginEndState{ .inside = false, .skip = false };
     var it = mem.splitScalar(u8, src, '\n');
+    const decode_prefix = "    " ** 6;
+    const consts_prefix = "    " ** 2;
+    const m1_t1 = extra_step_index;
     while (it.next()) |src_line| {
-        const trimmed = mem.trim(u8, src_line, " \t");
-        if (mem.eql(u8, trimmed, "// BEGIN CODEGEN")) {
-            in_replace = true;
-            skip = false;
-            try dst.writeAll(src_line);
-            try dst.writeAll("\n");
-        }
-        if (mem.eql(u8, trimmed, "// END CODEGEN")) {
-            in_replace = false;
-        }
-        if (in_replace) {
-            if (!skip) {
+        decode = try checkBeginEnd(src_line, dst, "DECODE", decode);
+        consts = try checkBeginEnd(src_line, dst, "CONSTS", consts);
+        if (decode.inside) {
+            if (!decode.skip) {
                 for (op_lines.slice()) |line| {
-                    try addLine(dst, line);
+                    try addLine(dst, decode_prefix, line);
                 }
                 for (extra_lines.slice()) |line| {
-                    try addLine(dst, line);
+                    try addLine(dst, decode_prefix, line);
                 }
-                skip = true;
+                decode.skip = true;
             }
+        } else if (consts.inside) {
+            if (!consts.skip) {
+                try addLine(dst, consts_prefix, f("const M1_T2: u16 = 0x{X};", .{m1_t1}));
+                try addLine(dst, consts_prefix, f("const M1_T3: u16 = 0x{X};", .{m1_t1 + 1}));
+                try addLine(dst, consts_prefix, f("const M1_T4: u16 = 0x{X};", .{m1_t1 + 2}));
+            }
+            consts.skip = true;
         } else {
             // outside replace block, write current line to dst
             try dst.writeAll(src_line);

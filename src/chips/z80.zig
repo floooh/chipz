@@ -306,11 +306,11 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             self.r[F] = cpFlags(acc, val, res);
         }
 
-        // BEGIN CONSTANTS
-        const M1_T2 = 1024;
-        const M1_T3 = M1_T2 + 1;
-        const M1_T4 = M1_T3 + 1;
-        // END CONSTANTS
+        // BEGIN CONSTS
+        const M1_T2: u16 = 0x342;
+        const M1_T3: u16 = 0x343;
+        const M1_T4: u16 = 0x344;
+        // END CONSTS
 
         pub fn tick(self: *Self, in_bus: Bus) Bus {
             var bus = in_bus;
