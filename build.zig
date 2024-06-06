@@ -3,16 +3,22 @@ const Build = std.Build;
 const ResolvedTarget = Build.ResolvedTarget;
 const OptimizeMode = std.builtin.OptimizeMode;
 const Step = Build.Step;
+const Module = Build.Module;
 
 pub fn build(b: *Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const chips = b.addModule("chips", .{
+        .root_source_file = b.path("src/chips/chips.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
     buildZ80gen(b, target, optimize);
-    buildZ80test(b, target, optimize);
+    buildZ80test(b, target, optimize, chips);
     buildTests(b, target, optimize);
 }
 
-fn buildZ80gen(b: *std.Build, target: ResolvedTarget, optimize: OptimizeMode) void {
+fn buildZ80gen(b: *Build, target: ResolvedTarget, optimize: OptimizeMode) void {
     const z80gen = b.addExecutable(.{
         .name = "z80gen",
         .root_source_file = b.path("src/gen/z80/main.zig"),
@@ -26,13 +32,14 @@ fn buildZ80gen(b: *std.Build, target: ResolvedTarget, optimize: OptimizeMode) vo
     b.step("run-z80gen", "Run the Z80 code generator").dependOn(&run_z80gen.step);
 }
 
-fn buildZ80test(b: *std.Build, target: ResolvedTarget, optimize: OptimizeMode) void {
+fn buildZ80test(b: *Build, target: ResolvedTarget, optimize: OptimizeMode, chips: *Module) void {
     const z80test = b.addExecutable(.{
         .name = "z80test",
         .root_source_file = b.path("src/test/z80test.zig"),
         .target = target,
         .optimize = optimize,
     });
+    z80test.root_module.addImport("chips", chips);
     b.installArtifact(z80test);
 
     const run_z80test = b.addRunArtifact(z80test);
@@ -40,7 +47,7 @@ fn buildZ80test(b: *std.Build, target: ResolvedTarget, optimize: OptimizeMode) v
     b.step("run-z80test", "Run Z80 instruction test").dependOn(&run_z80test.step);
 }
 
-fn buildTests(b: *std.Build, target: ResolvedTarget, optimize: OptimizeMode) void {
+fn buildTests(b: *Build, target: ResolvedTarget, optimize: OptimizeMode) void {
     const tests = b.addTest(.{
         .root_source_file = b.path("src/tests.zig"),
         .target = target,

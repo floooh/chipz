@@ -3,6 +3,7 @@ const bits = @import("bits.zig");
 const tst = bits.tst;
 const bit = bits.bit;
 const mask = bits.mask;
+const clr = bits.clr;
 
 /// map chip pin names to bit positions
 pub const Pins = struct {
@@ -75,6 +76,7 @@ pub const SF = 1 << 7;
 pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
     const M1 = P.M1;
     const MREQ = P.MREQ;
+    const IORQ = P.IORQ;
     const RD = P.RD;
     const WR = P.WR;
     const HALT = P.HALT;
@@ -339,23 +341,21 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         // END CONSTS
 
         pub fn tick(self: *Self, in_bus: Bus) Bus {
-            var bus = in_bus;
+            var bus = clr(in_bus, &.{ M1, MREQ, IORQ, RD, WR, RFSH });
             next: {
                 switch (self.step) {
                     // fetch machine cycle
                     M1_T2 => {
                         if (wait(bus)) break :next;
                         self.opcode = gd(bus);
-                        self.step = M1_T2;
+                        self.step = M1_T3;
                         break :next;
                     },
-                    // M1/T2
                     M1_T3 => {
                         bus = self.refresh(bus);
-                        self.step = M1_T2;
+                        self.step = M1_T4;
                         break :next;
                     },
-                    // M1/T3
                     M1_T4 => {
                         self.step = self.opcode;
                         break :next;

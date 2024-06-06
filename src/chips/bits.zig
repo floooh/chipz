@@ -21,6 +21,11 @@ pub inline fn tst(bus: anytype, comptime b: comptime_int) bool {
     return 0 != (bus & comptime bit(b));
 }
 
+pub inline fn clr(bus: anytype, comptime bits: []const comptime_int) @TypeOf(bus) {
+    const m: @TypeOf(bus) = mask(bits);
+    return bus & ~m;
+}
+
 //==============================================================================
 // ████████ ███████ ███████ ████████ ███████
 //    ██    ██      ██         ██    ██
