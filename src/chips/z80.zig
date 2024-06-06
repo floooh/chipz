@@ -87,10 +87,12 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         step: u16 = 0,
         // program counter
         pc: u16 = 0,
-        // index to add to H,L to reach H/L, IXH/IXL, IYH/IYL
-        rixy: u8 = 0,
         // latch for data bus content
         dlatch: u8 = 0,
+        // current opcode
+        opcode: u8 = 0,
+        // index to add to H,L to reach H/L, IXH/IXL, IYH/IYL
+        rixy: u8 = 0,
         // effective address: HL, IX+d, IY+d
         addr: u16 = 0,
         // 8/16 bit register bank
@@ -304,12 +306,33 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             self.r[F] = cpFlags(acc, val, res);
         }
 
+        // BEGIN CONSTANTS
+        const M1_T2 = 1024;
+        const M1_T3 = M1_T2 + 1;
+        const M1_T4 = M1_T3 + 1;
+        // END CONSTANTS
+
         pub fn tick(self: *Self, in_bus: Bus) Bus {
             var bus = in_bus;
             next: {
                 fetch: {
                     switch (self.step) {
-                        // BEGIN CODEGEN
+                        // fetch machine cycle
+                        M1_T2 => {
+                            if (wait(bus)) break :next;
+                            self.opcode = gd(bus);
+                            self.step = M1_T2;
+                        },
+                        // M1/T2
+                        M1_T3 => {
+                            bus = self.refresh(bus);
+                            self.step = M1_T2;
+                        },
+                        // M1/T3
+                        M1_T4 => {
+                            self.step = self.opcode;
+                        },
+                        // BEGIN DECODE
                         // LD B,B
                         0x40 => {
                             self.r[B] = self.r[B];
@@ -1281,7 +1304,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                             self.cp8(self.dlatch);
                             break :fetch;
                         },
-                        // END CODEGEN
+                        // END DECODE
                         else => unreachable,
                     }
                 }
