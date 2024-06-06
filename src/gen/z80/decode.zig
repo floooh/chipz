@@ -16,11 +16,16 @@ fn decodeMain() void {
         const y: u3 = @truncate((i >> 3) & 7);
         const z: u3 = @truncate(i & 7);
         switch (x) {
-            0 => {
-                // quadrant 0
+            // quadrant 0
+            0 => switch (z) {
+                0 => switch (y) {
+                    0 => ops.nop(op),
+                    else => {},
+                },
+                else => {},
             },
+            // quadrant 1: 8-bit loads
             1 => {
-                // quadrant 1: 8-bit loads
                 if ((y == 6) and (z == 6)) {
                     ops.halt(op);
                 } else if (y == 6) {
@@ -31,17 +36,16 @@ fn decodeMain() void {
                     ops.@"LD r,r"(op, y, z);
                 }
             },
+            // quadrant 2: 8-bit ALU instructions
             2 => {
-                // quadrant 2: 8-bit ALU instructions
                 if (z == 6) {
                     ops.@"ALU (HL)"(op, y);
                 } else {
                     ops.@"ALU r"(op, y, z);
                 }
             },
-            3 => {
-                // quadrant 3
-            },
+            // quadrant 3
+            3 => {},
         }
     }
 }

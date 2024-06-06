@@ -13,6 +13,15 @@ const mread = mcycles.mread;
 const overlapped = mcycles.overlapped;
 const mwrite = mcycles.mwrite;
 
+pub fn nop(code: u8) void {
+    op(code, .{
+        .dasm = "NOP",
+        .mcycles = mc(&.{
+            overlapped(null),
+        }),
+    });
+}
+
 pub fn halt(code: u8) void {
     op(code, .{
         .dasm = "HALT",

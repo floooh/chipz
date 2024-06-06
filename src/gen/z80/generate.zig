@@ -64,9 +64,7 @@ fn gen_tcycle(opcode_step_index: usize, op: Op, tcycle: TCycle, tcount: usize) !
             try lines.append(f("    {s};", .{action}));
         }
     }
-    if (tcycle.fetch) {
-        try lines.append("    break :fetch;");
-    } else {
+    if (!tcycle.fetch) {
         try lines.append(f("    self.step = 0x{X};", .{next_step_index}));
         try lines.append("    break :next;");
     }
@@ -106,7 +104,7 @@ pub fn write(allocator: Allocator, path: []const u8) !void {
     var decode = BeginEndState{ .inside = false, .skip = false };
     var consts = BeginEndState{ .inside = false, .skip = false };
     var it = mem.splitScalar(u8, src, '\n');
-    const decode_prefix = "    " ** 6;
+    const decode_prefix = "    " ** 5;
     const consts_prefix = "    " ** 2;
     const m1_t1 = extra_step_index;
     while (it.next()) |src_line| {
