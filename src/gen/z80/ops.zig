@@ -34,6 +34,7 @@ pub fn halt(code: u8) void {
 pub fn @"LD (HL),r"(code: u8, z: u3) void {
     op(code, .{
         .dasm = f("LD (HL),{s}", .{R.dasm(z)}),
+        .indirect = true,
         .mcycles = mc(&.{
             mwrite("self.addr", rr(z), null),
             overlapped(null),
@@ -44,8 +45,9 @@ pub fn @"LD (HL),r"(code: u8, z: u3) void {
 pub fn @"LD r,(HL)"(code: u8, y: u3) void {
     op(code, .{
         .dasm = f("LD {s},(HL)", .{R.dasm(y)}),
+        .indirect = true,
         .mcycles = mc(&.{
-            mread("self.addr", rr(y), null),
+            mread("self.addr", rr(y), null, null),
             overlapped(null),
         }),
     });
@@ -60,11 +62,36 @@ pub fn @"LD r,r"(code: u8, y: u3, z: u3) void {
     });
 }
 
+pub fn @"LD r,n"(code: u8, y: u3) void {
+    op(code, .{
+        .dasm = f("LD {s},n", .{R.dasm(y)}),
+        .imm8 = true,
+        .mcycles = mc(&.{
+            mread("self.pc", r(y), "self.pc +%= 1", null),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn @"LD (HL),n"(code: u8) void {
+    op(code, .{
+        .dasm = "LD (HL),n",
+        .indirect = true,
+        .imm8 = true,
+        .mcycles = mc(&.{
+            mread("self.pc", "self.dlatch", "self.pc +%=1", null),
+            mwrite("self.addr", "self.dlatch", null),
+            overlapped(null),
+        }),
+    });
+}
+
 pub fn @"ALU (HL)"(code: u8, y: u3) void {
     op(code, .{
         .dasm = f("{s} (HL)", .{ALU.dasm(y)}),
+        .indirect = true,
         .mcycles = mc(&.{
-            mread("self.addr", "self.dlatch", null),
+            mread("self.addr", "self.dlatch", null, null),
             overlapped(f("{s}(self.dlatch)", .{alu(y)})),
         }),
     });

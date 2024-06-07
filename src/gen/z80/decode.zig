@@ -22,6 +22,10 @@ fn decodeMain() void {
                     0 => ops.nop(op),
                     else => {},
                 },
+                6 => switch (y) {
+                    6 => ops.@"LD (HL),n"(op),
+                    else => ops.@"LD r,n"(op, y),
+                },
                 else => {},
             },
             // quadrant 1: 8-bit loads
