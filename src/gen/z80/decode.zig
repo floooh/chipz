@@ -15,11 +15,17 @@ fn decodeMain() void {
         const x: u2 = @truncate((i >> 6) & 3);
         const y: u3 = @truncate((i >> 3) & 7);
         const z: u3 = @truncate(i & 7);
+        const p: u2 = @truncate(y >> 1);
+        const q: u1 = @truncate(y);
         switch (x) {
             // quadrant 0
             0 => switch (z) {
                 0 => switch (y) {
                     0 => ops.nop(op),
+                    else => {},
+                },
+                1 => switch (q) {
+                    0 => ops.@"LD RP,nn"(op, p),
                     else => {},
                 },
                 6 => switch (y) {
@@ -49,7 +55,12 @@ fn decodeMain() void {
                 }
             },
             // quadrant 3
-            3 => {},
+            3 => {
+                switch (z) {
+                    6 => ops.@"ALU n"(op, y),
+                    else => {},
+                }
+            },
         }
     }
 }

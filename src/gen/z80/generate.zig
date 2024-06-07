@@ -1,6 +1,7 @@
 //! generate the switch-decoder block
 
 const std = @import("std");
+const assert = std.debug.assert;
 const Allocator = std.mem.Allocator;
 const BoundedArray = std.BoundedArray;
 const mem = std.mem;
@@ -26,12 +27,15 @@ pub fn generate() !void {
     for (acc.main_ops, 0..) |op, opcode_step_index| {
         var tcount: usize = 0;
         if (op.mcycles.len > 0) {
+            var last_mcycle_is_overlapped = false;
             for (op.mcycles) |mcycle| {
+                last_mcycle_is_overlapped = mcycle.type == .Overlapped;
                 for (mcycle.tcycles) |tcycle| {
                     try gen_tcycle(opcode_step_index, op, tcycle, tcount);
                     tcount += 1;
                 }
             }
+            assert(last_mcycle_is_overlapped);
         }
     }
 }

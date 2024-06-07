@@ -3,8 +3,11 @@ const op = @import("accumulate.zig").op;
 const f = @import("formatter.zig").f;
 const types = @import("types.zig");
 const R = types.R;
+const RP = types.RP;
 const r = types.r;
 const rr = types.rr;
+const rpl = types.rpl;
+const rph = types.rph;
 const ALU = types.ALU;
 const alu = types.alu;
 const mc = @import("accumulate.zig").mc;
@@ -102,6 +105,28 @@ pub fn @"ALU r"(code: u8, y: u3, z: u3) void {
         .dasm = f("{s} {s}", .{ ALU.dasm(y), R.dasm(z) }),
         .mcycles = mc(&.{
             overlapped(f("{s}({s})", .{ alu(y), r(z) })),
+        }),
+    });
+}
+
+pub fn @"ALU n"(code: u8, y: u3) void {
+    op(code, .{
+        .dasm = f("{s} n", .{ALU.dasm(y)}),
+        .imm8 = true,
+        .mcycles = mc(&.{
+            mread("self.pc", "self.dlatch", "self.pc +%=1", null),
+            overlapped(f("{s}(self.dlatch)", .{alu(y)})),
+        }),
+    });
+}
+
+pub fn @"LD RP,nn"(code: u8, p: u2) void {
+    op(code, .{
+        .dasm = f("LD {s},nn", .{RP.dasm(p)}),
+        .mcycles = mc(&.{
+            mread("self.pc", rpl(p), "self.pc +%= 1", null),
+            mread("self.pc", rph(p), "self.pc +%= 1", null),
+            overlapped(null),
         }),
     });
 }

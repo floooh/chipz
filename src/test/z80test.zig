@@ -16,6 +16,16 @@ const E = z80.E;
 const L = z80.L;
 const H = z80.H;
 
+const CF = z80.CF;
+const NF = z80.NF;
+const VF = z80.VF;
+const PF = z80.PF;
+const XF = z80.XF;
+const HF = z80.HF;
+const YF = z80.YF;
+const ZF = z80.ZF;
+const SF = z80.SF;
+
 var cpu: Z80 = undefined;
 var bus: u64 = 0;
 var mem = [_]u8{0} ** 0x10000;
@@ -26,6 +36,11 @@ const WR = z80.DefaultPins.WR;
 
 fn T(cond: bool) void {
     assert(cond);
+}
+
+fn flags(f: u8) bool {
+    // don't check undocumented flags
+    return (cpu.r[F] & ~@as(u8, XF|YF)) == f;
 }
 
 fn start(msg: []const u8) void {
@@ -84,7 +99,7 @@ fn NOP() void {
     ok();
 }
 
-fn LD_r_sn() void {
+fn @"LD r,s/n"() void {
     start("LD r,s/n");
     const prog = [_]u8{
         0x3E, 0x12, // LD A,0x12
@@ -204,7 +219,118 @@ fn LD_r_sn() void {
     ok();
 }
 
+fn @"LD r,(HL)"() void {
+    start("LD r,(HL)");
+    const prog = [_]u8{
+        0x21, 0x00, 0x10,   // LD HL,0x1000
+        0x3E, 0x33,         // LD A,0x33
+        0x77,               // LD (HL),A
+        0x3E, 0x22,         // LD A,0x22
+        0x46,               // LD B,(HL)
+        0x4E,               // LD C,(HL)
+        0x56,               // LD D,(HL)
+        0x5E,               // LD E,(HL)
+        0x66,               // LD H,(HL)
+        0x26, 0x10,         // LD H,0x10
+        0x6E,               // LD L,(HL)
+        0x2E, 0x00,         // LD L,0x00
+        0x7E,               // LD A,(HL)
+    };
+    init(0, &prog);
+    T(10==step()); T(0x1000 == cpu.HL());
+    T(7==step()); T(0x33 == cpu.r[A]);
+    T(7==step()); T(0x33 == mem[0x1000]);
+    T(7==step()); T(0x22 == cpu.r[A]);
+    T(7==step()); T(0x33 == cpu.r[B]);
+    T(7==step()); T(0x33 == cpu.r[C]);
+    T(7==step()); T(0x33 == cpu.r[D]);
+    T(7==step()); T(0x33 == cpu.r[E]);
+    T(7==step()); T(0x33 == cpu.r[H]);
+    T(7==step()); T(0x10 == cpu.r[H]);
+    T(7==step()); T(0x33 == cpu.r[L]);
+    T(7==step()); T(0x00 == cpu.r[L]);
+    T(7==step()); T(0x33 == cpu.r[A]);
+    ok();
+}
+
+fn @"LD (HL),r"() void {
+    start("LD (HL),r");
+    const prog = [_]u8{
+        0x21, 0x00, 0x10,   // LD HL,0x1000
+        0x3E, 0x12,         // LD A,0x12
+        0x77,               // LD (HL),A
+        0x06, 0x13,         // LD B,0x13
+        0x70,               // LD (HL),B
+        0x0E, 0x14,         // LD C,0x14
+        0x71,               // LD (HL),C
+        0x16, 0x15,         // LD D,0x15
+        0x72,               // LD (HL),D
+        0x1E, 0x16,         // LD E,0x16
+        0x73,               // LD (HL),E
+        0x74,               // LD (HL),H
+        0x75,               // LD (HL),L
+    };
+    init(0, &prog);
+    T(10==step()); T(0x1000 == cpu.HL());
+    T(7==step()); T(0x12 == cpu.r[A]);
+    T(7==step()); T(0x12 == mem[0x1000]);
+    T(7==step()); T(0x13 == cpu.r[B]);
+    T(7==step()); T(0x13 == mem[0x1000]);
+    T(7==step()); T(0x14 == cpu.r[C]);
+    T(7==step()); T(0x14 == mem[0x1000]);
+    T(7==step()); T(0x15 == cpu.r[D]);
+    T(7==step()); T(0x15 == mem[0x1000]);
+    T(7==step()); T(0x16 == cpu.r[E]);
+    T(7==step()); T(0x16 == mem[0x1000]);
+    T(7==step()); T(0x10 == mem[0x1000]);
+    T(7==step()); T(0x00 == mem[0x1000]);
+    ok();
+}
+
+fn @"ADD A,r/n"() void {
+    start("ADD A,r/n");
+    const prog = [_]u8{
+        0x3E, 0x0F,     // LD A,0x0F
+        0x87,           // ADD A,A
+        0x06, 0xE0,     // LD B,0xE0
+        0x80,           // ADD A,B
+        0x3E, 0x81,     // LD A,0x81
+        0x0E, 0x80,     // LD C,0x80
+        0x81,           // ADD A,C
+        0x16, 0xFF,     // LD D,0xFF
+        0x82,           // ADD A,D
+        0x1E, 0x40,     // LD E,0x40
+        0x83,           // ADD A,E
+        0x26, 0x80,     // LD H,0x80
+        0x84,           // ADD A,H
+        0x2E, 0x33,     // LD L,0x33
+        0x85,           // ADD A,L
+        0xC6, 0x44,     // ADD A,0x44
+    };
+    init(0, &prog);
+    T(7==step()); T(0x0F == cpu.r[A]); T(flags(0));
+    T(4==step()); T(0x1E == cpu.r[A]); T(flags(HF));
+    T(7==step()); T(0xE0 == cpu.r[B]);
+    T(4==step()); T(0xFE == cpu.r[A]); T(flags(SF));
+    T(7==step()); T(0x81 == cpu.r[A]);
+    T(7==step()); T(0x80 == cpu.r[C]);
+    T(4==step()); T(0x01 == cpu.r[A]); T(flags(VF|CF));
+    T(7==step()); T(0xFF == cpu.r[D]);
+    T(4==step()); T(0x00 == cpu.r[A]); T(flags(ZF|HF|CF));
+    T(7==step()); T(0x40 == cpu.r[E]);
+    T(4==step()); T(0x40 == cpu.r[A]); T(flags(0));
+    T(7==step()); T(0x80 == cpu.r[H]);
+    T(4==step()); T(0xC0 == cpu.r[A]); T(flags(SF));
+    T(7==step()); T(0x33 == cpu.r[L]);
+    T(4==step()); T(0xF3 == cpu.r[A]); T(flags(SF));
+    T(7==step()); T(0x37 == cpu.r[A]); T(flags(CF));
+    ok();
+}
+
 pub fn main() void {
     NOP();
-    LD_r_sn();
+    @"LD r,s/n"();
+    @"LD r,(HL)"();
+    @"LD (HL),r"();
+    @"ADD A,r/n"();
 }

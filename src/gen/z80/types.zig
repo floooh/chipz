@@ -94,8 +94,22 @@ pub const RP = enum(u2) {
     }
 };
 
-pub fn rp(any: anytype) []const u8 {
-    return @tagName(RP.asEnum(any));
+pub fn rpl(any: anytype) []const u8 {
+    return switch (RP.asEnum(any)) {
+        .BC => "self.r[C]",
+        .DE => "self.r[E]",
+        .HL => "self.r[L + self.rixy]",
+        .SP => "self.r[SPL]",
+    };
+}
+
+pub fn rph(any: anytype) []const u8 {
+    return switch (RP.asEnum(any)) {
+        .BC => "self.r[B]",
+        .DE => "self.r[D]",
+        .HL => "self.r[H + self.rixy]",
+        .SP => "self.r[SPH]",
+    };
 }
 
 pub const RP2 = enum(u2) {
