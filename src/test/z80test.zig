@@ -327,10 +327,289 @@ fn @"ADD A,r/n"() void {
     ok();
 }
 
+fn @"ADC A,r/n"() void {
+    start("ADC A,r/n");
+    const prog = [_]u8 {
+        0x3E, 0x00,         // LD A,0x00
+        0x06, 0x41,         // LD B,0x41
+        0x0E, 0x61,         // LD C,0x61
+        0x16, 0x81,         // LD D,0x81
+        0x1E, 0x41,         // LD E,0x41
+        0x26, 0x61,         // LD H,0x61
+        0x2E, 0x81,         // LD L,0x81
+        0x8F,               // ADC A,A
+        0x88,               // ADC A,B
+        0x89,               // ADC A,C
+        0x8A,               // ADC A,D
+        0x8B,               // ADC A,E
+        0x8C,               // ADC A,H
+        0x8D,               // ADC A,L
+        0xCE, 0x01,         // ADC A,0x01
+    };
+    init(0, &prog);
+    T(7==step()); T(0x00 == cpu.r[A]);
+    T(7==step()); T(0x41 == cpu.r[B]);
+    T(7==step()); T(0x61 == cpu.r[C]);
+    T(7==step()); T(0x81 == cpu.r[D]);
+    T(7==step()); T(0x41 == cpu.r[E]);
+    T(7==step()); T(0x61 == cpu.r[H]);
+    T(7==step()); T(0x81 == cpu.r[L]);
+    T(4==step()); T(0x00 == cpu.r[A]); T(flags(ZF));
+    T(4==step()); T(0x41 == cpu.r[A]); T(flags(0));
+    T(4==step()); T(0xA2 == cpu.r[A]); T(flags(SF|VF));
+    T(4==step()); T(0x23 == cpu.r[A]); T(flags(VF|CF));
+    T(4==step()); T(0x65 == cpu.r[A]); T(flags(0));
+    T(4==step()); T(0xC6 == cpu.r[A]); T(flags(SF|VF));
+    T(4==step()); T(0x47 == cpu.r[A]); T(flags(VF|CF));
+    T(7==step()); T(0x49 == cpu.r[A]); T(flags(0));
+    ok();
+}
+
+fn @"SUB A,r/n"() void {
+    start("SUB A,r/n");
+    const prog = [_]u8{
+        0x3E, 0x04,     // LD A,0x04
+        0x06, 0x01,     // LD B,0x01
+        0x0E, 0xF8,     // LD C,0xF8
+        0x16, 0x0F,     // LD D,0x0F
+        0x1E, 0x79,     // LD E,0x79
+        0x26, 0xC0,     // LD H,0xC0
+        0x2E, 0xBF,     // LD L,0xBF
+        0x97,           // SUB A,A
+        0x90,           // SUB A,B
+        0x91,           // SUB A,C
+        0x92,           // SUB A,D
+        0x93,           // SUB A,E
+        0x94,           // SUB A,H
+        0x95,           // SUB A,L
+        0xD6, 0x01,     // SUB A,0x01
+        0xD6, 0xFE,     // SUB A,0xFE
+    };
+    init(0, &prog);
+    T(7==step()); T(0x04 == cpu.r[A]);
+    T(7==step()); T(0x01 == cpu.r[B]);
+    T(7==step()); T(0xF8 == cpu.r[C]);
+    T(7==step()); T(0x0F == cpu.r[D]);
+    T(7==step()); T(0x79 == cpu.r[E]);
+    T(7==step()); T(0xC0 == cpu.r[H]);
+    T(7==step()); T(0xBF == cpu.r[L]);
+    T(4==step()); T(0x0 == cpu.r[A]); T(flags(ZF|NF));
+    T(4==step()); T(0xFF == cpu.r[A]); T(flags(SF|HF|NF|CF));
+    T(4==step()); T(0x07 == cpu.r[A]); T(flags(NF));
+    T(4==step()); T(0xF8 == cpu.r[A]); T(flags(SF|HF|NF|CF));
+    T(4==step()); T(0x7F == cpu.r[A]); T(flags(HF|VF|NF));
+    T(4==step()); T(0xBF == cpu.r[A]); T(flags(SF|VF|NF|CF));
+    T(4==step()); T(0x00 == cpu.r[A]); T(flags(ZF|NF));
+    T(7==step()); T(0xFF == cpu.r[A]); T(flags(SF|HF|NF|CF));
+    T(7==step()); T(0x01 == cpu.r[A]); T(flags(NF));
+    ok();
+}
+
+fn @"SBC A,r/n"() void {
+    start("SBC A,r/n");
+    const prog = [_]u8{
+        0x3E, 0x04,     // LD A,0x04
+        0x06, 0x01,     // LD B,0x01
+        0x0E, 0xF8,     // LD C,0xF8
+        0x16, 0x0F,     // LD D,0x0F
+        0x1E, 0x79,     // LD E,0x79
+        0x26, 0xC0,     // LD H,0xC0
+        0x2E, 0xBF,     // LD L,0xBF
+        0x97,           // SUB A,A
+        0x98,           // SBC A,B
+        0x99,           // SBC A,C
+        0x9A,           // SBC A,D
+        0x9B,           // SBC A,E
+        0x9C,           // SBC A,H
+        0x9D,           // SBC A,L
+        0xDE, 0x01,     // SBC A,0x01
+        0xDE, 0xFE,     // SBC A,0xFE
+    };
+    init(0, &prog);
+    for (0..7) |_| {
+        _ = step();
+    }
+    T(4==step()); T(0x0 == cpu.r[A]); T(flags(ZF|NF));
+    T(4==step()); T(0xFF == cpu.r[A]); T(flags(SF|HF|NF|CF));
+    T(4==step()); T(0x06 == cpu.r[A]); T(flags(NF));
+    T(4==step()); T(0xF7 == cpu.r[A]); T(flags(SF|HF|NF|CF));
+    T(4==step()); T(0x7D == cpu.r[A]); T(flags(HF|VF|NF));
+    T(4==step()); T(0xBD == cpu.r[A]); T(flags(SF|VF|NF|CF));
+    T(4==step()); T(0xFD == cpu.r[A]); T(flags(SF|HF|NF|CF));
+    T(7==step()); T(0xFB == cpu.r[A]); T(flags(SF|NF));
+    T(7==step()); T(0xFD == cpu.r[A]); T(flags(SF|HF|NF|CF));
+    ok();
+}
+
+fn @"CP A,r/n"() void {
+    start("CP A,r/n");
+    const prog = [_]u8{
+        0x3E, 0x04,     // LD A,0x04
+        0x06, 0x05,     // LD B,0x05
+        0x0E, 0x03,     // LD C,0x03
+        0x16, 0xff,     // LD D,0xff
+        0x1E, 0xaa,     // LD E,0xaa
+        0x26, 0x80,     // LD H,0x80
+        0x2E, 0x7f,     // LD L,0x7f
+        0xBF,           // CP A
+        0xB8,           // CP B
+        0xB9,           // CP C
+        0xBA,           // CP D
+        0xBB,           // CP E
+        0xBC,           // CP H
+        0xBD,           // CP L
+        0xFE, 0x04,     // CP 0x04
+    };
+    init(0, &prog);
+    T(7==step()); T(0x04 == cpu.r[A]);
+    T(7==step()); T(0x05 == cpu.r[B]);
+    T(7==step()); T(0x03 == cpu.r[C]);
+    T(7==step()); T(0xff == cpu.r[D]);
+    T(7==step()); T(0xaa == cpu.r[E]);
+    T(7==step()); T(0x80 == cpu.r[H]);
+    T(7==step()); T(0x7f == cpu.r[L]);
+    T(4==step()); T(0x04 == cpu.r[A]); T(flags(ZF|NF));
+    T(4==step()); T(0x04 == cpu.r[A]); T(flags(SF|HF|NF|CF));
+    T(4==step()); T(0x04 == cpu.r[A]); T(flags(NF));
+    T(4==step()); T(0x04 == cpu.r[A]); T(flags(HF|NF|CF));
+    T(4==step()); T(0x04 == cpu.r[A]); T(flags(HF|NF|CF));
+    T(4==step()); T(0x04 == cpu.r[A]); T(flags(SF|VF|NF|CF));
+    T(4==step()); T(0x04 == cpu.r[A]); T(flags(SF|HF|NF|CF));
+    T(7==step()); T(0x04 == cpu.r[A]); T(flags(ZF|NF));
+    ok();
+}
+
+fn @"AND A,r/n"() void {
+    start("AND A,r/n");
+    const prog = [_]u8{
+        0x3E, 0xFF,             // LD A,0xFF
+        0x06, 0x01,             // LD B,0x01
+        0x0E, 0x03,             // LD C,0x02
+        0x16, 0x04,             // LD D,0x04
+        0x1E, 0x08,             // LD E,0x08
+        0x26, 0x10,             // LD H,0x10
+        0x2E, 0x20,             // LD L,0x20
+        0xA0,                   // AND B
+        0xF6, 0xFF,             // OR 0xFF
+        0xA1,                   // AND C
+        0xF6, 0xFF,             // OR 0xFF
+        0xA2,                   // AND D
+        0xF6, 0xFF,             // OR 0xFF
+        0xA3,                   // AND E
+        0xF6, 0xFF,             // OR 0xFF
+        0xA4,                   // AND H
+        0xF6, 0xFF,             // OR 0xFF
+        0xA5,                   // AND L
+        0xF6, 0xFF,             // OR 0xFF
+        0xE6, 0x40,             // AND 0x40
+        0xF6, 0xFF,             // OR 0xFF
+        0xE6, 0xAA,             // AND 0xAA
+    };
+    init(0, &prog);
+    for (0..7) |_| {
+        _ = step();
+    }
+    T(4==step()); T(0x01 == cpu.r[A]); T(flags(HF));
+    T(7==step()); T(0xFF == cpu.r[A]); T(flags(SF|PF));
+    T(4==step()); T(0x03 == cpu.r[A]); T(flags(HF|PF));
+    T(7==step()); T(0xFF == cpu.r[A]); T(flags(SF|PF));
+    T(4==step()); T(0x04 == cpu.r[A]); T(flags(HF));
+    T(7==step()); T(0xFF == cpu.r[A]); T(flags(SF|PF));
+    T(4==step()); T(0x08 == cpu.r[A]); T(flags(HF));
+    T(7==step()); T(0xFF == cpu.r[A]); T(flags(SF|PF));
+    T(4==step()); T(0x10 == cpu.r[A]); T(flags(HF));
+    T(7==step()); T(0xFF == cpu.r[A]); T(flags(SF|PF));
+    T(4==step()); T(0x20 == cpu.r[A]); T(flags(HF));
+    T(7==step()); T(0xFF == cpu.r[A]); T(flags(SF|PF));
+    T(7==step()); T(0x40 == cpu.r[A]); T(flags(HF));
+    T(7==step()); T(0xFF == cpu.r[A]); T(flags(SF|PF));
+    T(7==step()); T(0xAA == cpu.r[A]); T(flags(SF|HF|PF));
+    ok();
+}
+
+fn @"XOR A,r/n"() void {
+    start("XOR A,r/n");
+    const prog = [_]u8{
+        0x97,           // SUB A
+        0x06, 0x01,     // LD B,0x01
+        0x0E, 0x03,     // LD C,0x03
+        0x16, 0x07,     // LD D,0x07
+        0x1E, 0x0F,     // LD E,0x0F
+        0x26, 0x1F,     // LD H,0x1F
+        0x2E, 0x3F,     // LD L,0x3F
+        0xAF,           // XOR A
+        0xA8,           // XOR B
+        0xA9,           // XOR C
+        0xAA,           // XOR D
+        0xAB,           // XOR E
+        0xAC,           // XOR H
+        0xAD,           // XOR L
+        0xEE, 0x7F,     // XOR 0x7F
+        0xEE, 0xFF,     // XOR 0xFF
+    };
+    init(0, &prog);
+    for (0..7) |_| {
+        _ = step();
+    }
+    T(4==step()); T(0x00 == cpu.r[A]); T(flags(ZF|PF));
+    T(4==step()); T(0x01 == cpu.r[A]); T(flags(0));
+    T(4==step()); T(0x02 == cpu.r[A]); T(flags(0));
+    T(4==step()); T(0x05 == cpu.r[A]); T(flags(PF));
+    T(4==step()); T(0x0A == cpu.r[A]); T(flags(PF));
+    T(4==step()); T(0x15 == cpu.r[A]); T(flags(0));
+    T(4==step()); T(0x2A == cpu.r[A]); T(flags(0));
+    T(7==step()); T(0x55 == cpu.r[A]); T(flags(PF));
+    T(7==step()); T(0xAA == cpu.r[A]); T(flags(SF|PF));
+    ok();
+}
+
+fn @"OR A,r/n"() void {
+    start("OR A,r/n");
+    const prog = [_]u8{
+        0x97,           // SUB A
+        0x06, 0x01,     // LD B,0x01
+        0x0E, 0x02,     // LD C,0x02
+        0x16, 0x04,     // LD D,0x04
+        0x1E, 0x08,     // LD E,0x08
+        0x26, 0x10,     // LD H,0x10
+        0x2E, 0x20,     // LD L,0x20
+        0xB7,           // OR A
+        0xB0,           // OR B
+        0xB1,           // OR C
+        0xB2,           // OR D
+        0xB3,           // OR E
+        0xB4,           // OR H
+        0xB5,           // OR L
+        0xF6, 0x40,     // OR 0x40
+        0xF6, 0x80,     // OR 0x80
+    };
+    init(0, &prog);
+    for (0..7) |_| {
+        _ = step();
+    }
+    T(4==step()); T(0x00 == cpu.r[A]); T(flags(ZF|PF));
+    T(4==step()); T(0x01 == cpu.r[A]); T(flags(0));
+    T(4==step()); T(0x03 == cpu.r[A]); T(flags(PF));
+    T(4==step()); T(0x07 == cpu.r[A]); T(flags(0));
+    T(4==step()); T(0x0F == cpu.r[A]); T(flags(PF));
+    T(4==step()); T(0x1F == cpu.r[A]); T(flags(0));
+    T(4==step()); T(0x3F == cpu.r[A]); T(flags(PF));
+    T(7==step()); T(0x7F == cpu.r[A]); T(flags(0));
+    T(7==step()); T(0xFF == cpu.r[A]); T(flags(SF|PF));
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
     @"LD r,(HL)"();
     @"LD (HL),r"();
     @"ADD A,r/n"();
+    @"ADC A,r/n"();
+    @"SUB A,r/n"();
+    @"SBC A,r/n"();
+    @"CP A,r/n"();
+    @"AND A,r/n"();
+    @"XOR A,r/n"();
+    @"OR A,r/n"();
 }
