@@ -28,6 +28,15 @@ fn decodeMain() void {
                     0 => ops.@"LD RP,nn"(op, p),
                     else => {},
                 },
+                2 => switch (q) {
+                    1 => switch (p) {
+                        0 => ops.@"LD A,(BC)"(op),
+                        1 => ops.@"LD A,(DE)"(op),
+                        2 => ops.@"LD HL,(nn)"(op),
+                        3 => ops.@"LD A,(nn)"(op),
+                    },
+                    else => {},
+                },
                 6 => switch (y) {
                     6 => ops.@"LD (HL),n"(op),
                     else => ops.@"LD r,n"(op, y),

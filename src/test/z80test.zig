@@ -64,7 +64,7 @@ fn init(start_addr: u16, bytes: []const u8) void {
 }
 
 fn copy(start_addr: u16, bytes: []const u8) void {
-    std.mem.copyForwards(u8, mem[start_addr..bytes.len], bytes);
+    std.mem.copyForwards(u8, mem[start_addr..(start_addr+bytes.len)], bytes);
 }
 
 fn tick() void {
@@ -284,6 +284,42 @@ fn @"LD (HL),r"() void {
     T(7==step()); T(0x16 == mem[0x1000]);
     T(7==step()); T(0x10 == mem[0x1000]);
     T(7==step()); T(0x00 == mem[0x1000]);
+    ok();
+}
+
+fn @"LD (HL),n"() void {
+    start("LD (HL),n");
+    const prog = [_]u8{
+        0x21, 0x00, 0x20,   // LD HL,0x2000
+        0x36, 0x33,         // LD (HL),0x33
+        0x21, 0x00, 0x10,   // LD HL,0x1000
+        0x36, 0x65,         // LD (HL),0x65
+    };
+    init(0, &prog);
+    T(10==step()); T(0x2000 == cpu.HL());
+    T(10==step()); T(0x33 == mem[0x2000]);
+    T(10==step()); T(0x1000 == cpu.HL());
+    T(10==step()); T(0x65 == mem[0x1000]);
+    ok();
+}
+
+fn @"LD A,(BC/DE/nn)"() void {
+    start("LD A,(BC/DE/nn)");
+    const prog = [_]u8{
+        0x01, 0x00, 0x10,   // LD BC,0x1000
+        0x11, 0x01, 0x10,   // LD DE,0x1001
+        0x0A,               // LD A,(BC)
+        0x1A,               // LD A,(DE)
+        0x3A, 0x02, 0x10,   // LD A,(0x1002)
+    };
+    init(0, &prog);
+    const data = [_]u8{ 0x11, 0x22, 0x33 };
+    copy(0x1000, &data);
+    T(10==step()); T(0x1000 == cpu.BC());
+    T(10==step()); T(0x1001 == cpu.DE());
+    T(7==step()); T(0x11 == cpu.r[A]); T(0x1001 == cpu.WZ());
+    T(7==step()); T(0x22 == cpu.r[A]); T(0x1002 == cpu.WZ());
+    T(13==step()); T(0x33 == cpu.r[A]); T(0x1003 == cpu.WZ());
     ok();
 }
 
@@ -604,6 +640,8 @@ pub fn main() void {
     @"LD r,s/n"();
     @"LD r,(HL)"();
     @"LD (HL),r"();
+    @"LD (HL),n"();
+    @"LD A,(BC/DE/nn)"();
     @"ADD A,r/n"();
     @"ADC A,r/n"();
     @"SUB A,r/n"();

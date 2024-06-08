@@ -130,3 +130,48 @@ pub fn @"LD RP,nn"(code: u8, p: u2) void {
         }),
     });
 }
+
+pub fn @"LD A,(BC)"(code: u8) void {
+    op(code, .{
+        .dasm = "LD A,(BC)",
+        .mcycles = mc(&.{
+            mread("self.BC()", r(R.A), null, "self.setWZ(self.BC() +% 1)"),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn @"LD A,(DE)"(code: u8) void {
+    op(code, .{
+        .dasm = "LD A,(DE)",
+        .mcycles = mc(&.{
+            mread("self.DE()", r(R.A), null, "self.setWZ(self.DE() +% 1)"),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn @"LD HL,(nn)"(code: u8) void {
+    op(code, .{
+        .dasm = "LD HL,(nn)",
+        .mcycles = mc(&.{
+            mread("self.pc", "self.r[WZL]", "self.pc +%= 1", null),
+            mread("self.pc", "self.r[WZH]", "self.pc +%= 1", null),
+            mread("self.WZ()", r(R.L), "self.setWZ(self.WZ() +% 1)", null),
+            mread("self.WZ()", r(R.H), null, null),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn @"LD A,(nn)"(code: u8) void {
+    op(code, .{
+        .dasm = "LD A,(nn)",
+        .mcycles = mc(&.{
+            mread("self.pc", "self.r[WZL]", "self.pc +%= 1", null),
+            mread("self.pc", "self.r[WZH]", "self.pc +%= 1", null),
+            mread("self.WZ()", r(R.A), "self.setWZ(self.WZ() +% 1)", null),
+            overlapped(null),
+        }),
+    });
+}
