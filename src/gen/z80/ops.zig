@@ -265,3 +265,75 @@ pub fn @"DEC (HL)"(code: u8) void {
         }),
     });
 }
+
+pub fn rlca(code: u8) void {
+    op(code, .{
+        .dasm = "RLCA",
+        .mcycles = mc(&.{
+            overlapped("self.rlca()"),
+        }),
+    });
+}
+
+pub fn rrca(code: u8) void {
+    op(code, .{
+        .dasm = "RRCA",
+        .mcycles = mc(&.{
+            overlapped("self.rrca()"),
+        }),
+    });
+}
+
+pub fn rla(code: u8) void {
+    op(code, .{
+        .dasm = "RLA",
+        .mcycles = mc(&.{
+            overlapped("self.rla()"),
+        }),
+    });
+}
+
+pub fn rra(code: u8) void {
+    op(code, .{
+        .dasm = "RRA",
+        .mcycles = mc(&.{
+            overlapped("self.rra()"),
+        }),
+    });
+}
+
+pub fn daa(code: u8) void {
+    op(code, .{
+        .dasm = "DDA",
+        .mcycles = mc(&.{
+            overlapped("self.daa()"),
+        }),
+    });
+}
+
+pub fn cpl(code: u8) void {
+    op(code, .{
+        .dasm = "CPL",
+        .mcycles = mc(&.{
+            overlapped("self.cpl()"),
+        }),
+    });
+}
+
+pub fn scf(code: u8) void {
+    op(code, .{
+        .dasm = "SCF",
+        .mcycles = mc(&.{
+            overlapped("self.scf()"),
+        }),
+    });
+}
+
+pub fn ccf(code: u8) void {
+    op(code, .{
+        .dasm = "CCF",
+        .mcycles = mc(&.{
+            overlapped("self.ccf()"),
+        }),
+    });
+}

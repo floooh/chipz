@@ -54,6 +54,16 @@ fn decodeMain() void {
                     6 => ops.@"LD (HL),n"(op),
                     else => ops.@"LD r,n"(op, y),
                 },
+                7 => switch (y) {
+                    0 => ops.rlca(op),
+                    1 => ops.rrca(op),
+                    2 => ops.rla(op),
+                    3 => ops.rra(op),
+                    4 => ops.daa(op),
+                    5 => ops.cpl(op),
+                    6 => ops.scf(op),
+                    7 => ops.ccf(op),
+                },
                 else => {},
             },
             // quadrant 1: 8-bit loads

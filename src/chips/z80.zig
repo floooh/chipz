@@ -350,6 +350,84 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             return res;
         }
 
+        fn rlca(self: *Self) void {
+            const a = self.r[A];
+            const r = (a << 1) | (a >> 7);
+            const f = self.r[F];
+            self.r[F] = ((a >> 7) & CF) | (f & (SF | ZF | PF)) | (r & (YF | XF));
+            self.r[A] = r;
+        }
+
+        fn rrca(self: *Self) void {
+            const a = self.r[A];
+            const r = (a >> 1) | (a << 7);
+            const f = self.r[F];
+            self.r[F] = (a & CF) | (f & (SF | ZF | PF)) | (r & (YF | XF));
+            self.r[A] = r;
+        }
+
+        fn rla(self: *Self) void {
+            const a = self.r[A];
+            const f = self.r[F];
+            const r = (a << 1) | (f & CF);
+            self.r[F] = ((a >> 7) & CF) | (f & (SF | ZF | PF)) | (r & (YF | XF));
+            self.r[A] = r;
+        }
+
+        fn rra(self: *Self) void {
+            const a = self.r[A];
+            const f = self.r[F];
+            const r = (a >> 1) | ((f & CF) << 7);
+            self.r[F] = (a & CF) | (f & (SF | ZF | PF)) | (r & (YF | XF));
+            self.r[A] = r;
+        }
+
+        fn daa(self: *Self) void {
+            const a = self.r[A];
+            var v = a;
+            var f = self.r[F];
+            if (0 != (f & NF)) {
+                if (((a & 0xF) > 0x9) or (0 != (f & HF))) {
+                    v -%= 0x06;
+                }
+                if ((a > 0x99) or (0 != (f & CF))) {
+                    v -%= 0x60;
+                }
+            } else {
+                if (((a & 0xF) > 0x9) or (0 != (f & HF))) {
+                    v +%= 0x06;
+                }
+                if ((a > 0x99) or (0 != (f & CF))) {
+                    v +%= 0x60;
+                }
+            }
+            f &= CF | NF;
+            f |= if (a > 0x99) CF else 0;
+            f |= (a ^ v) & HF;
+            f |= szpFlags(v);
+            self.r[A] = v;
+            self.r[F] = f;
+        }
+
+        fn cpl(self: *Self) void {
+            const a = self.r[A] ^ 0xFF;
+            const f = self.r[F];
+            self.r[A] = a;
+            self.r[F] = HF | NF | (f & (SF | ZF | PF | CF)) | (a & (YF | XF));
+        }
+
+        fn scf(self: *Self) void {
+            const a = self.r[A];
+            const f = self.r[F];
+            self.r[F] = CF | (f & (SF | ZF | PF | CF)) | (a & (YF | XF));
+        }
+
+        fn ccf(self: *Self) void {
+            const a = self.r[A];
+            const f = self.r[F];
+            self.r[F] = (((f & CF) << 4) | (f & (SF | ZF | PF | CF)) | (a & (YF | XF))) ^ CF;
+        }
+
         // BEGIN CONSTS
         const M1_T2: u16 = 0x3D1;
         const M1_T3: u16 = 0x3D2;
@@ -405,6 +483,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         self.step = 0x309;
                         break :next;
                     },
+                    // RLCA
+                    0x7 => {
+                        self.rlca();
+                    },
                     // LD A,(BC)
                     0xA => {
                         self.step = 0x30C;
@@ -422,6 +504,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0xE => {
                         self.step = 0x30F;
                         break :next;
+                    },
+                    // RRCA
+                    0xF => {
+                        self.rrca();
                     },
                     // LD DE,nn
                     0x11 => {
@@ -446,6 +532,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         self.step = 0x31B;
                         break :next;
                     },
+                    // RLA
+                    0x17 => {
+                        self.rla();
+                    },
                     // LD A,(DE)
                     0x1A => {
                         self.step = 0x31E;
@@ -463,6 +553,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0x1E => {
                         self.step = 0x321;
                         break :next;
+                    },
+                    // RRA
+                    0x1F => {
+                        self.rra();
                     },
                     // LD HL,nn
                     0x21 => {
@@ -487,6 +581,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         self.step = 0x336;
                         break :next;
                     },
+                    // DDA
+                    0x27 => {
+                        self.daa();
+                    },
                     // LD HL,(nn)
                     0x2A => {
                         self.step = 0x339;
@@ -504,6 +602,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0x2E => {
                         self.step = 0x345;
                         break :next;
+                    },
+                    // CPL
+                    0x2F => {
+                        self.cpl();
                     },
                     // LD SP,nn
                     0x31 => {
@@ -530,6 +632,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         self.step = 0x365;
                         break :next;
                     },
+                    // SCF
+                    0x37 => {
+                        self.scf();
+                    },
                     // LD A,(nn)
                     0x3A => {
                         self.step = 0x36B;
@@ -547,6 +653,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0x3E => {
                         self.step = 0x374;
                         break :next;
+                    },
+                    // CCF
+                    0x3F => {
+                        self.ccf();
                     },
                     // LD B,B
                     0x40 => {

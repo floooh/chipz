@@ -710,6 +710,105 @@ fn @"INC/DEC r"() void {
     ok();
 }
 
+fn @"RLCA/RLA/RRCA/RRA"() void {
+    start("RLCA/RLA/RRCA/RRA");
+    const prog = [_]u8{
+        0x3E, 0xA0,     // LD A,0xA0
+        0x07,           // RLCA
+        0x07,           // RLCA
+        0x0F,           // RRCA
+        0x0F,           // RRCA
+        0x17,           // RLA
+        0x17,           // RLA
+        0x1F,           // RRA
+        0x1F,           // RRA
+    };
+    init(0, &prog);
+    cpu.r[F] = 0xFF;
+    T(7==step()); T(0xA0 == cpu.r[A]);
+    T(4==step()); T(0x41 == cpu.r[A]); T(flags(SF|ZF|VF|CF));
+    T(4==step()); T(0x82 == cpu.r[A]); T(flags(SF|ZF|VF));
+    T(4==step()); T(0x41 == cpu.r[A]); T(flags(SF|ZF|VF));
+    T(4==step()); T(0xA0 == cpu.r[A]); T(flags(SF|ZF|VF|CF));
+    T(4==step()); T(0x41 == cpu.r[A]); T(flags(SF|ZF|VF|CF));
+    T(4==step()); T(0x83 == cpu.r[A]); T(flags(SF|ZF|VF));
+    T(4==step()); T(0x41 == cpu.r[A]); T(flags(SF|ZF|VF|CF));
+    T(4==step()); T(0xA0 == cpu.r[A]); T(flags(SF|ZF|VF|CF));
+    ok();
+}
+
+fn DAA() void {
+    start("DAA");
+    const prog = [_]u8{
+        0x3e, 0x15,         // ld a,0x15
+        0x06, 0x27,         // ld b,0x27
+        0x80,               // add a,b
+        0x27,               // daa
+        0x90,               // sub b
+        0x27,               // daa
+        0x3e, 0x90,         // ld a,0x90
+        0x06, 0x15,         // ld b,0x15
+        0x80,               // add a,b
+        0x27,               // daa
+        0x90,               // sub b
+        0x27                // daa
+    };
+    init(0, &prog);
+    T(7==step()); T(0x15 == cpu.r[A]);
+    T(7==step()); T(0x27 == cpu.r[B]);
+    T(4==step()); T(0x3C == cpu.r[A]); T(flags(0));
+    T(4==step()); T(0x42 == cpu.r[A]); T(flags(HF|PF));
+    T(4==step()); T(0x1B == cpu.r[A]); T(flags(HF|NF));
+    T(4==step()); T(0x15 == cpu.r[A]); T(flags(NF));
+    T(7==step()); T(0x90 == cpu.r[A]); T(flags(NF));
+    T(7==step()); T(0x15 == cpu.r[B]); T(flags(NF));
+    T(4==step()); T(0xA5 == cpu.r[A]); T(flags(SF));
+    T(4==step()); T(0x05 == cpu.r[A]); T(flags(PF|CF));
+    T(4==step()); T(0xF0 == cpu.r[A]); T(flags(SF|NF|CF));
+    T(4==step()); T(0x90 == cpu.r[A]); T(flags(SF|PF|NF|CF));
+    ok();
+}
+
+fn CPL() void {
+    start("CPL");
+    const prog = [_]u8{
+        0x97,               // SUB A
+        0x2F,               // CPL
+        0x2F,               // CPL
+        0xC6, 0xAA,         // ADD A,0xAA
+        0x2F,               // CPL
+        0x2F,               // CPL
+    };
+    init(0, &prog);
+    T(4==step()); T(0x00 == cpu.r[A]); T(flags(ZF|NF));
+    T(4==step()); T(0xFF == cpu.r[A]); T(flags(ZF|HF|NF));
+    T(4==step()); T(0x00 == cpu.r[A]); T(flags(ZF|HF|NF));
+    T(7==step()); T(0xAA == cpu.r[A]); T(flags(SF));
+    T(4==step()); T(0x55 == cpu.r[A]); T(flags(SF|HF|NF));
+    T(4==step()); T(0xAA == cpu.r[A]); T(flags(SF|HF|NF));
+    ok();
+}
+
+fn @"CCF/SCF"() void {
+    start("CCF/SCF");
+    const prog = [_]u8{
+        0x97,           // SUB A
+        0x37,           // SCF
+        0x3F,           // CCF
+        0xD6, 0xCC,     // SUB 0xCC
+        0x3F,           // CCF
+        0x37,           // SCF
+    };
+    init(0, &prog);
+    T(4==step()); T(0x00 == cpu.r[A]); T(flags(ZF|NF));
+    T(4==step()); T(0x00 == cpu.r[A]); T(flags(ZF|CF));
+    T(4==step()); T(0x00 == cpu.r[A]); T(flags(ZF|HF));
+    T(7==step()); T(0x34 == cpu.r[A]); T(flags(HF|NF|CF));
+    T(4==step()); T(0x34 == cpu.r[A]); T(flags(HF));
+    T(4==step()); T(0x34 == cpu.r[A]); T(flags(CF));
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -727,4 +826,8 @@ pub fn main() void {
     @"XOR A,r/n"();
     @"OR A,r/n"();
     @"INC/DEC r"();
+    @"RLCA/RLA/RRCA/RRA"();
+    DAA();
+    CPL();
+    @"CCF/SCF"();
 }
