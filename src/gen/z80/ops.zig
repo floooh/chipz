@@ -175,3 +175,48 @@ pub fn @"LD A,(nn)"(code: u8) void {
         }),
     });
 }
+
+pub fn @"LD (BC),A"(code: u8) void {
+    op(code, .{
+        .dasm = "LD (BC),A",
+        .mcycles = mc(&.{
+            mwrite("self.BC()", r(R.A), "self.r[WZL]=self.r[C] +% 1; self.r[WZH]=self.r[A]"),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn @"LD (DE),A"(code: u8) void {
+    op(code, .{
+        .dasm = "LD (DE),A",
+        .mcycles = mc(&.{
+            mwrite("self.DE()", r(R.A), "self.r[WZL]=self.r[E] +% 1; self.r[WZH]=self.r[A]"),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn @"LD (nn),HL"(code: u8) void {
+    op(code, .{
+        .dasm = "LD (HL),nn",
+        .mcycles = mc(&.{
+            mread("self.pc", "self.r[WZL]", "self.pc +%= 1", null),
+            mread("self.pc", "self.r[WZH]", "self.pc +%= 1", null),
+            mwrite("self.WZ()", r(R.L), "self.setWZ(self.WZ() +% 1)"),
+            mwrite("self.WZ()", r(R.H), null),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn @"LD (nn),A"(code: u8) void {
+    op(code, .{
+        .dasm = "LD (HL),A",
+        .mcycles = mc(&.{
+            mread("self.pc", "self.r[WZL]", "self.pc +%= 1", null),
+            mread("self.pc", "self.r[WZH]", "self.pc +%= 1", null),
+            mwrite("self.WZ()", r(R.A), "self.setWZ(self.WZ() +% 1); self.r[WZH]=self.r[A]"),
+            overlapped(null),
+        }),
+    });
+}

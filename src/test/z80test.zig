@@ -323,6 +323,26 @@ fn @"LD A,(BC/DE/nn)"() void {
     ok();
 }
 
+fn @"LD (BC/DE/nn),A"() void {
+    start("LD (BC/DE/nn),A");
+    const prog = [_]u8{
+        0x01, 0x00, 0x10,   // LD BC,0x1000
+        0x11, 0x01, 0x10,   // LD DE,0x1001
+        0x3E, 0x77,         // LD A,0x77
+        0x02,               // LD (BC),A
+        0x12,               // LD (DE),A
+        0x32, 0x02, 0x10,   // LD (0x1002),A
+    };
+    init(0, &prog);
+    T(10==step()); T(0x1000 == cpu.BC());
+    T(10==step()); T(0x1001 == cpu.DE());
+    T(7==step());  T(0x77 == cpu.r[A]);
+    T(7==step());  T(0x77 == mem[0x1000]); T(0x7701 == cpu.WZ());
+    T(7==step());  T(0x77 == mem[0x1001]); T(0x7702 == cpu.WZ());
+    T(13==step()); T(0x77 == mem[0x1002]); T(0x7703 == cpu.WZ());
+    ok();
+}
+
 fn @"ADD A,r/n"() void {
     start("ADD A,r/n");
     const prog = [_]u8{
@@ -642,6 +662,7 @@ pub fn main() void {
     @"LD (HL),r"();
     @"LD (HL),n"();
     @"LD A,(BC/DE/nn)"();
+    @"LD (BC/DE/nn),A"();
     @"ADD A,r/n"();
     @"ADC A,r/n"();
     @"SUB A,r/n"();
