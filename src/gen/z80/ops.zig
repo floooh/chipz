@@ -1,6 +1,6 @@
 //! op structure declarations
 const op = @import("accumulate.zig").op;
-const f = @import("formatter.zig").f;
+const f = @import("format.zig").f;
 const types = @import("types.zig");
 const R = types.R;
 const RP = types.RP;

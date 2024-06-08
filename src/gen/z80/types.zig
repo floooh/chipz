@@ -1,4 +1,4 @@
-const f = @import("formatter.zig").f;
+const f = @import("format.zig").f;
 
 // a tcycle is everything that happens in a specific clock tick
 pub const TCycle = struct {

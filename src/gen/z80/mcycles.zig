@@ -1,10 +1,20 @@
 //! machine cycles are are instruction building blocks
+const f = @import("format.zig").f;
 const MCycle = @import("types.zig").MCycle;
 const ac = @import("accumulate.zig").ac;
 const tc = @import("accumulate.zig").tc;
-const mrd = @import("actions.zig").mrd;
-const mwr = @import("actions.zig").mwr;
-const gd = @import("actions.zig").gd;
+
+pub fn mrd(addr: []const u8) []const u8 {
+    return f("bus = mrd(bus, {s})", .{addr});
+}
+
+pub fn mwr(addr: []const u8, data: []const u8) []const u8 {
+    return f("bus = mwr(bus, {s}, {s})", .{ addr, data });
+}
+
+pub fn gd(dst: []const u8) []const u8 {
+    return f("{s} = gd(bus)", .{dst});
+}
 
 pub fn overlapped(action: ?[]const u8) MCycle {
     return .{

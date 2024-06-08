@@ -15,7 +15,6 @@ var mcycles = BoundedArray(MCycle, 64 * 1024){};
 pub var main_ops = [_]Op{.{}} ** 256;
 pub var ed_ops = [_]Op{.{}} ** 256;
 pub var cb_ops = [_]Op{.{}} ** 256;
-// TODO: Op block for 'special stuff'
 
 // take a slice of actions and duplicate into heap-backed slice (not including the actual string payload!)
 pub fn ac(s: []const ?[]const u8) []?[]const u8 {
@@ -40,31 +39,4 @@ pub fn mc(s: []const MCycle) []MCycle {
 
 pub fn op(opcode: usize, o: Op) void {
     main_ops[opcode] = o;
-}
-
-pub fn dump() void {
-    for (main_ops, 0..) |o, opcode| {
-        if (o.mcycles.len > 0) {
-            print("{X} => {s}:\n", .{ opcode, o.dasm });
-            for (o.mcycles) |mcycle| {
-                print("  {s}\n", .{mcycle.type.str()});
-                for (mcycle.tcycles, 0..) |tcycle, i| {
-                    print("    T{}: ", .{i});
-                    if (tcycle.wait) {
-                        print("Wait; ", .{});
-                    }
-                    for (tcycle.actions) |action_or_null| {
-                        if (action_or_null) |action| {
-                            print("{s}; ", .{action});
-                        }
-                    }
-                    if (tcycle.fetch) {
-                        print("Fetch;\n", .{});
-                    } else {
-                        print("Next;\n", .{});
-                    }
-                }
-            }
-        }
-    }
 }
