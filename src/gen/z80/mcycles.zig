@@ -25,6 +25,15 @@ pub fn overlapped(action: ?[]const u8) MCycle {
     };
 }
 
+pub fn generic(actions: []const ?[]const u8) MCycle {
+    return .{
+        .type = .Generic,
+        .tcycles = tc(&.{
+            .{ .actions = ac(actions) },
+        }),
+    };
+}
+
 pub fn mread(abus: []const u8, dst: []const u8, abus_action: ?[]const u8, dst_action: ?[]const u8) MCycle {
     return .{
         .type = .Read,

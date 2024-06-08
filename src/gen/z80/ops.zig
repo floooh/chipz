@@ -12,8 +12,9 @@ const ALU = types.ALU;
 const alu = types.alu;
 const mc = @import("accumulate.zig").mc;
 const mcycles = @import("mcycles.zig");
-const mread = mcycles.mread;
 const overlapped = mcycles.overlapped;
+const generic = mcycles.generic;
+const mread = mcycles.mread;
 const mwrite = mcycles.mwrite;
 
 pub fn nop(code: u8) void {
@@ -82,7 +83,7 @@ pub fn @"LD (HL),n"(code: u8) void {
         .indirect = true,
         .imm8 = true,
         .mcycles = mc(&.{
-            mread("self.pc", "self.dlatch", "self.pc +%=1", null),
+            mread("self.pc", "self.dlatch", "self.pc +%= 1", null),
             mwrite("self.addr", "self.dlatch", null),
             overlapped(null),
         }),
@@ -114,7 +115,7 @@ pub fn @"ALU n"(code: u8, y: u3) void {
         .dasm = f("{s} n", .{ALU.dasm(y)}),
         .imm8 = true,
         .mcycles = mc(&.{
-            mread("self.pc", "self.dlatch", "self.pc +%=1", null),
+            mread("self.pc", "self.dlatch", "self.pc +%= 1", null),
             overlapped(f("{s}(self.dlatch)", .{alu(y)})),
         }),
     });
@@ -216,6 +217,50 @@ pub fn @"LD (nn),A"(code: u8) void {
             mread("self.pc", "self.r[WZL]", "self.pc +%= 1", null),
             mread("self.pc", "self.r[WZH]", "self.pc +%= 1", null),
             mwrite("self.WZ()", r(R.A), "self.setWZ(self.WZ() +% 1); self.r[WZH]=self.r[A]"),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn @"INC r"(code: u8, y: u3) void {
+    op(code, .{
+        .dasm = f("INC {s}", .{R.dasm(y)}),
+        .mcycles = mc(&.{
+            overlapped(f("{s}=self.inc8({s})", .{ r(y), r(y) })),
+        }),
+    });
+}
+
+pub fn @"INC (HL)"(code: u8) void {
+    op(code, .{
+        .dasm = "INC (HL)",
+        .indirect = true,
+        .mcycles = mc(&.{
+            mread("self.addr", "self.dlatch", null, null),
+            generic(&.{"self.dlatch=self.inc8(self.dlatch)"}),
+            mwrite("self.addr", "self.dlatch", null),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn @"DEC r"(code: u8, y: u3) void {
+    op(code, .{
+        .dasm = f("DEC {s}", .{R.dasm(y)}),
+        .mcycles = mc(&.{
+            overlapped(f("{s}=self.dec8({s})", .{ r(y), r(y) })),
+        }),
+    });
+}
+
+pub fn @"DEC (HL)"(code: u8) void {
+    op(code, .{
+        .dasm = "DEC (HL)",
+        .indirect = true,
+        .mcycles = mc(&.{
+            mread("self.addr", "self.dlatch", null, null),
+            generic(&.{"self.dlatch=self.dec8(self.dlatch)"}),
+            mwrite("self.addr", "self.dlatch", null),
             overlapped(null),
         }),
     });

@@ -42,6 +42,14 @@ fn decodeMain() void {
                         3 => ops.@"LD A,(nn)"(op),
                     },
                 },
+                4 => switch (y) {
+                    6 => ops.@"INC (HL)"(op),
+                    else => ops.@"INC r"(op, y),
+                },
+                5 => switch (y) {
+                    6 => ops.@"DEC (HL)"(op),
+                    else => ops.@"DEC r"(op, y),
+                },
                 6 => switch (y) {
                     6 => ops.@"LD (HL),n"(op),
                     else => ops.@"LD r,n"(op, y),

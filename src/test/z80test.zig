@@ -655,6 +655,61 @@ fn @"OR A,r/n"() void {
     ok();
 }
 
+fn @"INC/DEC r"() void {
+    start("INC/DEC r");
+    const prog = [_]u8 {
+        0x3e, 0x00,         // LD A,0x00
+        0x06, 0xFF,         // LD B,0xFF
+        0x0e, 0x0F,         // LD C,0x0F
+        0x16, 0x0E,         // LD D,0x0E
+        0x1E, 0x7F,         // LD E,0x7F
+        0x26, 0x3E,         // LD H,0x3E
+        0x2E, 0x23,         // LD L,0x23
+        0x3C,               // INC A
+        0x3D,               // DEC A
+        0x04,               // INC B
+        0x05,               // DEC B
+        0x0C,               // INC C
+        0x0D,               // DEC C
+        0x14,               // INC D
+        0x15,               // DEC D
+        0xFE, 0x01,         // CP 0x01  // set carry flag (should be preserved)
+        0x1C,               // INC E
+        0x1D,               // DEC E
+        0x24,               // INC H
+        0x25,               // DEC H
+        0x2C,               // INC L
+        0x2D,               // DEC L
+    };
+    init(0, &prog);
+    for (0..7) |_| {
+        _ = step();
+    }
+    T(0x00 == cpu.r[A]);
+    T(0xFF == cpu.r[B]);
+    T(0x0F == cpu.r[C]);
+    T(0x0E == cpu.r[D]);
+    T(0x7F == cpu.r[E]);
+    T(0x3E == cpu.r[H]);
+    T(0x23 == cpu.r[L]);
+    T(4==step()); T(0x01 == cpu.r[A]); T(flags(0));
+    T(4==step()); T(0x00 == cpu.r[A]); T(flags(ZF|NF));
+    T(4==step()); T(0x00 == cpu.r[B]); T(flags(ZF|HF));
+    T(4==step()); T(0xFF == cpu.r[B]); T(flags(SF|HF|NF));
+    T(4==step()); T(0x10 == cpu.r[C]); T(flags(HF));
+    T(4==step()); T(0x0F == cpu.r[C]); T(flags(HF|NF));
+    T(4==step()); T(0x0F == cpu.r[D]); T(flags(0));
+    T(4==step()); T(0x0E == cpu.r[D]); T(flags(NF));
+    T(7==step()); T(0x00 == cpu.r[A]); T(flags(SF|HF|NF|CF));
+    T(4==step()); T(0x80 == cpu.r[E]); T(flags(SF|HF|VF|CF));
+    T(4==step()); T(0x7F == cpu.r[E]); T(flags(HF|VF|NF|CF));
+    T(4==step()); T(0x3F == cpu.r[H]); T(flags(CF));
+    T(4==step()); T(0x3E == cpu.r[H]); T(flags(NF|CF));
+    T(4==step()); T(0x24 == cpu.r[L]); T(flags(CF));
+    T(4==step()); T(0x23 == cpu.r[L]); T(flags(NF|CF));
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -671,4 +726,5 @@ pub fn main() void {
     @"AND A,r/n"();
     @"XOR A,r/n"();
     @"OR A,r/n"();
+    @"INC/DEC r"();
 }
