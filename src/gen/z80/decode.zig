@@ -89,6 +89,14 @@ fn decodeMain() void {
             // quadrant 3
             3 => {
                 switch (z) {
+                    5 => switch (q) {
+                        1 => switch (p) {
+                            1 => ops.dd(op),
+                            3 => ops.fd(op),
+                            else => {},
+                        },
+                        else => {},
+                    },
                     6 => ops.@"ALU n"(op, y),
                     else => {},
                 }

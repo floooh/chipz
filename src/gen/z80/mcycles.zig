@@ -25,6 +25,15 @@ pub fn overlapped(action: ?[]const u8) MCycle {
     };
 }
 
+pub fn overlapped_prefix(actions: []const ?[]const u8) MCycle {
+    return .{
+        .type = .Overlapped,
+        .tcycles = tc(&.{
+            .{ .prefix = true, .actions = ac(actions) },
+        }),
+    };
+}
+
 pub fn generic(actions: []const ?[]const u8) MCycle {
     return .{
         .type = .Generic,

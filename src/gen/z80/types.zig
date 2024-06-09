@@ -6,6 +6,7 @@ pub const TCycle = struct {
     actions: []?[]const u8 = &.{},
     wait: bool = false, // if true check for wait state
     fetch: bool = false, // if true, fetch next instruction
+    prefix: bool = false, // a special prefix-overlapped cycle
 };
 
 // an mcycle is a collection of tcycles

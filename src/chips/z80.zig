@@ -1354,6 +1354,11 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         self.step = 0x3BF;
                         break :next;
                     },
+                    // DD Prefix
+                    0xDD => {
+                        bus = self.fetchDD(bus);
+                        break :next;
+                    },
                     // SBC n
                     0xDE => {
                         self.step = 0x3C2;
@@ -1372,6 +1377,11 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     // OR n
                     0xF6 => {
                         self.step = 0x3CB;
+                        break :next;
+                    },
+                    // FD Prefix
+                    0xFD => {
+                        bus = self.fetchFD(bus);
                         break :next;
                     },
                     // CP n

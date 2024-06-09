@@ -27,15 +27,15 @@ pub fn generate() !void {
     for (acc.main_ops, 0..) |op, opcode_step_index| {
         var tcount: usize = 0;
         if (op.mcycles.len > 0) {
-            var last_mcycle_is_overlapped = false;
+            var last_mcycle_valid = false;
             for (op.mcycles) |mcycle| {
-                last_mcycle_is_overlapped = mcycle.type == .Overlapped;
+                last_mcycle_valid = mcycle.type == .Overlapped;
                 for (mcycle.tcycles) |tcycle| {
                     try gen_tcycle(opcode_step_index, op, tcycle, tcount);
                     tcount += 1;
                 }
             }
-            assert(last_mcycle_is_overlapped);
+            assert(last_mcycle_valid);
         }
     }
 }
@@ -68,7 +68,9 @@ fn gen_tcycle(opcode_step_index: usize, op: Op, tcycle: TCycle, tcount: usize) !
             try lines.append(f("    {s};", .{action}));
         }
     }
-    if (!tcycle.fetch) {
+    if (tcycle.prefix) {
+        try lines.append("    break :next;");
+    } else if (!tcycle.fetch) {
         try lines.append(f("    self.step = 0x{X};", .{next_step_index}));
         try lines.append("    break :next;");
     }

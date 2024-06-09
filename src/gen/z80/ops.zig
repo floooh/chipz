@@ -13,6 +13,7 @@ const alu = types.alu;
 const mc = @import("accumulate.zig").mc;
 const mcycles = @import("mcycles.zig");
 const overlapped = mcycles.overlapped;
+const overlapped_prefix = mcycles.overlapped_prefix;
 const generic = mcycles.generic;
 const mread = mcycles.mread;
 const mwrite = mcycles.mwrite;
@@ -334,6 +335,24 @@ pub fn ccf(code: u8) void {
         .dasm = "CCF",
         .mcycles = mc(&.{
             overlapped("self.ccf()"),
+        }),
+    });
+}
+
+pub fn dd(code: u8) void {
+    op(code, .{
+        .dasm = "DD Prefix",
+        .mcycles = mc(&.{
+            overlapped_prefix(&.{"bus = self.fetchDD(bus)"}),
+        }),
+    });
+}
+
+pub fn fd(code: u8) void {
+    op(code, .{
+        .dasm = "FD Prefix",
+        .mcycles = mc(&.{
+            overlapped_prefix(&.{"bus = self.fetchFD(bus)"}),
         }),
     });
 }
