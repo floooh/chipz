@@ -520,17 +520,18 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     DDFD_M1_T2 => {
                         if (wait(bus)) break :next;
                         self.opcode = gd(bus);
-                        self.step = M1_T3;
+                        self.step = DDFD_M1_T3;
                         break :next;
                     },
                     DDFD_M1_T3 => {
                         bus = self.refresh(bus);
-                        self.step = M1_T4;
+                        self.step = DDFD_M1_T4;
                         break :next;
                     },
                     DDFD_M1_T4 => {
                         self.step = if (indirect_table[self.opcode]) DDFD_D_T1 else self.opcode;
-                        self.addr = (@as(u16, self.r[L + self.rixy]) << 8) | self.r[H + self.rixy];
+                        // should we move this into DDFD_D_T1?
+                        self.addr = (@as(u16, self.r[H + self.rixy]) << 8) | self.r[L + self.rixy];
                         break :next;
                     },
                     // fallthrough for (IX/IY+d) d-offset loading
