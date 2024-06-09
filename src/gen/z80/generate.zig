@@ -57,7 +57,7 @@ fn gen_tcycle(opcode_step_index: usize, op: Op, tcycle: TCycle, tcount: usize) !
     if (tcount == 0) {
         try lines.append(f("// {s}", .{op.dasm}));
     } else if (tcount == 1) {
-        try lines.append(f("// {s} (contined...)", .{op.dasm}));
+        try lines.append(f("// {s} (continued...)", .{op.dasm}));
     }
     try lines.append(f("0x{X} => {{", .{step_index}));
     if (tcycle.wait) {
@@ -126,9 +126,28 @@ pub fn write(allocator: Allocator, path: []const u8) !void {
             }
         } else if (consts.inside) {
             if (!consts.skip) {
-                try addLine(dst, consts_prefix, f("const M1_T2: u16 = 0x{X};", .{m1_t1}));
-                try addLine(dst, consts_prefix, f("const M1_T3: u16 = 0x{X};", .{m1_t1 + 1}));
-                try addLine(dst, consts_prefix, f("const M1_T4: u16 = 0x{X};", .{m1_t1 + 2}));
+                inline for (.{
+                    "M1_T2",
+                    "M1_T3",
+                    "M1_T4",
+                    "DDFD_M1_T2",
+                    "DDFD_M1_T3",
+                    "DDFD_M1_T4",
+                    "DDFD_D_T1",
+                    "DDFD_D_T2",
+                    "DDFD_D_T3",
+                    "DDFD_D_T4",
+                    "DDFD_D_T5",
+                    "DDFD_D_T6",
+                    "DDFD_D_T7",
+                    "DDFD_D_T8",
+                    "DDFD_LDHLN_WR_T1",
+                    "DDFD_LDHLN_WR_T2",
+                    "DDFD_LDHLN_WR_T3",
+                    "DDFD_LDHLN_OVERLAPPED",
+                }, 0..) |str, i| {
+                    try addLine(dst, consts_prefix, f("const {s}: u16 = 0x{X};", .{ str, m1_t1 + i }));
+                }
             }
             consts.skip = true;
         } else {
