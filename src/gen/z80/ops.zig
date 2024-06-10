@@ -516,3 +516,19 @@ pub fn @"DEC rp"(code: u8, p: u2) void {
         }),
     });
 }
+
+pub fn @"ADD HL,rp"(code: u8, p: u2) void {
+    op(code, .{
+        .dasm = f("ADD HL,{s}", .{RP.dasm(p)}),
+        .mcycles = mc(&.{
+            generic(&.{f("self.add16(self.{s}())", .{rp(p)})}),
+            generic(&.{null}),
+            generic(&.{null}),
+            generic(&.{null}),
+            generic(&.{null}),
+            generic(&.{null}),
+            generic(&.{null}),
+            overlapped(null),
+        }),
+    });
+}

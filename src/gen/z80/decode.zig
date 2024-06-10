@@ -29,7 +29,7 @@ fn decodeMain() void {
                 },
                 1 => switch (q) {
                     0 => ops.@"LD RP,nn"(op, p),
-                    else => {},
+                    1 => ops.@"ADD HL,rp"(op, p),
                 },
                 2 => switch (q) {
                     0 => switch (p) {
