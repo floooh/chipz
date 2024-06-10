@@ -113,6 +113,7 @@ fn decodeMain() void {
                     5 => switch (q) {
                         0 => ops.push(op, p),
                         1 => switch (p) {
+                            0 => ops.@"CALL nn"(op),
                             1 => ops.dd(op),
                             3 => ops.fd(op),
                             else => {},

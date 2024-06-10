@@ -78,7 +78,7 @@ pub fn @"LD r,n"(code: u8, y: u3) void {
         .dasm = f("LD {s},n", .{R.dasm(y)}),
         .imm8 = true,
         .mcycles = mc(&.{
-            mread("self.pc", r(y), "self.pc +%= 1", null),
+            mread("self.pc", r(y), "self.incPC()", null),
             overlapped(null),
         }),
     });
@@ -90,7 +90,7 @@ pub fn @"LD (HL),n"(code: u8) void {
         .indirect = true,
         .imm8 = true,
         .mcycles = mc(&.{
-            mread("self.pc", "self.dlatch", "self.pc +%= 1", null),
+            mread("self.pc", "self.dlatch", "self.incPC()", null),
             mwrite("self.addr", "self.dlatch", null),
             overlapped(null),
         }),
@@ -122,7 +122,7 @@ pub fn @"ALU n"(code: u8, y: u3) void {
         .dasm = f("{s} n", .{ALU.dasm(y)}),
         .imm8 = true,
         .mcycles = mc(&.{
-            mread("self.pc", "self.dlatch", "self.pc +%= 1", null),
+            mread("self.pc", "self.dlatch", "self.incPC()", null),
             overlapped(f("{s}(self.dlatch)", .{alu(y)})),
         }),
     });
@@ -132,8 +132,8 @@ pub fn @"LD RP,nn"(code: u8, p: u2) void {
     op(code, .{
         .dasm = f("LD {s},nn", .{RP.dasm(p)}),
         .mcycles = mc(&.{
-            mread("self.pc", rpl(p), "self.pc +%= 1", null),
-            mread("self.pc", rph(p), "self.pc +%= 1", null),
+            mread("self.pc", rpl(p), "self.incPC()", null),
+            mread("self.pc", rph(p), "self.incPC()", null),
             overlapped(null),
         }),
     });
@@ -163,9 +163,9 @@ pub fn @"LD HL,(nn)"(code: u8) void {
     op(code, .{
         .dasm = "LD HL,(nn)",
         .mcycles = mc(&.{
-            mread("self.pc", "self.r[WZL]", "self.pc +%= 1", null),
-            mread("self.pc", "self.r[WZH]", "self.pc +%= 1", null),
-            mread("self.WZ()", r(R.L), "self.setWZ(self.WZ() +% 1)", null),
+            mread("self.pc", "self.r[WZL]", "self.incPC()", null),
+            mread("self.pc", "self.r[WZH]", "self.incPC()", null),
+            mread("self.WZ()", r(R.L), "self.incWZ()", null),
             mread("self.WZ()", r(R.H), null, null),
             overlapped(null),
         }),
@@ -176,9 +176,9 @@ pub fn @"LD A,(nn)"(code: u8) void {
     op(code, .{
         .dasm = "LD A,(nn)",
         .mcycles = mc(&.{
-            mread("self.pc", "self.r[WZL]", "self.pc +%= 1", null),
-            mread("self.pc", "self.r[WZH]", "self.pc +%= 1", null),
-            mread("self.WZ()", r(R.A), "self.setWZ(self.WZ() +% 1)", null),
+            mread("self.pc", "self.r[WZL]", "self.incPC()", null),
+            mread("self.pc", "self.r[WZH]", "self.incPC()", null),
+            mread("self.WZ()", r(R.A), "self.incWZ()", null),
             overlapped(null),
         }),
     });
@@ -208,9 +208,9 @@ pub fn @"LD (nn),HL"(code: u8) void {
     op(code, .{
         .dasm = "LD (HL),nn",
         .mcycles = mc(&.{
-            mread("self.pc", "self.r[WZL]", "self.pc +%= 1", null),
-            mread("self.pc", "self.r[WZH]", "self.pc +%= 1", null),
-            mwrite("self.WZ()", r(R.L), "self.setWZ(self.WZ() +% 1)"),
+            mread("self.pc", "self.r[WZL]", "self.incPC()", null),
+            mread("self.pc", "self.r[WZH]", "self.incPC()", null),
+            mwrite("self.WZ()", r(R.L), "self.incWZ()"),
             mwrite("self.WZ()", r(R.H), null),
             overlapped(null),
         }),
@@ -221,9 +221,9 @@ pub fn @"LD (nn),A"(code: u8) void {
     op(code, .{
         .dasm = "LD (HL),A",
         .mcycles = mc(&.{
-            mread("self.pc", "self.r[WZL]", "self.pc +%= 1", null),
-            mread("self.pc", "self.r[WZH]", "self.pc +%= 1", null),
-            mwrite("self.WZ()", r(R.A), "self.setWZ(self.WZ() +% 1); self.r[WZH]=self.r[A]"),
+            mread("self.pc", "self.r[WZL]", "self.incPC()", null),
+            mread("self.pc", "self.r[WZH]", "self.incPC()", null),
+            mwrite("self.WZ()", r(R.A), "self.incWZ(); self.r[WZH]=self.r[A]"),
             overlapped(null),
         }),
     });
@@ -434,7 +434,7 @@ pub fn djnz(code: u8) void {
         .dasm = "DJNZ",
         .mcycles = mc(&.{
             generic(&.{"self.r[B] -%= 1"}),
-            mread("self.pc", "self.dlatch", "self.pc +%= 1", "if (self.skipZero(self.r[B], 6)) break :next"),
+            mread("self.pc", "self.dlatch", "self.incPC()", "if (self.skipZero(self.r[B], 6)) break :next"),
             generic(&.{ "self.pc +%= dimm8(self.dlatch)", "self.setWZ(self.pc)" }),
             generic(&.{null}),
             generic(&.{null}),
@@ -449,7 +449,7 @@ pub fn @"JR cc,d"(code: u8, y: u3) void {
     op(code, .{
         .dasm = f("JR {s},d", .{CC.dasm(y - 4)}),
         .mcycles = mc(&.{
-            mread("self.pc", "self.dlatch", "self.pc +%= 1", f("if (self.skip{s}(6)) break :next", .{cc(y - 4)})),
+            mread("self.pc", "self.dlatch", "self.incPC()", f("if (self.skip{s}(6)) break :next", .{cc(y - 4)})),
             generic(&.{ "self.pc +%= dimm8(self.dlatch)", "self.setWZ(self.pc)" }),
             generic(&.{null}),
             generic(&.{null}),
@@ -464,7 +464,7 @@ pub fn @"JR d"(code: u8) void {
     op(code, .{
         .dasm = "JR d",
         .mcycles = mc(&.{
-            mread("self.pc", "self.dlatch", "self.pc +%= 1", null),
+            mread("self.pc", "self.dlatch", "self.incPC()", null),
             generic(&.{ "self.pc +%= dimm8(self.dlatch)", "self.setWZ(self.pc)" }),
             generic(&.{null}),
             generic(&.{null}),
@@ -479,8 +479,8 @@ pub fn @"JP nn"(code: u8) void {
     op(code, .{
         .dasm = "JP nn",
         .mcycles = mc(&.{
-            mread("self.pc", "self.r[WZL]", "self.pc +%= 1", null),
-            mread("self.pc", "self.r[WZH]", "self.pc +%= 1", "self.pc = self.WZ()"),
+            mread("self.pc", "self.r[WZL]", "self.incPC()", null),
+            mread("self.pc", "self.r[WZH]", "self.incPC()", "self.pc = self.WZ()"),
             overlapped(null),
         }),
     });
@@ -563,6 +563,20 @@ pub fn ret(code: u8) void {
         .mcycles = mc(&.{
             mread("self.SP()", "self.r[WZL]", "self.incSP()", null),
             mread("self.SP()", "self.r[WZH]", "self.incSP()", "self.pc = self.WZ()"),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn @"CALL nn"(code: u8) void {
+    op(code, .{
+        .dasm = "CALL nn",
+        .mcycles = mc(&.{
+            mread("self.pc", "self.r[WZL]", "self.incPC()", null),
+            mread("self.pc", "self.r[WZH]", "self.incPC()", null),
+            generic(&.{"self.decSP()"}),
+            mwrite("self.SP()", "self.PCH()", "self.decSP()"),
+            mwrite("self.SP()", "self.PCL()", "self.pc = self.WZ()"),
             overlapped(null),
         }),
     });
