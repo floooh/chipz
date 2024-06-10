@@ -1351,6 +1351,47 @@ fn @"JR cc,d"() void {
     ok();
 }
 
+fn @"INC/DEC ss/IX/IY"() void {
+    start("INC/DEC ss/IX/IY");
+    const prog = [_]u8{
+        0x01, 0x00, 0x00,       // LD BC,0x0000
+        0x11, 0xFF, 0xFF,       // LD DE,0xffff
+        0x21, 0xFF, 0x00,       // LD HL,0x00ff
+        0x31, 0x11, 0x11,       // LD SP,0x1111
+        0xDD, 0x21, 0xFF, 0x0F, // LD IX,0x0fff
+        0xFD, 0x21, 0x34, 0x12, // LD IY,0x1234
+        0x0B,                   // DEC BC
+        0x03,                   // INC BC
+        0x13,                   // INC DE
+        0x1B,                   // DEC DE
+        0x23,                   // INC HL
+        0x2B,                   // DEC HL
+        0x33,                   // INC SP
+        0x3B,                   // DEC SP
+        0xDD, 0x23,             // INC IX
+        0xDD, 0x2B,             // DEC IX
+        0xFD, 0x23,             // INC IX
+        0xFD, 0x2B,             // DEC IX
+    };
+    init(0, &prog);
+    for (0..6) |_| {
+        _ = step();
+    }
+    T(6  == step()); T(0xFFFF == cpu.BC());
+    T(6  == step()); T(0x0000 == cpu.BC());
+    T(6  == step()); T(0x0000 == cpu.DE());
+    T(6  == step()); T(0xFFFF == cpu.DE());
+    T(6  == step()); T(0x0100 == cpu.HL());
+    T(6  == step()); T(0x00FF == cpu.HL());
+    T(6  == step()); T(0x1112 == cpu.SP());
+    T(6  == step()); T(0x1111 == cpu.SP());
+    T(10 == step()); T(0x1000 == cpu.IX());
+    T(10 == step()); T(0x0FFF == cpu.IX());
+    T(10 == step()); T(0x1235 == cpu.IY());
+    T(10 == step()); T(0x1234 == cpu.IY());
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -1390,4 +1431,5 @@ pub fn main() void {
     djnz();
     @"JP/JR"();
     @"JR cc,d"();
+    @"INC/DEC ss/IX/IY"();
 }

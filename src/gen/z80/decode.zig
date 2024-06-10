@@ -45,6 +45,10 @@ fn decodeMain() void {
                         3 => ops.@"LD A,(nn)"(op),
                     },
                 },
+                3 => switch (q) {
+                    0 => ops.@"INC rp"(op, p),
+                    1 => ops.@"DEC rp"(op, p),
+                },
                 4 => switch (y) {
                     6 => ops.@"INC (HL)"(op),
                     else => ops.@"INC r"(op, y),
@@ -67,7 +71,6 @@ fn decodeMain() void {
                     6 => ops.scf(op),
                     7 => ops.ccf(op),
                 },
-                else => {},
             },
             // quadrant 1: 8-bit loads
             1 => {

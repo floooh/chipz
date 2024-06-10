@@ -95,6 +95,15 @@ pub const RP = enum(u2) {
     }
 };
 
+pub fn rp(any: anytype) []const u8 {
+    return switch (RP.asEnum(any)) {
+        .BC => "BC",
+        .DE => "DE",
+        .HL => "HLIXY",
+        .SP => "SP",
+    };
+}
+
 pub fn rpl(any: anytype) []const u8 {
     return switch (RP.asEnum(any)) {
         .BC => "self.r[C]",

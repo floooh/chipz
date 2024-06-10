@@ -9,6 +9,7 @@ const ALU = types.ALU;
 const CC = types.CC;
 const r = types.r;
 const rr = types.rr;
+const rp = types.rp;
 const rpl = types.rpl;
 const rph = types.rph;
 const rp2l = types.rp2l;
@@ -490,6 +491,28 @@ pub fn @"JP HL"(code: u8) void {
         .dasm = "JP HL",
         .mcycles = mc(&.{
             overlapped("self.pc = self.HLIXY()"),
+        }),
+    });
+}
+
+pub fn @"INC rp"(code: u8, p: u2) void {
+    op(code, .{
+        .dasm = f("INC {s}", .{RP.dasm(p)}),
+        .mcycles = mc(&.{
+            generic(&.{f("self.set{s}(self.{s}() +% 1)", .{ rp(p), rp(p) })}),
+            generic(&.{null}),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn @"DEC rp"(code: u8, p: u2) void {
+    op(code, .{
+        .dasm = f("DEC {s}", .{RP.dasm(p)}),
+        .mcycles = mc(&.{
+            generic(&.{f("self.set{s}(self.{s}() -% 1)", .{ rp(p), rp(p) })}),
+            generic(&.{null}),
+            overlapped(null),
         }),
     });
 }
