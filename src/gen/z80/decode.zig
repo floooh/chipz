@@ -25,7 +25,7 @@ fn decodeMain() void {
                     1 => ops.@"EX AF,AF'"(op),
                     2 => ops.djnz(op),
                     3 => ops.@"JR d"(op),
-                    else => {},
+                    4...7 => ops.@"JR cc,d"(op, y),
                 },
                 1 => switch (q) {
                     0 => ops.@"LD RP,nn"(op, p),

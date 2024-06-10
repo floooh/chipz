@@ -1321,6 +1321,36 @@ pub fn @"JP/JR"() void {
     ok();
 }
 
+fn @"JR cc,d"() void {
+    start("JR cc,d");
+    const prog = [_]u8{
+        0x97,           //      SUB A
+        0x20, 0x03,     //      JR NZ,l0
+        0x28, 0x01,     //      JR Z,l0
+        0x00,           //      NOP
+        0xC6, 0x01,     // l0:  ADD A,0x01
+        0x28, 0x03,     //      JR Z,l1
+        0x20, 0x01,     //      JR NZ,l1
+        0x00,           //      NOP
+        0xD6, 0x03,     // l1:  SUB 0x03
+        0x30, 0x03,     //      JR NC,l2
+        0x38, 0x01,     //      JR C,l2
+        0x00,           //      NOP
+        0x00,           // l2:  NOP
+    };
+    init(0x204, &prog);
+    T(4  == step()); T(0x00 == cpu.r[A]); T(flags(ZF|NF));
+    T(7  == step()); T(0x0208 == cpu.pc);
+    T(12 == step()); T(0x020B == cpu.pc); T(0x020A == cpu.WZ());
+    T(7  == step()); T(0x01 == cpu.r[A]); T(flags(0));
+    T(7  == step()); T(0x020F == cpu.pc);
+    T(12 == step()); T(0x0212 == cpu.pc); T(0x0211 == cpu.WZ());
+    T(7  == step()); T(0xFE == cpu.r[A]); T(flags(SF|HF|NF|CF));
+    T(7  == step()); T(0x0216 == cpu.pc);
+    T(12 == step()); T(0x0219 == cpu.pc); T(0x0218 == cpu.WZ());
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -1359,4 +1389,5 @@ pub fn main() void {
     @"PUSH/POP qq/IX/IY"();
     djnz();
     @"JP/JR"();
+    @"JR cc,d"();
 }

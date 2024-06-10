@@ -6,6 +6,7 @@ const R = types.R;
 const RP = types.RP;
 const RP2 = types.RP2;
 const ALU = types.ALU;
+const CC = types.CC;
 const r = types.r;
 const rr = types.rr;
 const rpl = types.rpl;
@@ -13,6 +14,7 @@ const rph = types.rph;
 const rp2l = types.rp2l;
 const rp2h = types.rp2h;
 const alu = types.alu;
+const cc = types.cc;
 const mc = @import("accumulate.zig").mc;
 const mcycles = @import("mcycles.zig");
 const overlapped = mcycles.overlapped;
@@ -431,7 +433,22 @@ pub fn djnz(code: u8) void {
         .dasm = "DJNZ",
         .mcycles = mc(&.{
             generic(&.{"self.r[B] -%= 1"}),
-            mread("self.pc", "self.dlatch", "self.pc +%= 1", "if (self.skipIfZero(self.r[B], 6)) break :next"),
+            mread("self.pc", "self.dlatch", "self.pc +%= 1", "if (self.skipZero(self.r[B], 6)) break :next"),
+            generic(&.{ "self.pc +%= dimm8(self.dlatch)", "self.setWZ(self.pc)" }),
+            generic(&.{null}),
+            generic(&.{null}),
+            generic(&.{null}),
+            generic(&.{null}),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn @"JR cc,d"(code: u8, y: u3) void {
+    op(code, .{
+        .dasm = f("JR {s},d", .{CC.dasm(y - 4)}),
+        .mcycles = mc(&.{
+            mread("self.pc", "self.dlatch", "self.pc +%= 1", f("if (self.skip{s}(6)) break :next", .{cc(y - 4)})),
             generic(&.{ "self.pc +%= dimm8(self.dlatch)", "self.setWZ(self.pc)" }),
             generic(&.{null}),
             generic(&.{null}),

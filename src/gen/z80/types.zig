@@ -184,5 +184,30 @@ pub fn alu(any: anytype) []const u8 {
     };
 }
 
-pub const CC = enum(u3) { NZ, Z, NC, C, PO, PE, P, M };
+pub const CC = enum(u3) {
+    NZ,
+    Z,
+    NC,
+    C,
+    PO,
+    PE,
+    P,
+    M,
+
+    fn asEnum(any: anytype) CC {
+        if (@TypeOf(any) != u3 and @TypeOf(any) != ALU) {
+            @compileError("arg must be of type u3 or ALU");
+        }
+        return if (@TypeOf(any) == CC) any else @enumFromInt(any);
+    }
+
+    pub fn dasm(any: anytype) []const u8 {
+        return @tagName(asEnum(any));
+    }
+};
+
+pub fn cc(any: anytype) []const u8 {
+    return @tagName(CC.asEnum(any));
+}
+
 pub const ROT = enum(u3) { RLC, RRC, RL, RR, SLA, SRA, SLL, SRL };
