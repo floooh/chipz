@@ -1407,6 +1407,26 @@ fn RST() void {
     ok();
 }
 
+fn @"LD SP,HL/IX/IY"() void {
+    start("LD SP,HL/IX/IY");
+    const prog = [_]u8{
+        0x21, 0x34, 0x12,           // LD HL,0x1234
+        0xDD, 0x21, 0x78, 0x56,     // LD IX,0x5678
+        0xFD, 0x21, 0xBC, 0x9A,     // LD IY,0x9ABC
+        0xF9,                       // LD SP,HL
+        0xDD, 0xF9,                 // LD SP,IX
+        0xFD, 0xF9,                 // LD SP,IY
+    };
+    init(0, &prog);
+    T(10 == step()); T(0x1234 == cpu.HL());
+    T(14 == step()); T(0x5678 == cpu.IX());
+    T(14 == step()); T(0x9ABC == cpu.IY());
+    T(6  == step()); T(0x1234 == cpu.SP());
+    T(10 == step()); T(0x5678 == cpu.SP());
+    T(10 == step()); T(0x9ABC == cpu.SP());
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -1448,4 +1468,5 @@ pub fn main() void {
     @"JR cc,d"();
     @"INC/DEC ss/IX/IY"();
     @"RST"();
+    @"LD SP,HL/IX/IY"();
 }

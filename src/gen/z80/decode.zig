@@ -98,9 +98,10 @@ fn decodeMain() void {
                     1 => switch (q) {
                         0 => ops.pop(op, p),
                         1 => switch (p) {
+                            0 => ops.ret(op),
                             1 => ops.exx(op),
                             2 => ops.@"JP HL"(op),
-                            else => {},
+                            3 => ops.@"LD SP,HL"(op),
                         },
                     },
                     3 => switch (y) {

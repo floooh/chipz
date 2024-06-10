@@ -545,3 +545,25 @@ pub fn @"RST n"(code: u8, y: u3) void {
         }),
     });
 }
+
+pub fn @"LD SP,HL"(code: u8) void {
+    op(code, .{
+        .dasm = "LD SP,HL",
+        .mcycles = mc(&.{
+            generic(&.{"self.setSP(self.HLIXY())"}),
+            generic(&.{null}),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn ret(code: u8) void {
+    op(code, .{
+        .dasm = "RET",
+        .mcycles = mc(&.{
+            mread("self.SP()", "self.r[WZL]", "self.incSP()", null),
+            mread("self.SP()", "self.r[WZH]", "self.incSP()", "self.pc = self.WZ()"),
+            overlapped(null),
+        }),
+    });
+}
