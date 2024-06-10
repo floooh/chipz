@@ -4,11 +4,14 @@ const f = @import("format.zig").f;
 const types = @import("types.zig");
 const R = types.R;
 const RP = types.RP;
+const RP2 = types.RP2;
+const ALU = types.ALU;
 const r = types.r;
 const rr = types.rr;
 const rpl = types.rpl;
 const rph = types.rph;
-const ALU = types.ALU;
+const rp2l = types.rp2l;
+const rp2h = types.rp2h;
 const alu = types.alu;
 const mc = @import("accumulate.zig").mc;
 const mcycles = @import("mcycles.zig");
@@ -353,6 +356,72 @@ pub fn fd(code: u8) void {
         .dasm = "FD Prefix",
         .mcycles = mc(&.{
             overlapped_prefix(&.{"bus = self.fetchFD(bus)"}),
+        }),
+    });
+}
+
+pub fn @"EX AF,AF'"(code: u8) void {
+    op(code, .{
+        .dasm = "EX AF,AF'",
+        .mcycles = mc(&.{
+            overlapped("self.exafaf2()"),
+        }),
+    });
+}
+
+pub fn @"EX DE,HL"(code: u8) void {
+    op(code, .{
+        .dasm = "EX DE,HL",
+        .mcycles = mc(&.{
+            overlapped("self.exdehl()"),
+        }),
+    });
+}
+
+pub fn @"EX (SP),HL"(code: u8) void {
+    op(code, .{
+        .dasm = "EX (SP),HL",
+        .mcycles = mc(&.{
+            mread("self.SP()", "self.r[WZL]", null, null),
+            mread("self.SP() +% 1", "self.r[WZH]", null, null),
+            generic(&.{null}),
+            mwrite("self.SP() +% 1", r(R.H), null),
+            mwrite("self.SP()", r(R.L), "self.setHLIXY(self.WZ())"),
+            generic(&.{null}),
+            generic(&.{null}),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn exx(code: u8) void {
+    op(code, .{
+        .dasm = "EXX",
+        .mcycles = mc(&.{
+            overlapped("self.exx()"),
+        }),
+    });
+}
+
+pub fn push(code: u8, p: u2) void {
+    op(code, .{
+        .dasm = f("PUSH {s}", .{RP2.dasm(p)}),
+        .mcycles = mc(&.{
+            generic(&.{"self.setSP(self.SP() -% 1)"}),
+            mwrite("self.SP()", rp2h(p), "self.setSP(self.SP() -% 1)"),
+            mwrite("self.SP()", rp2l(p), null),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn pop(code: u8, p: u2) void {
+    op(code, .{
+        .dasm = f("POP {s}", .{RP2.dasm(p)}),
+        .mcycles = mc(&.{
+            mread("self.SP()", rp2l(p), "self.setSP(self.SP() +% 1)", null),
+            mread("self.SP()", rp2h(p), "self.setSP(self.SP() +% 1)", null),
+            overlapped(null),
         }),
     });
 }

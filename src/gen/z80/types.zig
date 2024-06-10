@@ -131,8 +131,22 @@ pub const RP2 = enum(u2) {
     }
 };
 
-pub fn rp2(any: anytype) []const u8 {
-    return @tagName(RP2.asEnum(any));
+pub fn rp2l(any: anytype) []const u8 {
+    return switch (RP2.asEnum(any)) {
+        .BC => "self.r[C]",
+        .DE => "self.r[E]",
+        .HL => "self.r[L + self.rixy]",
+        .AF => "self.r[F]",
+    };
+}
+
+pub fn rp2h(any: anytype) []const u8 {
+    return switch (RP2.asEnum(any)) {
+        .BC => "self.r[B]",
+        .DE => "self.r[D]",
+        .HL => "self.r[H + self.rixy]",
+        .AF => "self.r[A]",
+    };
 }
 
 pub const ALU = enum(u3) {

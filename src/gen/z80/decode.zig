@@ -22,6 +22,7 @@ fn decodeMain() void {
             0 => switch (z) {
                 0 => switch (y) {
                     0 => ops.nop(op),
+                    1 => ops.@"EX AF,AF'"(op),
                     else => {},
                 },
                 1 => switch (q) {
@@ -89,13 +90,25 @@ fn decodeMain() void {
             // quadrant 3
             3 => {
                 switch (z) {
+                    1 => switch (q) {
+                        0 => ops.pop(op, p),
+                        1 => switch (p) {
+                            1 => ops.exx(op),
+                            else => {},
+                        },
+                    },
+                    3 => switch (y) {
+                        4 => ops.@"EX (SP),HL"(op),
+                        5 => ops.@"EX DE,HL"(op),
+                        else => {},
+                    },
                     5 => switch (q) {
+                        0 => ops.push(op, p),
                         1 => switch (p) {
                             1 => ops.dd(op),
                             3 => ops.fd(op),
                             else => {},
                         },
-                        else => {},
                     },
                     6 => ops.@"ALU n"(op, y),
                     else => {},
