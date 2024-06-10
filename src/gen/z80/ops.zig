@@ -410,8 +410,8 @@ pub fn push(code: u8, p: u2) void {
     op(code, .{
         .dasm = f("PUSH {s}", .{RP2.dasm(p)}),
         .mcycles = mc(&.{
-            generic(&.{"self.setSP(self.SP() -% 1)"}),
-            mwrite("self.SP()", rp2h(p), "self.setSP(self.SP() -% 1)"),
+            generic(&.{"self.decSP()"}),
+            mwrite("self.SP()", rp2h(p), "self.decSP()"),
             mwrite("self.SP()", rp2l(p), null),
             overlapped(null),
         }),
@@ -422,8 +422,8 @@ pub fn pop(code: u8, p: u2) void {
     op(code, .{
         .dasm = f("POP {s}", .{RP2.dasm(p)}),
         .mcycles = mc(&.{
-            mread("self.SP()", rp2l(p), "self.setSP(self.SP() +% 1)", null),
-            mread("self.SP()", rp2h(p), "self.setSP(self.SP() +% 1)", null),
+            mread("self.SP()", rp2l(p), "self.incSP()", null),
+            mread("self.SP()", rp2h(p), "self.incSP()", null),
             overlapped(null),
         }),
     });
@@ -528,6 +528,19 @@ pub fn @"ADD HL,rp"(code: u8, p: u2) void {
             generic(&.{null}),
             generic(&.{null}),
             generic(&.{null}),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn @"RST n"(code: u8, y: u3) void {
+    const y8 = @as(usize, y) * 8;
+    op(code, .{
+        .dasm = f("RST {X}", .{y8}),
+        .mcycles = mc(&.{
+            generic(&.{"self.decSP()"}),
+            mwrite("self.SP()", "self.PCH()", "self.decSP()"),
+            mwrite("self.SP()", "self.PCL()", f("self.pc = 0x{X}; self.setWZ(self.pc)", .{y8})),
             overlapped(null),
         }),
     });

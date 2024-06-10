@@ -1392,6 +1392,21 @@ fn @"INC/DEC ss/IX/IY"() void {
     ok();
 }
 
+fn RST() void {
+    start("RST");
+    const prog = [_]u8{
+        0x31, 0x00, 0x01,   // LD SP,0x0100
+        0xCF,               // RST 8h
+        0x00, 0x00, 0x00, 0x00,
+        0xFF,               // RST 38h
+    };
+    init(0, &prog);
+    T(10 == step()); T(cpu.SP() == 0x0100);
+    T(11 == step()); T(cpu.pc == 0x0009); T(cpu.SP() == 0x00FE); T(cpu.WZ() == 0x0008); T(mem16(0x00FE) == 0x0004);
+    T(11 == step()); T(cpu.pc == 0x0039); T(cpu.SP() == 0x00FC); T(cpu.WZ() == 0x0038); T(mem16(0x00FC) == 0x0009);
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -1432,4 +1447,5 @@ pub fn main() void {
     @"JP/JR"();
     @"JR cc,d"();
     @"INC/DEC ss/IX/IY"();
+    @"RST"();
 }

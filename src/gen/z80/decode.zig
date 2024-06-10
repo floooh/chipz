@@ -118,6 +118,7 @@ fn decodeMain() void {
                         },
                     },
                     6 => ops.@"ALU n"(op, y),
+                    7 => ops.@"RST n"(op, y),
                     else => {},
                 }
             },
