@@ -425,3 +425,19 @@ pub fn pop(code: u8, p: u2) void {
         }),
     });
 }
+
+pub fn djnz(code: u8) void {
+    op(code, .{
+        .dasm = "DJNZ",
+        .mcycles = mc(&.{
+            generic(&.{"self.r[B] -%= 1"}),
+            mread("self.pc", "self.dlatch", "self.pc +%= 1", "if (self.skipIfZero(self.r[B], 6)) break :next"),
+            generic(&.{ "self.pc +%= dimm8(self.dlatch)", "self.setWZ(self.pc)" }),
+            generic(&.{null}),
+            generic(&.{null}),
+            generic(&.{null}),
+            generic(&.{null}),
+            overlapped(null),
+        }),
+    });
+}

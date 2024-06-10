@@ -1268,6 +1268,27 @@ fn @"PUSH/POP qq/IX/IY"() void {
     ok();
 }
 
+fn djnz() void {
+    start("DJNZ");
+    const prog = [_]u8{
+        0x06, 0x03,         //      LD B,0x03
+        0x97,               //      SUB A
+        0x3C,               // l0:  INC A
+        0x10, 0xFD,         //      DJNZ l0
+        0x00,               //      NOP
+    };
+    init(0x204, &prog);
+    T(7  == step()); T(0x03 == cpu.r[B]);
+    T(4  == step()); T(0x00 == cpu.r[A]);
+    T(4  == step()); T(0x01 == cpu.r[A]);
+    T(13 == step()); T(0x02 == cpu.r[B]); T(0x0208 == cpu.pc); T(0x0207 == cpu.WZ());
+    T(4  == step()); T(0x02 == cpu.r[A]);
+    T(13 == step()); T(0x01 == cpu.r[B]); T(0x0208 == cpu.pc); T(0x0207 == cpu.WZ());
+    T(4  == step()); T(0x03 == cpu.r[A]);
+    T(8  == step()); T(0x00 == cpu.r[B]); T(0x020B == cpu.pc); T(0x0207 == cpu.WZ());
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -1304,4 +1325,5 @@ pub fn main() void {
     HLT();
     EX();
     @"PUSH/POP qq/IX/IY"();
+    djnz();
 }

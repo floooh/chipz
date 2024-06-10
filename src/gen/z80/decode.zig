@@ -23,6 +23,7 @@ fn decodeMain() void {
                 0 => switch (y) {
                     0 => ops.nop(op),
                     1 => ops.@"EX AF,AF'"(op),
+                    2 => ops.djnz(op),
                     else => {},
                 },
                 1 => switch (q) {
