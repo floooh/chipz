@@ -24,6 +24,7 @@ fn decodeMain() void {
                     0 => ops.nop(op),
                     1 => ops.@"EX AF,AF'"(op),
                     2 => ops.djnz(op),
+                    3 => ops.@"JR d"(op),
                     else => {},
                 },
                 1 => switch (q) {
@@ -95,10 +96,12 @@ fn decodeMain() void {
                         0 => ops.pop(op, p),
                         1 => switch (p) {
                             1 => ops.exx(op),
+                            2 => ops.@"JP HL"(op),
                             else => {},
                         },
                     },
                     3 => switch (y) {
+                        0 => ops.@"JP nn"(op),
                         4 => ops.@"EX (SP),HL"(op),
                         5 => ops.@"EX DE,HL"(op),
                         else => {},

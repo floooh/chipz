@@ -441,3 +441,38 @@ pub fn djnz(code: u8) void {
         }),
     });
 }
+
+pub fn @"JR d"(code: u8) void {
+    op(code, .{
+        .dasm = "JR d",
+        .mcycles = mc(&.{
+            mread("self.pc", "self.dlatch", "self.pc +%= 1", null),
+            generic(&.{ "self.pc +%= dimm8(self.dlatch)", "self.setWZ(self.pc)" }),
+            generic(&.{null}),
+            generic(&.{null}),
+            generic(&.{null}),
+            generic(&.{null}),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn @"JP nn"(code: u8) void {
+    op(code, .{
+        .dasm = "JP nn",
+        .mcycles = mc(&.{
+            mread("self.pc", "self.r[WZL]", "self.pc +%= 1", null),
+            mread("self.pc", "self.r[WZH]", "self.pc +%= 1", "self.pc = self.WZ()"),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn @"JP HL"(code: u8) void {
+    op(code, .{
+        .dasm = "JP HL",
+        .mcycles = mc(&.{
+            overlapped("self.pc = self.HLIXY()"),
+        }),
+    });
+}
