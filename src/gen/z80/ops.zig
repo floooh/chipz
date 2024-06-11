@@ -537,6 +537,17 @@ pub fn @"JP nn"(code: u8) void {
     });
 }
 
+pub fn @"JP cc,nn"(code: u8, y: u3) void {
+    op(code, .{
+        .dasm = f("JP {s},nn", .{CC.dasm(y)}),
+        .mcycles = mc(&.{
+            mread("self.pc", "self.r[WZL]", "self.incPC()", null),
+            mread("self.pc", "self.r[WZH]", "self.incPC()", f("if (self.test{s}()) self.pc = self.WZ()", .{cc(y)})),
+            overlapped(null),
+        }),
+    });
+}
+
 pub fn @"JP HL"(code: u8) void {
     op(code, .{
         .dasm = "JP HL",

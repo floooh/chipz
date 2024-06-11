@@ -1507,6 +1507,47 @@ fn @"CALL cc/RET cc"() void {
     ok();
 }
 
+fn @"JP cc,nn"() void {
+    start("JP cc,nn");
+    const prog = [_]u8{
+        0x97,               //          SUB A
+        0xC2, 0x0C, 0x02,   //          JP NZ,label0
+        0xCA, 0x0C, 0x02,   //          JP Z,label0
+        0x00,               //          NOP
+        0xC6, 0x01,         // label0:  ADD A,0x01
+        0xCA, 0x15, 0x02,   //          JP Z,label1
+        0xC2, 0x15, 0x02,   //          JP NZ,label1
+        0x00,               //          NOP
+        0x07,               // label1:  RLCA
+        0xEA, 0x1D, 0x02,   //          JP PE,label2
+        0xE2, 0x1D, 0x02,   //          JP PO,label2
+        0x00,               //          NOP
+        0xC6, 0xFD,         // label2:  ADD A,0xFD
+        0xF2, 0x26, 0x02,   //          JP P,label3
+        0xFA, 0x26, 0x02,   //          JP M,label3
+        0x00,               //          NOP
+        0xD2, 0x2D, 0x02,   // label3:  JP NC,label4
+        0xDA, 0x2D, 0x02,   //          JP C,label4
+        0x00,               //          NOP
+        0x00,               //          NOP
+    };
+    init(0x204, &prog);
+    T(4  == step()); T(0x00 == cpu.r[A]); T(flags(ZF|NF));
+    T(10 == step()); T(0x0209 == cpu.pc); T(0x020C == cpu.WZ());
+    T(10 == step()); T(0x020D == cpu.pc); T(0x020C == cpu.WZ());
+    T(7  == step()); T(0x01 == cpu.r[A]); T(flags(0));
+    T(10 == step()); T(0x0212 == cpu.pc);
+    T(10 == step()); T(0x0216 == cpu.pc);
+    T(4  == step()); T(0x02 == cpu.r[A]); T(flags(0));
+    T(10 == step()); T(0x021A == cpu.pc);
+    T(10 == step()); T(0x021E == cpu.pc);
+    T(7  == step()); T(0xFF == cpu.r[A]); T(flags(SF));
+    T(10 == step()); T(0x0223 == cpu.pc);
+    T(10 == step()); T(0x0227 == cpu.pc);
+    T(10 == step()); T(0x022E == cpu.pc);
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -1551,4 +1592,5 @@ pub fn main() void {
     @"LD SP,HL/IX/IY"();
     @"CALL/RET"();
     @"CALL cc/RET cc"();
+    @"JP cc,nn"();
 }

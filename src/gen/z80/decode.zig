@@ -105,6 +105,7 @@ fn decodeMain() void {
                             3 => ops.@"LD SP,HL"(op),
                         },
                     },
+                    2 => ops.@"JP cc,nn"(op, y),
                     3 => switch (y) {
                         0 => ops.@"JP nn"(op),
                         4 => ops.@"EX (SP),HL"(op),
@@ -123,7 +124,6 @@ fn decodeMain() void {
                     },
                     6 => ops.@"ALU n"(op, y),
                     7 => ops.@"RST n"(op, y),
-                    else => {},
                 }
             },
         }
