@@ -8,6 +8,7 @@ const mem = std.mem;
 const fs = std.fs;
 const format = @import("format.zig");
 const f = format.f;
+const replace = format.replace;
 const join = format.join;
 const acc = @import("accumulate.zig");
 const types = @import("types.zig");
@@ -65,7 +66,8 @@ fn gen_tcycle(opcode_step_index: usize, op: Op, tcycle: TCycle, tcount: usize) !
     }
     for (tcycle.actions) |action_or_null| {
         if (action_or_null) |action| {
-            try lines.append(f("    {s};", .{action}));
+            const l = replace(action, "$NEXTSTEP", f("0x{X}", .{next_step_index}));
+            try lines.append(f("    {s};", .{l}));
         }
     }
     if (tcycle.prefix) {

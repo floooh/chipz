@@ -1449,6 +1449,64 @@ fn @"CALL/RET"() void {
     ok();
 }
 
+fn @"CALL cc/RET cc"() void {
+    start("CALL cc/RET cc");
+    const prog = [_]u8{
+        0x97,               //      SUB A
+        0xC4, 0x29, 0x02,   //      CALL NZ,l0
+        0xCC, 0x29, 0x02,   //      CALL Z,l0
+        0xC6, 0x01,         //      ADD A,0x01
+        0xCC, 0x2B, 0x02,   //      CALL Z,l1
+        0xC4, 0x2B, 0x02,   //      CALL NZ,l1
+        0x07,               //      RLCA
+        0xEC, 0x2D, 0x02,   //      CALL PE,l2
+        0xE4, 0x2D, 0x02,   //      CALL PO,l2
+        0xD6, 0x03,         //      SUB 0x03
+        0xF4, 0x2F, 0x02,   //      CALL P,l3
+        0xFC, 0x2F, 0x02,   //      CALL M,l3
+        0xD4, 0x31, 0x02,   //      CALL NC,l4
+        0xDC, 0x31, 0x02,   //      CALL C,l4
+        0xC9,               //      RET
+        0xC0,               // l0:  RET NZ
+        0xC8,               //      RET Z
+        0xC8,               // l1:  RET Z
+        0xC0,               //      RET NZ
+        0xE8,               // l2:  RET PE
+        0xE0,               //      RET PO
+        0xF0,               // l3:  RET P
+        0xF8,               //      RET M
+        0xD0,               // l4:  RET NC
+        0xD8,               //      RET C
+    };
+    init(0x204, &prog);
+    cpu.setSP(0x100);
+    T(4  == step()); T(0x00 == cpu.r[A]);
+    T(10 == step()); T(0x0209 == cpu.pc); T(0x0229 == cpu.WZ());
+    T(17 == step()); T(0x022A == cpu.pc); T(0x0229 == cpu.WZ());
+    T(5  == step()); T(0x022B == cpu.pc); T(0x0229 == cpu.WZ());
+    T(11 == step()); T(0x020C == cpu.pc); T(0x020B == cpu.WZ());
+    T(7  == step()); T(0x01 == cpu.r[A]);
+    T(10 == step()); T(0x0211 == cpu.pc);
+    T(17 == step()); T(0x022C == cpu.pc);
+    T(5  == step()); T(0x022D == cpu.pc);
+    T(11 == step()); T(0x0214 == cpu.pc);
+    T(4  == step()); T(0x02 == cpu.r[A]);
+    T(10 == step()); T(0x0218 == cpu.pc);
+    T(17 == step()); T(0x022E == cpu.pc);
+    T(5  == step()); T(0x022F == cpu.pc);
+    T(11 == step()); T(0x021B == cpu.pc);
+    T(7  == step()); T(0xFF == cpu.r[A]);
+    T(10 == step()); T(0x0220 == cpu.pc);
+    T(17 == step()); T(0x0230 == cpu.pc);
+    T(5  == step()); T(0x0231 == cpu.pc);
+    T(11 == step()); T(0x0223 == cpu.pc);
+    T(10 == step()); T(0x0226 == cpu.pc);
+    T(17 == step()); T(0x0232 == cpu.pc);
+    T(5  == step()); T(0x0233 == cpu.pc);
+    T(11 == step()); T(0x0229 == cpu.pc);
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -1492,4 +1550,5 @@ pub fn main() void {
     @"RST"();
     @"LD SP,HL/IX/IY"();
     @"CALL/RET"();
+    @"CALL cc/RET cc"();
 }

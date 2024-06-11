@@ -95,6 +95,7 @@ fn decodeMain() void {
             // quadrant 3
             3 => {
                 switch (z) {
+                    0 => ops.@"RET cc"(op, y),
                     1 => switch (q) {
                         0 => ops.pop(op, p),
                         1 => switch (p) {
@@ -110,6 +111,7 @@ fn decodeMain() void {
                         5 => ops.@"EX DE,HL"(op),
                         else => {},
                     },
+                    4 => ops.@"CALL cc,nn"(op, y),
                     5 => switch (q) {
                         0 => ops.push(op, p),
                         1 => switch (p) {

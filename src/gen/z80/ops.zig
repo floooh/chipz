@@ -434,7 +434,7 @@ pub fn djnz(code: u8) void {
         .dasm = "DJNZ",
         .mcycles = mc(&.{
             generic(&.{"self.r[B] -%= 1"}),
-            mread("self.pc", "self.dlatch", "self.incPC()", "if (self.skipZero(self.r[B], 6)) break :next"),
+            mread("self.pc", "self.dlatch", "self.incPC()", "if (self.gotoZero(self.r[B], $NEXTSTEP + 5)) break :next"),
             generic(&.{ "self.pc +%= dimm8(self.dlatch)", "self.setWZ(self.pc)" }),
             generic(&.{null}),
             generic(&.{null}),
@@ -449,12 +449,63 @@ pub fn @"JR cc,d"(code: u8, y: u3) void {
     op(code, .{
         .dasm = f("JR {s},d", .{CC.dasm(y - 4)}),
         .mcycles = mc(&.{
-            mread("self.pc", "self.dlatch", "self.incPC()", f("if (self.skip{s}(6)) break :next", .{cc(y - 4)})),
+            mread("self.pc", "self.dlatch", "self.incPC()", f("if (self.goto{s}($NEXTSTEP + 5)) break :next", .{cc(y - 4)})),
             generic(&.{ "self.pc +%= dimm8(self.dlatch)", "self.setWZ(self.pc)" }),
             generic(&.{null}),
             generic(&.{null}),
             generic(&.{null}),
             generic(&.{null}),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn ret(code: u8) void {
+    op(code, .{
+        .dasm = "RET",
+        .mcycles = mc(&.{
+            mread("self.SP()", "self.r[WZL]", "self.incSP()", null),
+            mread("self.SP()", "self.r[WZH]", "self.incSP()", "self.pc = self.WZ()"),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn @"RET cc"(code: u8, y: u3) void {
+    op(code, .{
+        .dasm = f("RET {s}", .{CC.dasm(y)}),
+        .mcycles = mc(&.{
+            generic(&.{f("if (self.goto{s}($NEXTSTEP + 6)) break :next", .{cc(y)})}),
+            mread("self.SP()", "self.r[WZL]", "self.incSP()", null),
+            mread("self.SP()", "self.r[WZH]", "self.incSP()", "self.pc = self.WZ()"),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn @"CALL nn"(code: u8) void {
+    op(code, .{
+        .dasm = "CALL nn",
+        .mcycles = mc(&.{
+            mread("self.pc", "self.r[WZL]", "self.incPC()", null),
+            mread("self.pc", "self.r[WZH]", "self.incPC()", null),
+            generic(&.{"self.decSP()"}),
+            mwrite("self.SP()", "self.PCH()", "self.decSP()"),
+            mwrite("self.SP()", "self.PCL()", "self.pc = self.WZ()"),
+            overlapped(null),
+        }),
+    });
+}
+
+pub fn @"CALL cc,nn"(code: u8, y: u3) void {
+    op(code, .{
+        .dasm = f("CALL {s},nn", .{CC.dasm(y)}),
+        .mcycles = mc(&.{
+            mread("self.pc", "self.r[WZL]", "self.incPC()", null),
+            mread("self.pc", "self.r[WZH]", "self.incPC()", f("if (self.goto{s}($NEXTSTEP + 7)) break: next", .{cc(y)})),
+            generic(&.{"self.decSP()"}),
+            mwrite("self.SP()", "self.PCH()", "self.decSP()"),
+            mwrite("self.SP()", "self.PCL()", "self.pc = self.WZ()"),
             overlapped(null),
         }),
     });
@@ -552,31 +603,6 @@ pub fn @"LD SP,HL"(code: u8) void {
         .mcycles = mc(&.{
             generic(&.{"self.setSP(self.HLIXY())"}),
             generic(&.{null}),
-            overlapped(null),
-        }),
-    });
-}
-
-pub fn ret(code: u8) void {
-    op(code, .{
-        .dasm = "RET",
-        .mcycles = mc(&.{
-            mread("self.SP()", "self.r[WZL]", "self.incSP()", null),
-            mread("self.SP()", "self.r[WZH]", "self.incSP()", "self.pc = self.WZ()"),
-            overlapped(null),
-        }),
-    });
-}
-
-pub fn @"CALL nn"(code: u8) void {
-    op(code, .{
-        .dasm = "CALL nn",
-        .mcycles = mc(&.{
-            mread("self.pc", "self.r[WZL]", "self.incPC()", null),
-            mread("self.pc", "self.r[WZH]", "self.incPC()", null),
-            generic(&.{"self.decSP()"}),
-            mwrite("self.SP()", "self.PCH()", "self.decSP()"),
-            mwrite("self.SP()", "self.PCL()", "self.pc = self.WZ()"),
             overlapped(null),
         }),
     });

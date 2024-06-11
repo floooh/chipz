@@ -16,3 +16,7 @@ pub fn init(allocator: Allocator) void {
 pub fn f(comptime fmt_str: []const u8, args: anytype) []const u8 {
     return allocPrint(alloc, fmt_str, args) catch @panic("allocation failed");
 }
+
+pub fn replace(input: []const u8, needle: []const u8, replacement: []const u8) []const u8 {
+    return mem.replaceOwned(u8, alloc, input, needle, replacement) catch @panic("allocation failed");
+}
