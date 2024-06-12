@@ -33,8 +33,6 @@ pub const MCycle = struct {
 pub const Op = struct {
     // disassembly
     dasm: []const u8 = "",
-    // loads an 8-bit immediate value
-    imm8: bool = false,
     // indirect load via (HL) / (IX+d) / (IY+d)
     indirect: bool = false,
     // slice into mcycles array

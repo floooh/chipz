@@ -64,3 +64,14 @@ pub fn mwrite(abus: []const u8, src: []const u8, action: ?[]const u8) MCycle {
         }),
     };
 }
+
+pub fn imm(dst: []const u8, action: ?[]const u8) MCycle {
+    return .{
+        .type = .Read,
+        .tcycles = tc(&.{
+            .{},
+            .{ .wait = true, .actions = ac(&.{ mrd("self.pc"), "self.incPC()" }) },
+            .{ .actions = ac(&.{ gd(dst), action }) },
+        }),
+    };
+}
