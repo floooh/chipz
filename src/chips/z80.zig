@@ -133,9 +133,6 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         de2: u16 = 0xFFFF,
         hl2: u16 = 0xFFFF,
 
-        // current d offset (in IX/IX+d)
-        d: i8 = 0,
-
         // interrupt mode (0, 1 or 2)
         im: u2 = 0,
 
