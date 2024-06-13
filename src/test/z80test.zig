@@ -1675,6 +1675,30 @@ fn @"JP cc,nn"() void {
     ok();
 }
 
+fn NEG() void {
+    start("NEG");
+    const prog = [_]u8{
+        0x3E, 0x01,         // LD A,0x01
+        0xED, 0x44,         // NEG
+        0xC6, 0x01,         // ADD A,0x01
+        0xED, 0x4C,         // a duplicate NEG
+        0xD6, 0x80,         // SUB A,0x80
+        0xED, 0x54,         // another duplicate NEG
+        0xC6, 0x40,         // ADD A,0x40
+        0xED, 0x5C,         // and another duplicate NEG
+    };
+    init(0, &prog);
+    T(7==step()); T(0x01 == cpu.r[A]);
+    T(8==step()); T(0xFF == cpu.r[A]); T(flags(SF|HF|NF|CF));
+    T(7==step()); T(0x00 == cpu.r[A]); T(flags(ZF|HF|CF));
+    T(8==step()); T(0x00 == cpu.r[A]); T(flags(ZF|NF));
+    T(7==step()); T(0x80 == cpu.r[A]); T(flags(SF|PF|NF|CF));
+    T(8==step()); T(0x80 == cpu.r[A]); T(flags(SF|PF|NF|CF));
+    T(7==step()); T(0xC0 == cpu.r[A]); T(flags(SF));
+    T(8==step()); T(0x40 == cpu.r[A]); T(flags(NF|CF));
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -1724,4 +1748,5 @@ pub fn main() void {
     @"LD A,R/I"();
     @"LD R/I,A"();
     @"ADD/ADC/SBC HL/IX/IY,dd"();
+    NEG();
 }

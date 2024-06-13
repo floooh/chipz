@@ -779,3 +779,12 @@ pub fn @"ADC HL,dd"(code: u8, p: u2) void {
         }),
     });
 }
+
+pub fn neg(code: u8) void {
+    oped(code, .{
+        .dasm = "NEG",
+        .mcycles = mc(&.{
+            endOverlapped("self.neg8()"),
+        }),
+    });
+}

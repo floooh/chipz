@@ -574,6 +574,12 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             self.r[F] = cpFlags(acc, val, res);
         }
 
+        fn neg8(self: *Self) void {
+            const val = self.r[A];
+            self.r[A] = 0;
+            self.sub8(val);
+        }
+
         fn inc8(self: *Self, val: u8) u8 {
             const res = val +% 1;
             var f: u8 = szFlags(res) | (res & (XF | YF)) | ((res ^ val) & HF);
@@ -2072,6 +2078,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         self.step = 0x5A9;
                         break :next;
                     },
+                    // NEG
+                    0x144 => {
+                        self.neg8();
+                    },
                     // LD I,A
                     0x147 => {
                         self.step = 0x5B5;
@@ -2087,6 +2097,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0x14B => {
                         self.step = 0x5BD;
                         break :next;
+                    },
+                    // NEG
+                    0x14C => {
+                        self.neg8();
                     },
                     // LD R,A
                     0x14F => {
@@ -2104,6 +2118,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         self.step = 0x5D1;
                         break :next;
                     },
+                    // NEG
+                    0x154 => {
+                        self.neg8();
+                    },
                     // LD A,I
                     0x157 => {
                         self.step = 0x5DD;
@@ -2119,6 +2137,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0x15B => {
                         self.step = 0x5E5;
                         break :next;
+                    },
+                    // NEG
+                    0x15C => {
+                        self.neg8();
                     },
                     // LD A,R
                     0x15F => {
@@ -2136,6 +2158,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         self.step = 0x5F9;
                         break :next;
                     },
+                    // NEG
+                    0x164 => {
+                        self.neg8();
+                    },
                     // ADC HL,HL
                     0x16A => {
                         self.adc16(self.HL());
@@ -2146,6 +2172,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0x16B => {
                         self.step = 0x60C;
                         break :next;
+                    },
+                    // NEG
+                    0x16C => {
+                        self.neg8();
                     },
                     // SBC HL,SP
                     0x172 => {
@@ -2158,6 +2188,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         self.step = 0x61F;
                         break :next;
                     },
+                    // NEG
+                    0x174 => {
+                        self.neg8();
+                    },
                     // ADC HL,SP
                     0x17A => {
                         self.adc16(self.SP());
@@ -2168,6 +2202,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0x17B => {
                         self.step = 0x632;
                         break :next;
+                    },
+                    // NEG
+                    0x17C => {
+                        self.neg8();
                     },
                     // LD BC,nn (continued...)
                     0x300 => {
