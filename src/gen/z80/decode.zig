@@ -110,6 +110,8 @@ fn decodeMain() void {
                         0 => ops.@"JP nn"(op),
                         4 => ops.@"EX (SP),HL"(op),
                         5 => ops.@"EX DE,HL"(op),
+                        6 => ops.di(op),
+                        7 => ops.ei(op),
                         else => {},
                     },
                     4 => ops.@"CALL cc,nn"(op, y),

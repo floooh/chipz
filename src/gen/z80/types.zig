@@ -1,12 +1,18 @@
 const f = @import("format.zig").f;
 
+// how to invoke next TCycle
+pub const Next = enum {
+    Fetch,
+    BreakNext,
+    StepAndBreakNext,
+};
+
 // a tcycle is everything that happens in a specific clock tick
 pub const TCycle = struct {
     // slice into actions array
     actions: []?[]const u8 = &.{},
     wait: bool = false, // if true check for wait state
-    fetch: bool = false, // if true, fetch next instruction
-    prefix: bool = false, // a special prefix-overlapped cycle
+    next: Next = .StepAndBreakNext, // how to invoke next TCycke
 };
 
 // an mcycle is a collection of tcycles

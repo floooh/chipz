@@ -70,11 +70,16 @@ fn gen_tcycle(opcode_step_index: usize, op: Op, tcycle: TCycle, tcount: usize) !
             try lines.append(f("    {s};", .{l}));
         }
     }
-    if (tcycle.prefix) {
-        try lines.append("    break :next;");
-    } else if (!tcycle.fetch) {
-        try lines.append(f("    self.step = 0x{X};", .{next_step_index}));
-        try lines.append("    break :next;");
+
+    switch (tcycle.next) {
+        .BreakNext => {
+            try lines.append("    break :next;");
+        },
+        .StepAndBreakNext => {
+            try lines.append(f("    self.step = 0x{X};", .{next_step_index}));
+            try lines.append("    break :next;");
+        },
+        .Fetch => {},
     }
     try lines.append("},");
 }

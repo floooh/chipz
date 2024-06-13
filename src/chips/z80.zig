@@ -1885,6 +1885,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         self.step = 0x54A;
                         break :next;
                     },
+                    // DI
+                    0xF3 => {
+                        self.iff1 = false; self.iff2 = false;
+                    },
                     // CALL P,nn
                     0xF4 => {
                         self.step = 0x550;
@@ -1922,6 +1926,11 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     // JP M,nn
                     0xFA => {
                         self.step = 0x577;
+                        break :next;
+                    },
+                    // EI
+                    0xFB => {
+                        self.iff1 = false; self.iff2 = false; bus = self.fetch(bus); self.iff1 = true; self.iff2 = true;
                         break :next;
                     },
                     // CALL M,nn
@@ -2095,8 +2104,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break :next;
                     },
                     0x320 => {
-                        self.pc +%= dimm8(self.dlatch);
-                        self.setWZ(self.pc);
+                        self.pc +%= dimm8(self.dlatch); self.setWZ(self.pc);
                         self.step = 0x321;
                         break :next;
                     },
@@ -2199,8 +2207,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break :next;
                     },
                     0x336 => {
-                        self.pc +%= dimm8(self.dlatch);
-                        self.setWZ(self.pc);
+                        self.pc +%= dimm8(self.dlatch); self.setWZ(self.pc);
                         self.step = 0x337;
                         break :next;
                     },
@@ -2301,8 +2308,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break :next;
                     },
                     0x34D => {
-                        self.pc +%= dimm8(self.dlatch);
-                        self.setWZ(self.pc);
+                        self.pc +%= dimm8(self.dlatch); self.setWZ(self.pc);
                         self.step = 0x34E;
                         break :next;
                     },
@@ -2452,8 +2458,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break :next;
                     },
                     0x36C => {
-                        self.pc +%= dimm8(self.dlatch);
-                        self.setWZ(self.pc);
+                        self.pc +%= dimm8(self.dlatch); self.setWZ(self.pc);
                         self.step = 0x36D;
                         break :next;
                     },
@@ -2601,8 +2606,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break :next;
                     },
                     0x38C => {
-                        self.pc +%= dimm8(self.dlatch);
-                        self.setWZ(self.pc);
+                        self.pc +%= dimm8(self.dlatch); self.setWZ(self.pc);
                         self.step = 0x38D;
                         break :next;
                     },
@@ -2818,8 +2822,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break :next;
                     },
                     0x3B9 => {
-                        self.pc +%= dimm8(self.dlatch);
-                        self.setWZ(self.pc);
+                        self.pc +%= dimm8(self.dlatch); self.setWZ(self.pc);
                         self.step = 0x3BA;
                         break :next;
                     },

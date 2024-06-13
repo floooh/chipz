@@ -16,29 +16,38 @@ pub fn gd(dst: []const u8) []const u8 {
     return f("{s} = gd(bus)", .{dst});
 }
 
-pub fn overlapped(action: ?[]const u8) MCycle {
+pub fn endFetch() MCycle {
     return .{
         .type = .Overlapped,
         .tcycles = tc(&.{
-            .{ .fetch = true, .actions = ac(&.{action}) },
+            .{ .next = .Fetch, .actions = ac(&.{}) },
         }),
     };
 }
 
-pub fn overlapped_prefix(actions: []const ?[]const u8) MCycle {
+pub fn endOverlapped(action: ?[]const u8) MCycle {
     return .{
         .type = .Overlapped,
         .tcycles = tc(&.{
-            .{ .prefix = true, .actions = ac(actions) },
+            .{ .next = .Fetch, .actions = ac(&.{action}) },
         }),
     };
 }
 
-pub fn generic(actions: []const ?[]const u8) MCycle {
+pub fn endBreak(action: ?[]const u8) MCycle {
+    return .{
+        .type = .Overlapped,
+        .tcycles = tc(&.{
+            .{ .next = .BreakNext, .actions = ac(&.{action}) },
+        }),
+    };
+}
+
+pub fn tick(actions: ?[]const u8) MCycle {
     return .{
         .type = .Generic,
         .tcycles = tc(&.{
-            .{ .actions = ac(actions) },
+            .{ .actions = ac(&.{actions}) },
         }),
     };
 }
