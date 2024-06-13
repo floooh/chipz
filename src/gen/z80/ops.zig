@@ -747,3 +747,35 @@ pub fn @"LD dd,(nn)"(code: u8, p: u2) void {
         }),
     });
 }
+
+pub fn @"SBC HL,dd"(code: u8, p: u2) void {
+    oped(code, .{
+        .dasm = f("SBC HL,{s}", .{rrp(p)}),
+        .mcycles = mc(&.{
+            tick(f("self.sbc16(self.{s}())", .{rrp(p)})),
+            tick(null),
+            tick(null),
+            tick(null),
+            tick(null),
+            tick(null),
+            tick(null),
+            endFetch(),
+        }),
+    });
+}
+
+pub fn @"ADC HL,dd"(code: u8, p: u2) void {
+    oped(code, .{
+        .dasm = f("ADC HL,{s}", .{rrp(p)}),
+        .mcycles = mc(&.{
+            tick(f("self.adc16(self.{s}())", .{rrp(p)})),
+            tick(null),
+            tick(null),
+            tick(null),
+            tick(null),
+            tick(null),
+            tick(null),
+            endFetch(),
+        }),
+    });
+}

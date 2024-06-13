@@ -704,28 +704,54 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             self.r[F] = @truncate(f);
         }
 
+        fn adc16(self: *Self, val: u16) void {
+            const acc = self.HL();
+            self.setWZ(acc +% 1);
+            const res: u17 = @as(u17, acc) +% val +% (self.r[F] & CF);
+            self.setHL(@truncate(res));
+            var f: u17 = ((val ^ acc ^ 0x8000) & (val ^ res) & 0x8000) >> 13;
+            f |= ((acc ^ res ^ val) >> 8) & HF;
+            f |= (res >> 16) & CF;
+            f |= (res >> 8) & (SF | YF | XF);
+            f |= if (0 == (res & 0xFFFF)) ZF else 0;
+            self.r[F] = @truncate(f);
+        }
+
+        fn sbc16(self: *Self, val: u16) void {
+            const acc = self.HL();
+            self.setWZ(acc +% 1);
+            const res: u17 = @as(u17, acc) -% val -% (self.r[F] & CF);
+            self.setHL(@truncate(res));
+            var f: u17 = NF | (((val ^ acc) & (acc ^ res) & 0x8000) >> 13);
+            f |= ((acc ^ res ^ val) >> 8) & HF;
+            f |= (res >> 16) & CF;
+            f |= (res >> 8) & (SF | YF | XF);
+            f |= if (0 == (res & 0xFFFF)) ZF else 0;
+            self.r[F] = @truncate(f);
+        }
+
         // BEGIN CONSTS
-        const M1_T2: u16 = 0x606;
-        const M1_T3: u16 = 0x607;
-        const M1_T4: u16 = 0x608;
-        const DDFD_M1_T2: u16 = 0x609;
-        const DDFD_M1_T3: u16 = 0x60A;
-        const DDFD_M1_T4: u16 = 0x60B;
-        const DDFD_D_T1: u16 = 0x60C;
-        const DDFD_D_T2: u16 = 0x60D;
-        const DDFD_D_T3: u16 = 0x60E;
-        const DDFD_D_T4: u16 = 0x60F;
-        const DDFD_D_T5: u16 = 0x610;
-        const DDFD_D_T6: u16 = 0x611;
-        const DDFD_D_T7: u16 = 0x612;
-        const DDFD_D_T8: u16 = 0x613;
-        const DDFD_LDHLN_WR_T1: u16 = 0x614;
-        const DDFD_LDHLN_WR_T2: u16 = 0x615;
-        const DDFD_LDHLN_WR_T3: u16 = 0x616;
-        const DDFD_LDHLN_OVERLAPPED: u16 = 0x617;
-        const ED_M1_T2: u16 = 0x618;
-        const ED_M1_T3: u16 = 0x619;
-        const ED_M1_T4: u16 = 0x61A;
+        const M1_T2: u16 = 0x63E;
+        const M1_T3: u16 = 0x63F;
+        const M1_T4: u16 = 0x640;
+        const DDFD_M1_T2: u16 = 0x641;
+        const DDFD_M1_T3: u16 = 0x642;
+        const DDFD_M1_T4: u16 = 0x643;
+        const DDFD_D_T1: u16 = 0x644;
+        const DDFD_D_T2: u16 = 0x645;
+        const DDFD_D_T3: u16 = 0x646;
+        const DDFD_D_T4: u16 = 0x647;
+        const DDFD_D_T5: u16 = 0x648;
+        const DDFD_D_T6: u16 = 0x649;
+        const DDFD_D_T7: u16 = 0x64A;
+        const DDFD_D_T8: u16 = 0x64B;
+        const DDFD_LDHLN_WR_T1: u16 = 0x64C;
+        const DDFD_LDHLN_WR_T2: u16 = 0x64D;
+        const DDFD_LDHLN_WR_T3: u16 = 0x64E;
+        const DDFD_LDHLN_OVERLAPPED: u16 = 0x64F;
+        const ED_M1_T2: u16 = 0x650;
+        const ED_M1_T3: u16 = 0x651;
+        const ED_M1_T4: u16 = 0x652;
         // END CONSTS
 
         // zig fmt: off
@@ -2035,64 +2061,112 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         self.step = 0x59B;
                         break :next;
                     },
+                    // SBC HL,BC
+                    0x142 => {
+                        self.sbc16(self.BC());
+                        self.step = 0x5A2;
+                        break :next;
+                    },
                     // LD (nn),BC
                     0x143 => {
-                        self.step = 0x5A2;
+                        self.step = 0x5A9;
                         break :next;
                     },
                     // LD I,A
                     0x147 => {
-                        self.step = 0x5AE;
+                        self.step = 0x5B5;
+                        break :next;
+                    },
+                    // ADC HL,BC
+                    0x14A => {
+                        self.adc16(self.BC());
+                        self.step = 0x5B6;
                         break :next;
                     },
                     // LD BC,(nn)
                     0x14B => {
-                        self.step = 0x5AF;
+                        self.step = 0x5BD;
                         break :next;
                     },
                     // LD R,A
                     0x14F => {
-                        self.step = 0x5BB;
+                        self.step = 0x5C9;
+                        break :next;
+                    },
+                    // SBC HL,DE
+                    0x152 => {
+                        self.sbc16(self.DE());
+                        self.step = 0x5CA;
                         break :next;
                     },
                     // LD (nn),DE
                     0x153 => {
-                        self.step = 0x5BC;
+                        self.step = 0x5D1;
                         break :next;
                     },
                     // LD A,I
                     0x157 => {
-                        self.step = 0x5C8;
+                        self.step = 0x5DD;
+                        break :next;
+                    },
+                    // ADC HL,DE
+                    0x15A => {
+                        self.adc16(self.DE());
+                        self.step = 0x5DE;
                         break :next;
                     },
                     // LD DE,(nn)
                     0x15B => {
-                        self.step = 0x5C9;
+                        self.step = 0x5E5;
                         break :next;
                     },
                     // LD A,R
                     0x15F => {
-                        self.step = 0x5D5;
+                        self.step = 0x5F1;
+                        break :next;
+                    },
+                    // SBC HL,HL
+                    0x162 => {
+                        self.sbc16(self.HL());
+                        self.step = 0x5F2;
                         break :next;
                     },
                     // LD (nn),HL
                     0x163 => {
-                        self.step = 0x5D6;
+                        self.step = 0x5F9;
+                        break :next;
+                    },
+                    // ADC HL,HL
+                    0x16A => {
+                        self.adc16(self.HL());
+                        self.step = 0x605;
                         break :next;
                     },
                     // LD HL,(nn)
                     0x16B => {
-                        self.step = 0x5E2;
+                        self.step = 0x60C;
+                        break :next;
+                    },
+                    // SBC HL,SP
+                    0x172 => {
+                        self.sbc16(self.SP());
+                        self.step = 0x618;
                         break :next;
                     },
                     // LD (nn),SP
                     0x173 => {
-                        self.step = 0x5EE;
+                        self.step = 0x61F;
+                        break :next;
+                    },
+                    // ADC HL,SP
+                    0x17A => {
+                        self.adc16(self.SP());
+                        self.step = 0x62B;
                         break :next;
                     },
                     // LD SP,(nn)
                     0x17B => {
-                        self.step = 0x5FA;
+                        self.step = 0x632;
                         break :next;
                     },
                     // LD BC,nn (continued...)
@@ -5392,16 +5466,12 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     },
                     0x5A1 => {
                     },
-                    // LD (nn),BC (continued...)
+                    // SBC HL,BC (continued...)
                     0x5A2 => {
-                        if (wait(bus)) break :next;
-                        bus = mrd(bus, self.pc);
-                        self.incPC();
                         self.step = 0x5A3;
                         break :next;
                     },
                     0x5A3 => {
-                        self.r[WZL] = gd(bus);
                         self.step = 0x5A4;
                         break :next;
                     },
@@ -5410,14 +5480,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break :next;
                     },
                     0x5A5 => {
-                        if (wait(bus)) break :next;
-                        bus = mrd(bus, self.pc);
-                        self.incPC();
                         self.step = 0x5A6;
                         break :next;
                     },
                     0x5A6 => {
-                        self.r[WZH] = gd(bus);
                         self.step = 0x5A7;
                         break :next;
                     },
@@ -5426,46 +5492,48 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break :next;
                     },
                     0x5A8 => {
-                        if (wait(bus)) break :next;
-                        bus = mwr(bus, self.WZ(), self.r[C]);
-                        self.incWZ();
-                        self.step = 0x5A9;
-                        break :next;
                     },
+                    // LD (nn),BC (continued...)
                     0x5A9 => {
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.pc);
+                        self.incPC();
                         self.step = 0x5AA;
                         break :next;
                     },
                     0x5AA => {
+                        self.r[WZL] = gd(bus);
                         self.step = 0x5AB;
                         break :next;
                     },
                     0x5AB => {
-                        if (wait(bus)) break :next;
-                        bus = mwr(bus, self.WZ(), self.r[B]);
                         self.step = 0x5AC;
                         break :next;
                     },
                     0x5AC => {
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.pc);
+                        self.incPC();
                         self.step = 0x5AD;
                         break :next;
                     },
                     0x5AD => {
+                        self.r[WZH] = gd(bus);
+                        self.step = 0x5AE;
+                        break :next;
                     },
-                    // LD I,A (continued...)
                     0x5AE => {
-                        self.setI(self.r[A]);
+                        self.step = 0x5AF;
+                        break :next;
                     },
-                    // LD BC,(nn) (continued...)
                     0x5AF => {
                         if (wait(bus)) break :next;
-                        bus = mrd(bus, self.pc);
-                        self.incPC();
+                        bus = mwr(bus, self.WZ(), self.r[C]);
+                        self.incWZ();
                         self.step = 0x5B0;
                         break :next;
                     },
                     0x5B0 => {
-                        self.r[WZL] = gd(bus);
                         self.step = 0x5B1;
                         break :next;
                     },
@@ -5475,29 +5543,22 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     },
                     0x5B2 => {
                         if (wait(bus)) break :next;
-                        bus = mrd(bus, self.pc);
-                        self.incPC();
+                        bus = mwr(bus, self.WZ(), self.r[B]);
                         self.step = 0x5B3;
                         break :next;
                     },
                     0x5B3 => {
-                        self.r[WZH] = gd(bus);
                         self.step = 0x5B4;
                         break :next;
                     },
                     0x5B4 => {
-                        self.step = 0x5B5;
-                        break :next;
                     },
+                    // LD I,A (continued...)
                     0x5B5 => {
-                        if (wait(bus)) break :next;
-                        bus = mrd(bus, self.WZ());
-                        self.incWZ();
-                        self.step = 0x5B6;
-                        break :next;
+                        self.setI(self.r[A]);
                     },
+                    // ADC HL,BC (continued...)
                     0x5B6 => {
-                        self.r[C] = gd(bus);
                         self.step = 0x5B7;
                         break :next;
                     },
@@ -5506,96 +5567,91 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break :next;
                     },
                     0x5B8 => {
-                        if (wait(bus)) break :next;
-                        bus = mrd(bus, self.WZ());
                         self.step = 0x5B9;
                         break :next;
                     },
                     0x5B9 => {
-                        self.r[B] = gd(bus);
                         self.step = 0x5BA;
                         break :next;
                     },
                     0x5BA => {
+                        self.step = 0x5BB;
+                        break :next;
                     },
-                    // LD R,A (continued...)
                     0x5BB => {
-                        self.setR(self.r[A]);
+                        self.step = 0x5BC;
+                        break :next;
                     },
-                    // LD (nn),DE (continued...)
                     0x5BC => {
+                    },
+                    // LD BC,(nn) (continued...)
+                    0x5BD => {
                         if (wait(bus)) break :next;
                         bus = mrd(bus, self.pc);
                         self.incPC();
-                        self.step = 0x5BD;
-                        break :next;
-                    },
-                    0x5BD => {
-                        self.r[WZL] = gd(bus);
                         self.step = 0x5BE;
                         break :next;
                     },
                     0x5BE => {
+                        self.r[WZL] = gd(bus);
                         self.step = 0x5BF;
                         break :next;
                     },
                     0x5BF => {
-                        if (wait(bus)) break :next;
-                        bus = mrd(bus, self.pc);
-                        self.incPC();
                         self.step = 0x5C0;
                         break :next;
                     },
                     0x5C0 => {
-                        self.r[WZH] = gd(bus);
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.pc);
+                        self.incPC();
                         self.step = 0x5C1;
                         break :next;
                     },
                     0x5C1 => {
+                        self.r[WZH] = gd(bus);
                         self.step = 0x5C2;
                         break :next;
                     },
                     0x5C2 => {
-                        if (wait(bus)) break :next;
-                        bus = mwr(bus, self.WZ(), self.r[E]);
-                        self.incWZ();
                         self.step = 0x5C3;
                         break :next;
                     },
                     0x5C3 => {
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.WZ());
+                        self.incWZ();
                         self.step = 0x5C4;
                         break :next;
                     },
                     0x5C4 => {
+                        self.r[C] = gd(bus);
                         self.step = 0x5C5;
                         break :next;
                     },
                     0x5C5 => {
-                        if (wait(bus)) break :next;
-                        bus = mwr(bus, self.WZ(), self.r[D]);
                         self.step = 0x5C6;
                         break :next;
                     },
                     0x5C6 => {
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.WZ());
                         self.step = 0x5C7;
                         break :next;
                     },
                     0x5C7 => {
-                    },
-                    // LD A,I (continued...)
-                    0x5C8 => {
-                        self.r[A] = self.I(); self.r[F] = self.sziff2Flags(self.I());
-                    },
-                    // LD DE,(nn) (continued...)
-                    0x5C9 => {
-                        if (wait(bus)) break :next;
-                        bus = mrd(bus, self.pc);
-                        self.incPC();
-                        self.step = 0x5CA;
+                        self.r[B] = gd(bus);
+                        self.step = 0x5C8;
                         break :next;
                     },
+                    0x5C8 => {
+                    },
+                    // LD R,A (continued...)
+                    0x5C9 => {
+                        self.setR(self.r[A]);
+                    },
+                    // SBC HL,DE (continued...)
                     0x5CA => {
-                        self.r[WZL] = gd(bus);
                         self.step = 0x5CB;
                         break :next;
                     },
@@ -5604,14 +5660,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break :next;
                     },
                     0x5CC => {
-                        if (wait(bus)) break :next;
-                        bus = mrd(bus, self.pc);
-                        self.incPC();
                         self.step = 0x5CD;
                         break :next;
                     },
                     0x5CD => {
-                        self.r[WZH] = gd(bus);
                         self.step = 0x5CE;
                         break :next;
                     },
@@ -5620,48 +5672,48 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break :next;
                     },
                     0x5CF => {
-                        if (wait(bus)) break :next;
-                        bus = mrd(bus, self.WZ());
-                        self.incWZ();
                         self.step = 0x5D0;
                         break :next;
                     },
                     0x5D0 => {
-                        self.r[E] = gd(bus);
-                        self.step = 0x5D1;
-                        break :next;
                     },
+                    // LD (nn),DE (continued...)
                     0x5D1 => {
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.pc);
+                        self.incPC();
                         self.step = 0x5D2;
                         break :next;
                     },
                     0x5D2 => {
-                        if (wait(bus)) break :next;
-                        bus = mrd(bus, self.WZ());
+                        self.r[WZL] = gd(bus);
                         self.step = 0x5D3;
                         break :next;
                     },
                     0x5D3 => {
-                        self.r[D] = gd(bus);
                         self.step = 0x5D4;
                         break :next;
                     },
                     0x5D4 => {
-                    },
-                    // LD A,R (continued...)
-                    0x5D5 => {
-                        self.r[A] = self.R(); self.r[F] = self.sziff2Flags(self.R());
-                    },
-                    // LD (nn),HL (continued...)
-                    0x5D6 => {
                         if (wait(bus)) break :next;
                         bus = mrd(bus, self.pc);
                         self.incPC();
+                        self.step = 0x5D5;
+                        break :next;
+                    },
+                    0x5D5 => {
+                        self.r[WZH] = gd(bus);
+                        self.step = 0x5D6;
+                        break :next;
+                    },
+                    0x5D6 => {
                         self.step = 0x5D7;
                         break :next;
                     },
                     0x5D7 => {
-                        self.r[WZL] = gd(bus);
+                        if (wait(bus)) break :next;
+                        bus = mwr(bus, self.WZ(), self.r[E]);
+                        self.incWZ();
                         self.step = 0x5D8;
                         break :next;
                     },
@@ -5670,14 +5722,12 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break :next;
                     },
                     0x5D9 => {
-                        if (wait(bus)) break :next;
-                        bus = mrd(bus, self.pc);
-                        self.incPC();
                         self.step = 0x5DA;
                         break :next;
                     },
                     0x5DA => {
-                        self.r[WZH] = gd(bus);
+                        if (wait(bus)) break :next;
+                        bus = mwr(bus, self.WZ(), self.r[D]);
                         self.step = 0x5DB;
                         break :next;
                     },
@@ -5686,23 +5736,17 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break :next;
                     },
                     0x5DC => {
-                        if (wait(bus)) break :next;
-                        bus = mwr(bus, self.WZ(), self.r[L]);
-                        self.incWZ();
-                        self.step = 0x5DD;
-                        break :next;
                     },
+                    // LD A,I (continued...)
                     0x5DD => {
-                        self.step = 0x5DE;
-                        break :next;
+                        self.r[A] = self.I(); self.r[F] = self.sziff2Flags(self.I());
                     },
+                    // ADC HL,DE (continued...)
                     0x5DE => {
                         self.step = 0x5DF;
                         break :next;
                     },
                     0x5DF => {
-                        if (wait(bus)) break :next;
-                        bus = mwr(bus, self.WZ(), self.r[H]);
                         self.step = 0x5E0;
                         break :next;
                     },
@@ -5711,24 +5755,20 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break :next;
                     },
                     0x5E1 => {
+                        self.step = 0x5E2;
+                        break :next;
                     },
-                    // LD HL,(nn) (continued...)
                     0x5E2 => {
-                        if (wait(bus)) break :next;
-                        bus = mrd(bus, self.pc);
-                        self.incPC();
                         self.step = 0x5E3;
                         break :next;
                     },
                     0x5E3 => {
-                        self.r[WZL] = gd(bus);
                         self.step = 0x5E4;
                         break :next;
                     },
                     0x5E4 => {
-                        self.step = 0x5E5;
-                        break :next;
                     },
+                    // LD DE,(nn) (continued...)
                     0x5E5 => {
                         if (wait(bus)) break :next;
                         bus = mrd(bus, self.pc);
@@ -5737,7 +5777,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break :next;
                     },
                     0x5E6 => {
-                        self.r[WZH] = gd(bus);
+                        self.r[WZL] = gd(bus);
                         self.step = 0x5E7;
                         break :next;
                     },
@@ -5747,13 +5787,13 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     },
                     0x5E8 => {
                         if (wait(bus)) break :next;
-                        bus = mrd(bus, self.WZ());
-                        self.incWZ();
+                        bus = mrd(bus, self.pc);
+                        self.incPC();
                         self.step = 0x5E9;
                         break :next;
                     },
                     0x5E9 => {
-                        self.r[L] = gd(bus);
+                        self.r[WZH] = gd(bus);
                         self.step = 0x5EA;
                         break :next;
                     },
@@ -5764,42 +5804,38 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0x5EB => {
                         if (wait(bus)) break :next;
                         bus = mrd(bus, self.WZ());
+                        self.incWZ();
                         self.step = 0x5EC;
                         break :next;
                     },
                     0x5EC => {
-                        self.r[H] = gd(bus);
+                        self.r[E] = gd(bus);
                         self.step = 0x5ED;
                         break :next;
                     },
                     0x5ED => {
+                        self.step = 0x5EE;
+                        break :next;
                     },
-                    // LD (nn),SP (continued...)
                     0x5EE => {
                         if (wait(bus)) break :next;
-                        bus = mrd(bus, self.pc);
-                        self.incPC();
+                        bus = mrd(bus, self.WZ());
                         self.step = 0x5EF;
                         break :next;
                     },
                     0x5EF => {
-                        self.r[WZL] = gd(bus);
+                        self.r[D] = gd(bus);
                         self.step = 0x5F0;
                         break :next;
                     },
                     0x5F0 => {
-                        self.step = 0x5F1;
-                        break :next;
                     },
+                    // LD A,R (continued...)
                     0x5F1 => {
-                        if (wait(bus)) break :next;
-                        bus = mrd(bus, self.pc);
-                        self.incPC();
-                        self.step = 0x5F2;
-                        break :next;
+                        self.r[A] = self.R(); self.r[F] = self.sziff2Flags(self.R());
                     },
+                    // SBC HL,HL (continued...)
                     0x5F2 => {
-                        self.r[WZH] = gd(bus);
                         self.step = 0x5F3;
                         break :next;
                     },
@@ -5808,9 +5844,6 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break :next;
                     },
                     0x5F4 => {
-                        if (wait(bus)) break :next;
-                        bus = mwr(bus, self.WZ(), self.r[SPL]);
-                        self.incWZ();
                         self.step = 0x5F5;
                         break :next;
                     },
@@ -5823,78 +5856,335 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break :next;
                     },
                     0x5F7 => {
-                        if (wait(bus)) break :next;
-                        bus = mwr(bus, self.WZ(), self.r[SPH]);
                         self.step = 0x5F8;
                         break :next;
                     },
                     0x5F8 => {
-                        self.step = 0x5F9;
-                        break :next;
                     },
+                    // LD (nn),HL (continued...)
                     0x5F9 => {
-                    },
-                    // LD SP,(nn) (continued...)
-                    0x5FA => {
                         if (wait(bus)) break :next;
                         bus = mrd(bus, self.pc);
                         self.incPC();
+                        self.step = 0x5FA;
+                        break :next;
+                    },
+                    0x5FA => {
+                        self.r[WZL] = gd(bus);
                         self.step = 0x5FB;
                         break :next;
                     },
                     0x5FB => {
-                        self.r[WZL] = gd(bus);
                         self.step = 0x5FC;
                         break :next;
                     },
                     0x5FC => {
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.pc);
+                        self.incPC();
                         self.step = 0x5FD;
                         break :next;
                     },
                     0x5FD => {
-                        if (wait(bus)) break :next;
-                        bus = mrd(bus, self.pc);
-                        self.incPC();
+                        self.r[WZH] = gd(bus);
                         self.step = 0x5FE;
                         break :next;
                     },
                     0x5FE => {
-                        self.r[WZH] = gd(bus);
                         self.step = 0x5FF;
                         break :next;
                     },
                     0x5FF => {
+                        if (wait(bus)) break :next;
+                        bus = mwr(bus, self.WZ(), self.r[L]);
+                        self.incWZ();
                         self.step = 0x600;
                         break :next;
                     },
                     0x600 => {
-                        if (wait(bus)) break :next;
-                        bus = mrd(bus, self.WZ());
-                        self.incWZ();
                         self.step = 0x601;
                         break :next;
                     },
                     0x601 => {
-                        self.r[SPL] = gd(bus);
                         self.step = 0x602;
                         break :next;
                     },
                     0x602 => {
+                        if (wait(bus)) break :next;
+                        bus = mwr(bus, self.WZ(), self.r[H]);
                         self.step = 0x603;
                         break :next;
                     },
                     0x603 => {
-                        if (wait(bus)) break :next;
-                        bus = mrd(bus, self.WZ());
                         self.step = 0x604;
                         break :next;
                     },
                     0x604 => {
-                        self.r[SPH] = gd(bus);
-                        self.step = 0x605;
+                    },
+                    // ADC HL,HL (continued...)
+                    0x605 => {
+                        self.step = 0x606;
                         break :next;
                     },
-                    0x605 => {
+                    0x606 => {
+                        self.step = 0x607;
+                        break :next;
+                    },
+                    0x607 => {
+                        self.step = 0x608;
+                        break :next;
+                    },
+                    0x608 => {
+                        self.step = 0x609;
+                        break :next;
+                    },
+                    0x609 => {
+                        self.step = 0x60A;
+                        break :next;
+                    },
+                    0x60A => {
+                        self.step = 0x60B;
+                        break :next;
+                    },
+                    0x60B => {
+                    },
+                    // LD HL,(nn) (continued...)
+                    0x60C => {
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.pc);
+                        self.incPC();
+                        self.step = 0x60D;
+                        break :next;
+                    },
+                    0x60D => {
+                        self.r[WZL] = gd(bus);
+                        self.step = 0x60E;
+                        break :next;
+                    },
+                    0x60E => {
+                        self.step = 0x60F;
+                        break :next;
+                    },
+                    0x60F => {
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.pc);
+                        self.incPC();
+                        self.step = 0x610;
+                        break :next;
+                    },
+                    0x610 => {
+                        self.r[WZH] = gd(bus);
+                        self.step = 0x611;
+                        break :next;
+                    },
+                    0x611 => {
+                        self.step = 0x612;
+                        break :next;
+                    },
+                    0x612 => {
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.WZ());
+                        self.incWZ();
+                        self.step = 0x613;
+                        break :next;
+                    },
+                    0x613 => {
+                        self.r[L] = gd(bus);
+                        self.step = 0x614;
+                        break :next;
+                    },
+                    0x614 => {
+                        self.step = 0x615;
+                        break :next;
+                    },
+                    0x615 => {
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.WZ());
+                        self.step = 0x616;
+                        break :next;
+                    },
+                    0x616 => {
+                        self.r[H] = gd(bus);
+                        self.step = 0x617;
+                        break :next;
+                    },
+                    0x617 => {
+                    },
+                    // SBC HL,SP (continued...)
+                    0x618 => {
+                        self.step = 0x619;
+                        break :next;
+                    },
+                    0x619 => {
+                        self.step = 0x61A;
+                        break :next;
+                    },
+                    0x61A => {
+                        self.step = 0x61B;
+                        break :next;
+                    },
+                    0x61B => {
+                        self.step = 0x61C;
+                        break :next;
+                    },
+                    0x61C => {
+                        self.step = 0x61D;
+                        break :next;
+                    },
+                    0x61D => {
+                        self.step = 0x61E;
+                        break :next;
+                    },
+                    0x61E => {
+                    },
+                    // LD (nn),SP (continued...)
+                    0x61F => {
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.pc);
+                        self.incPC();
+                        self.step = 0x620;
+                        break :next;
+                    },
+                    0x620 => {
+                        self.r[WZL] = gd(bus);
+                        self.step = 0x621;
+                        break :next;
+                    },
+                    0x621 => {
+                        self.step = 0x622;
+                        break :next;
+                    },
+                    0x622 => {
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.pc);
+                        self.incPC();
+                        self.step = 0x623;
+                        break :next;
+                    },
+                    0x623 => {
+                        self.r[WZH] = gd(bus);
+                        self.step = 0x624;
+                        break :next;
+                    },
+                    0x624 => {
+                        self.step = 0x625;
+                        break :next;
+                    },
+                    0x625 => {
+                        if (wait(bus)) break :next;
+                        bus = mwr(bus, self.WZ(), self.r[SPL]);
+                        self.incWZ();
+                        self.step = 0x626;
+                        break :next;
+                    },
+                    0x626 => {
+                        self.step = 0x627;
+                        break :next;
+                    },
+                    0x627 => {
+                        self.step = 0x628;
+                        break :next;
+                    },
+                    0x628 => {
+                        if (wait(bus)) break :next;
+                        bus = mwr(bus, self.WZ(), self.r[SPH]);
+                        self.step = 0x629;
+                        break :next;
+                    },
+                    0x629 => {
+                        self.step = 0x62A;
+                        break :next;
+                    },
+                    0x62A => {
+                    },
+                    // ADC HL,SP (continued...)
+                    0x62B => {
+                        self.step = 0x62C;
+                        break :next;
+                    },
+                    0x62C => {
+                        self.step = 0x62D;
+                        break :next;
+                    },
+                    0x62D => {
+                        self.step = 0x62E;
+                        break :next;
+                    },
+                    0x62E => {
+                        self.step = 0x62F;
+                        break :next;
+                    },
+                    0x62F => {
+                        self.step = 0x630;
+                        break :next;
+                    },
+                    0x630 => {
+                        self.step = 0x631;
+                        break :next;
+                    },
+                    0x631 => {
+                    },
+                    // LD SP,(nn) (continued...)
+                    0x632 => {
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.pc);
+                        self.incPC();
+                        self.step = 0x633;
+                        break :next;
+                    },
+                    0x633 => {
+                        self.r[WZL] = gd(bus);
+                        self.step = 0x634;
+                        break :next;
+                    },
+                    0x634 => {
+                        self.step = 0x635;
+                        break :next;
+                    },
+                    0x635 => {
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.pc);
+                        self.incPC();
+                        self.step = 0x636;
+                        break :next;
+                    },
+                    0x636 => {
+                        self.r[WZH] = gd(bus);
+                        self.step = 0x637;
+                        break :next;
+                    },
+                    0x637 => {
+                        self.step = 0x638;
+                        break :next;
+                    },
+                    0x638 => {
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.WZ());
+                        self.incWZ();
+                        self.step = 0x639;
+                        break :next;
+                    },
+                    0x639 => {
+                        self.r[SPL] = gd(bus);
+                        self.step = 0x63A;
+                        break :next;
+                    },
+                    0x63A => {
+                        self.step = 0x63B;
+                        break :next;
+                    },
+                    0x63B => {
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.WZ());
+                        self.step = 0x63C;
+                        break :next;
+                    },
+                    0x63C => {
+                        self.r[SPH] = gd(bus);
+                        self.step = 0x63D;
+                        break :next;
+                    },
+                    0x63D => {
                     },
                     // END DECODE
                     else => unreachable,
