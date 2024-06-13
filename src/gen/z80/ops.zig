@@ -1,5 +1,6 @@
 //! op structure declarations
 const op = @import("accumulate.zig").op;
+const oped = @import("accumulate.zig").oped;
 const f = @import("format.zig").f;
 const types = @import("types.zig");
 const R = types.R;
@@ -674,6 +675,46 @@ pub fn @"IN A,(n)"(code: u8) void {
             imm("self.r[WZL]", "self.r[WZH] = self.r[A]"),
             ioread("self.WZ()", "self.r[A]", "self.incWZ()", null),
             endFetch(),
+        }),
+    });
+}
+
+pub fn @"LD I,A"(code: u8) void {
+    oped(code, .{
+        .dasm = "LD I,A",
+        .mcycles = mc(&.{
+            tick(null),
+            endOverlapped("self.setI(self.r[A])"),
+        }),
+    });
+}
+
+pub fn @"LD R,A"(code: u8) void {
+    oped(code, .{
+        .dasm = "LD R,A",
+        .mcycles = mc(&.{
+            tick(null),
+            endOverlapped("self.setR(self.r[A])"),
+        }),
+    });
+}
+
+pub fn @"LD A,I"(code: u8) void {
+    oped(code, .{
+        .dasm = "LD A,I",
+        .mcycles = mc(&.{
+            tick(null),
+            endOverlapped("self.r[A] = self.I(); self.r[F] = self.sziff2Flags(self.I())"),
+        }),
+    });
+}
+
+pub fn @"LD A,R"(code: u8) void {
+    oped(code, .{
+        .dasm = "LD A,R",
+        .mcycles = mc(&.{
+            tick(null),
+            endOverlapped("self.r[A] = self.R(); self.r[F] = self.sziff2Flags(self.R())"),
         }),
     });
 }

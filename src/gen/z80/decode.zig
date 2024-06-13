@@ -134,6 +134,28 @@ fn decodeMain() void {
     }
 }
 
-fn decodeED() void {}
+fn decodeED() void {
+    for (0..256) |i| {
+        const op: u8 = @truncate(i);
+        const x: u2 = @truncate((i >> 6) & 3);
+        const y: u3 = @truncate((i >> 3) & 7);
+        const z: u3 = @truncate(i & 7);
+        //const p: u2 = @truncate(y >> 1);
+        //const q: u1 = @truncate(y);
+        switch (x) {
+            1 => switch (z) {
+                7 => switch (y) {
+                    0 => ops.@"LD I,A"(op),
+                    1 => ops.@"LD R,A"(op),
+                    2 => ops.@"LD A,I"(op),
+                    3 => ops.@"LD A,R"(op),
+                    else => {},
+                },
+                else => {},
+            },
+            else => {},
+        }
+    }
+}
 
 fn decodeCB() void {}

@@ -1558,6 +1558,39 @@ fn @"JP cc,nn"() void {
     ok();
 }
 
+fn @"LD A,R/I"() void {
+    start("LD A,R/I");
+    const prog = [_]u8{
+        0xED, 0x57,         // LD A,I
+        0x97,               // SUB A
+        0xED, 0x5F,         // LD A,R
+    };
+    init(0, &prog);
+    cpu.iff1 = true;
+    cpu.iff2 = true;
+    cpu.setR(0x34);
+    cpu.setI(0x01);
+    cpu.r[F] = CF;
+    T(9 == step()); T(0x01 == cpu.r[A]); T(flags(PF|CF));
+    T(4 == step()); T(0x00 == cpu.r[A]); T(flags(ZF|NF));
+    T(9 == step()); T(0x39 == cpu.r[A]); T(flags(PF));
+    ok();
+}
+
+fn @"LD R/I,A"() void {
+    start("LD R/I,A");
+    const prog = [_]u8{
+        0x3E, 0x45,     // LD A,0x45
+        0xED, 0x47,     // LD I,A
+        0xED, 0x4F,     // LD R,A
+    };
+    init(0, &prog);
+    T(7==step()); T(0x45 == cpu.r[A]);
+    T(9==step()); T(0x45 == cpu.I());
+    T(9==step()); T(0x45 == cpu.R());
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -1603,4 +1636,6 @@ pub fn main() void {
     @"CALL/RET"();
     @"CALL cc/RET cc"();
     @"JP cc,nn"();
+    @"LD A,R/I"();
+    @"LD R/I,A"();
 }

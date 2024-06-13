@@ -373,6 +373,22 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             return @truncate(self.pc);
         }
 
+        pub inline fn I(self: *const Self) u8 {
+            return @truncate(self.ir >> 8);
+        }
+
+        pub inline fn setI(self: *Self, i: u8) void {
+            self.ir = (self.ir & 0x00FF) | (@as(u16, i) << 8);
+        }
+
+        pub inline fn R(self: *const Self) u8 {
+            return @truncate(self.ir);
+        }
+
+        pub inline fn setR(self: *Self, r: u8) void {
+            self.ir = (self.ir & 0xFF00) | r;
+        }
+
         pub inline fn setAddr(bus: Bus, addr: u16) Bus {
             const m: Bus = comptime mask(&P.A);
             return (bus & ~m) | (@as(Bus, addr) << P.A[0]);
@@ -476,13 +492,12 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             return @as(u8, @truncate(v));
         }
 
-        inline fn szFlags(val: u9) u8 {
-            const v8 = trn8(val);
-            return if (v8 != 0) (v8 & SF) else ZF;
+        inline fn szFlags(val: u8) u8 {
+            return if (val != 0) (val & SF) else ZF;
         }
 
         inline fn szyxchFlags(acc: u9, val: u8, res: u9) u8 {
-            return szFlags(res) | trn8((res & (YF | XF)) | ((res >> 8) & CF) | ((acc ^ val ^ res) & HF));
+            return szFlags(trn8(res)) | trn8((res & (YF | XF)) | ((res >> 8) & CF) | ((acc ^ val ^ res) & HF));
         }
 
         inline fn addFlags(acc: u9, val: u8, res: u9) u8 {
@@ -494,11 +509,15 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         }
 
         inline fn cpFlags(acc: u9, val: u8, res: u9) u8 {
-            return NF | szFlags(res) | trn8((val & (YF | XF)) | ((res >> 8) & CF) | ((acc ^ val ^ res) & HF) | ((((val ^ acc) & (res ^ acc)) >> 5) & VF));
+            return NF | szFlags(trn8(res)) | trn8((val & (YF | XF)) | ((res >> 8) & CF) | ((acc ^ val ^ res) & HF) | ((((val ^ acc) & (res ^ acc)) >> 5) & VF));
         }
 
         inline fn szpFlags(val: u8) u8 {
             return szFlags(val) | (((@popCount(val) << 2) & PF) ^ PF) | (val & (YF | XF));
+        }
+
+        inline fn sziff2Flags(self: *const Self, val: u8) u8 {
+            return (self.r[F] & CF) | szFlags(val) | (val & (YF | XF)) | if (self.iff2) PF else @as(u8, 0);
         }
 
         fn halt(self: *Self, bus: Bus) Bus {
@@ -686,27 +705,27 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         }
 
         // BEGIN CONSTS
-        const M1_T2: u16 = 0x5A2;
-        const M1_T3: u16 = 0x5A3;
-        const M1_T4: u16 = 0x5A4;
-        const DDFD_M1_T2: u16 = 0x5A5;
-        const DDFD_M1_T3: u16 = 0x5A6;
-        const DDFD_M1_T4: u16 = 0x5A7;
-        const DDFD_D_T1: u16 = 0x5A8;
-        const DDFD_D_T2: u16 = 0x5A9;
-        const DDFD_D_T3: u16 = 0x5AA;
-        const DDFD_D_T4: u16 = 0x5AB;
-        const DDFD_D_T5: u16 = 0x5AC;
-        const DDFD_D_T6: u16 = 0x5AD;
-        const DDFD_D_T7: u16 = 0x5AE;
-        const DDFD_D_T8: u16 = 0x5AF;
-        const DDFD_LDHLN_WR_T1: u16 = 0x5B0;
-        const DDFD_LDHLN_WR_T2: u16 = 0x5B1;
-        const DDFD_LDHLN_WR_T3: u16 = 0x5B2;
-        const DDFD_LDHLN_OVERLAPPED: u16 = 0x5B3;
-        const ED_M1_T2: u16 = 0x5B4;
-        const ED_M1_T3: u16 = 0x5B5;
-        const ED_M1_T4: u16 = 0x5B6;
+        const M1_T2: u16 = 0x5A6;
+        const M1_T3: u16 = 0x5A7;
+        const M1_T4: u16 = 0x5A8;
+        const DDFD_M1_T2: u16 = 0x5A9;
+        const DDFD_M1_T3: u16 = 0x5AA;
+        const DDFD_M1_T4: u16 = 0x5AB;
+        const DDFD_D_T1: u16 = 0x5AC;
+        const DDFD_D_T2: u16 = 0x5AD;
+        const DDFD_D_T3: u16 = 0x5AE;
+        const DDFD_D_T4: u16 = 0x5AF;
+        const DDFD_D_T5: u16 = 0x5B0;
+        const DDFD_D_T6: u16 = 0x5B1;
+        const DDFD_D_T7: u16 = 0x5B2;
+        const DDFD_D_T8: u16 = 0x5B3;
+        const DDFD_LDHLN_WR_T1: u16 = 0x5B4;
+        const DDFD_LDHLN_WR_T2: u16 = 0x5B5;
+        const DDFD_LDHLN_WR_T3: u16 = 0x5B6;
+        const DDFD_LDHLN_OVERLAPPED: u16 = 0x5B7;
+        const ED_M1_T2: u16 = 0x5B8;
+        const ED_M1_T3: u16 = 0x5B9;
+        const ED_M1_T4: u16 = 0x5BA;
         // END CONSTS
 
         // zig fmt: off
@@ -2014,6 +2033,26 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0xFF => {
                         self.decSP();
                         self.step = 0x59B;
+                        break :next;
+                    },
+                    // LD I,A
+                    0x147 => {
+                        self.step = 0x5A2;
+                        break :next;
+                    },
+                    // LD R,A
+                    0x14F => {
+                        self.step = 0x5A3;
+                        break :next;
+                    },
+                    // LD A,I
+                    0x157 => {
+                        self.step = 0x5A4;
+                        break :next;
+                    },
+                    // LD A,R
+                    0x15F => {
+                        self.step = 0x5A5;
                         break :next;
                     },
                     // LD BC,nn (continued...)
@@ -5312,6 +5351,22 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break :next;
                     },
                     0x5A1 => {
+                    },
+                    // LD I,A (continued...)
+                    0x5A2 => {
+                        self.setI(self.r[A]);
+                    },
+                    // LD R,A (continued...)
+                    0x5A3 => {
+                        self.setR(self.r[A]);
+                    },
+                    // LD A,I (continued...)
+                    0x5A4 => {
+                        self.r[A] = self.I(); self.r[F] = self.sziff2Flags(self.I());
+                    },
+                    // LD A,R (continued...)
+                    0x5A5 => {
+                        self.r[A] = self.R(); self.r[F] = self.sziff2Flags(self.R());
                     },
                     // END DECODE
                     else => unreachable,
