@@ -1617,6 +1617,42 @@ fn @"LD HL/dd/IX/IY,(nn)"() void {
     ok();
 }
 
+fn @"LD (nn),HL/dd/IX/IY"() void {
+    start("LD (nn),HL/dd/IX/IY");
+    const prog = [_]u8{
+        0x21, 0x01, 0x02,           // LD HL,0x0201
+        0x22, 0x00, 0x10,           // LD (0x1000),HL
+        0x01, 0x34, 0x12,           // LD BC,0x1234
+        0xED, 0x43, 0x02, 0x10,     // LD (0x1002),BC
+        0x11, 0x78, 0x56,           // LD DE,0x5678
+        0xED, 0x53, 0x04, 0x10,     // LD (0x1004),DE
+        0x21, 0xBC, 0x9A,           // LD HL,0x9ABC
+        0xED, 0x63, 0x06, 0x10,     // LD (0x1006),HL undocumented 'long' version
+        0x31, 0x68, 0x13,           // LD SP,0x1368
+        0xED, 0x73, 0x08, 0x10,     // LD (0x1008),SP
+        0xDD, 0x21, 0x21, 0x43,     // LD IX,0x4321
+        0xDD, 0x22, 0x0A, 0x10,     // LD (0x100A),IX
+        0xFD, 0x21, 0x65, 0x87,     // LD IY,0x8765
+        0xFD, 0x22, 0x0C, 0x10,     // LD (0x100C),IY
+    };
+    init(0, &prog);
+    T(10==step()); T(0x0201 == cpu.HL());
+    T(16==step()); T(0x0201 == mem16(0x1000)); T(0x1001 == cpu.WZ());
+    T(10==step()); T(0x1234 == cpu.BC());
+    T(20==step()); T(0x1234 == mem16(0x1002)); T(0x1003 == cpu.WZ());
+    T(10==step()); T(0x5678 == cpu.DE());
+    T(20==step()); T(0x5678 == mem16(0x1004)); T(0x1005 == cpu.WZ());
+    T(10==step()); T(0x9ABC == cpu.HL());
+    T(20==step()); T(0x9ABC == mem16(0x1006)); T(0x1007 == cpu.WZ());
+    T(10==step()); T(0x1368 == cpu.SP());
+    T(20==step()); T(0x1368 == mem16(0x1008)); T(0x1009 == cpu.WZ());
+    T(14==step()); T(0x4321 == cpu.IX());
+    T(20==step()); T(0x4321 == mem16(0x100A)); T(0x100B == cpu.WZ());
+    T(14==step()); T(0x8765 == cpu.IY());
+    T(20==step()); T(0x8765 == mem16(0x100C)); T(0x100D == cpu.WZ());
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -1665,4 +1701,5 @@ pub fn main() void {
     @"LD A,R/I"();
     @"LD R/I,A"();
     @"LD HL/dd/IX/IY,(nn)"();
+    @"LD (nn),HL/dd/IX/IY"();
 }
