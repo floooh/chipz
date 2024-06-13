@@ -788,3 +788,13 @@ pub fn neg(code: u8) void {
         }),
     });
 }
+
+pub fn im(code: u8, y: u3) void {
+    const map = [8]usize{ 0, 0, 1, 2, 0, 0, 1, 2 };
+    oped(code, .{
+        .dasm = f("IM {}", .{map[y]}),
+        .mcycles = mc(&.{
+            endOverlapped(f("self.im = {}", .{map[y]})),
+        }),
+    });
+}

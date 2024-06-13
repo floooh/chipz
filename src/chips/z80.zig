@@ -2082,6 +2082,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0x144 => {
                         self.neg8();
                     },
+                    // IM 0
+                    0x146 => {
+                        self.im = 0;
+                    },
                     // LD I,A
                     0x147 => {
                         self.step = 0x5B5;
@@ -2101,6 +2105,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     // NEG
                     0x14C => {
                         self.neg8();
+                    },
+                    // IM 0
+                    0x14E => {
+                        self.im = 0;
                     },
                     // LD R,A
                     0x14F => {
@@ -2122,6 +2130,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0x154 => {
                         self.neg8();
                     },
+                    // IM 1
+                    0x156 => {
+                        self.im = 1;
+                    },
                     // LD A,I
                     0x157 => {
                         self.step = 0x5DD;
@@ -2141,6 +2153,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     // NEG
                     0x15C => {
                         self.neg8();
+                    },
+                    // IM 2
+                    0x15E => {
+                        self.im = 2;
                     },
                     // LD A,R
                     0x15F => {
@@ -2162,6 +2178,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0x164 => {
                         self.neg8();
                     },
+                    // IM 0
+                    0x166 => {
+                        self.im = 0;
+                    },
                     // ADC HL,HL
                     0x16A => {
                         self.adc16(self.HL());
@@ -2176,6 +2196,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     // NEG
                     0x16C => {
                         self.neg8();
+                    },
+                    // IM 0
+                    0x16E => {
+                        self.im = 0;
                     },
                     // SBC HL,SP
                     0x172 => {
@@ -2192,6 +2216,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0x174 => {
                         self.neg8();
                     },
+                    // IM 1
+                    0x176 => {
+                        self.im = 1;
+                    },
                     // ADC HL,SP
                     0x17A => {
                         self.adc16(self.SP());
@@ -2206,6 +2234,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     // NEG
                     0x17C => {
                         self.neg8();
+                    },
+                    // IM 2
+                    0x17E => {
+                        self.im = 2;
                     },
                     // LD BC,nn (continued...)
                     0x300 => {

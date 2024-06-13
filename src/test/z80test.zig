@@ -1699,6 +1699,34 @@ fn NEG() void {
     ok();
 }
 
+fn @"DI/EI/IM"() void {
+    start("DI/EI/IM");
+    const prog = [_]u8{
+        0xF3,           // DI
+        0xFB,           // EI
+        0x00,           // NOP
+        0xF3,           // DI
+        0xFB,           // EI
+        0x00,           // NOP
+        0xED, 0x46,     // IM 0
+        0xED, 0x56,     // IM 1
+        0xED, 0x5E,     // IM 2
+        0xED, 0x46,     // IM 0
+    };
+    init(0, &prog);
+    T(4==step()); T(!cpu.iff2); T(!cpu.iff2);
+    T(4==step()); T(cpu.iff1);  T(cpu.iff2);
+    T(4==step()); T(cpu.iff1);  T(cpu.iff2);
+    T(4==step()); T(!cpu.iff1); T(!cpu.iff2);
+    T(4==step()); T(cpu.iff1);  T(cpu.iff2);
+    T(4==step()); T(cpu.iff1);  T(cpu.iff2);
+    T(8==step()); T(0 == cpu.im);
+    T(8==step()); T(1 == cpu.im);
+    T(8==step()); T(2 == cpu.im);
+    T(8==step()); T(0 == cpu.im);
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -1749,4 +1777,5 @@ pub fn main() void {
     @"LD R/I,A"();
     @"ADD/ADC/SBC HL/IX/IY,dd"();
     NEG();
+    @"DI/EI/IM"();
 }

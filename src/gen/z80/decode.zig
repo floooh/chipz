@@ -153,6 +153,7 @@ fn decodeED() void {
                     1 => ops.@"LD dd,(nn)"(op, p),
                 },
                 4 => ops.neg(op),
+                6 => ops.im(op, y),
                 7 => switch (y) {
                     0 => ops.@"LD I,A"(op),
                     1 => ops.@"LD R,A"(op),
