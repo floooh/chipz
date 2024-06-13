@@ -108,13 +108,13 @@ fn decodeMain() void {
                     2 => ops.@"JP cc,nn"(op, y),
                     3 => switch (y) {
                         0 => ops.@"JP nn"(op),
+                        1 => ops.cb(op),
                         2 => ops.@"OUT (n),A"(op),
                         3 => ops.@"IN A,(n)"(op),
                         4 => ops.@"EX (SP),HL"(op),
                         5 => ops.@"EX DE,HL"(op),
                         6 => ops.di(op),
                         7 => ops.ei(op),
-                        else => {},
                     },
                     4 => ops.@"CALL cc,nn"(op, y),
                     5 => switch (q) {
@@ -122,8 +122,8 @@ fn decodeMain() void {
                         1 => switch (p) {
                             0 => ops.@"CALL nn"(op),
                             1 => ops.dd(op),
+                            2 => ops.ed(op),
                             3 => ops.fd(op),
-                            else => {},
                         },
                     },
                     6 => ops.@"ALU n"(op, y),

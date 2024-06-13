@@ -449,6 +449,24 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             return out_bus;
         }
 
+        inline fn fetchED(self: *Self, bus: Bus) Bus {
+            _ = self;
+            _ = bus;
+            @panic("fetchED(): implement me");
+            //self.rixy = 0;
+            //self.prefix_active = true;
+            //self.step = ED_M1_T2;
+            //const out_bus = setAddr(bus, self.pc) | comptime mask(&.{ M1, MREQ, RD });
+            //self.pc +%= 1;
+            //return out_bus;
+        }
+
+        inline fn fetchCB(self: *Self, bus: Bus) Bus {
+            _ = self;
+            _ = bus;
+            @panic("fetchCB(): implement me!");
+        }
+
         inline fn refresh(self: *Self, bus: Bus) Bus {
             const out_bus = setAddr(bus, self.ir) | comptime mask(&.{MREQ | RFSH});
             var r = self.ir & 0x00FF;
@@ -1704,6 +1722,11 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         self.step = 0x45A;
                         break :next;
                     },
+                    // CB Prefix
+                    0xCB => {
+                        bus = self.fetchCB(bus);
+                        break :next;
+                    },
                     // CALL Z,nn
                     0xCC => {
                         self.step = 0x460;
@@ -1874,6 +1897,11 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     // CALL PE,nn
                     0xEC => {
                         self.step = 0x534;
+                        break :next;
+                    },
+                    // ED Prefix
+                    0xED => {
+                        bus = self.fetchED(bus);
                         break :next;
                     },
                     // XOR n

@@ -364,6 +364,24 @@ pub fn fd(code: u8) void {
     });
 }
 
+pub fn ed(code: u8) void {
+    op(code, .{
+        .dasm = "ED Prefix",
+        .mcycles = mc(&.{
+            endBreak("bus = self.fetchED(bus)"),
+        }),
+    });
+}
+
+pub fn cb(code: u8) void {
+    op(code, .{
+        .dasm = "CB Prefix",
+        .mcycles = mc(&.{
+            endBreak("bus = self.fetchCB(bus)"),
+        }),
+    });
+}
+
 pub fn @"EX AF,AF'"(code: u8) void {
     op(code, .{
         .dasm = "EX AF,AF'",
