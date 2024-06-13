@@ -23,25 +23,30 @@ var extra_step_index: usize = undefined;
 
 pub fn generate() !void {
     extra_step_index = 3 * 256;
-
-    // write main ops
     for (acc.main_ops, 0..) |op, opcode_step_index| {
-        var tcount: usize = 0;
-        if (op.mcycles.len > 0) {
-            var last_mcycle_valid = false;
-            for (op.mcycles) |mcycle| {
-                last_mcycle_valid = mcycle.type == .Overlapped;
-                for (mcycle.tcycles) |tcycle| {
-                    try gen_tcycle(opcode_step_index, op, tcycle, tcount);
-                    tcount += 1;
-                }
-            }
-            assert(last_mcycle_valid);
-        }
+        try genOp(op, opcode_step_index);
+    }
+    for (acc.ed_ops, 256..) |op, opcode_step_index| {
+        try genOp(op, opcode_step_index);
     }
 }
 
-fn gen_tcycle(opcode_step_index: usize, op: Op, tcycle: TCycle, tcount: usize) !void {
+fn genOp(op: Op, opcode_step_index: usize) !void {
+    var tcount: usize = 0;
+    if (op.mcycles.len > 0) {
+        var last_mcycle_valid = false;
+        for (op.mcycles) |mcycle| {
+            last_mcycle_valid = mcycle.type == .Overlapped;
+            for (mcycle.tcycles) |tcycle| {
+                try genTcycle(opcode_step_index, op, tcycle, tcount);
+                tcount += 1;
+            }
+        }
+        assert(last_mcycle_valid);
+    }
+}
+
+fn genTcycle(opcode_step_index: usize, op: Op, tcycle: TCycle, tcount: usize) !void {
     var step_index: usize = undefined;
     var next_step_index: usize = undefined;
     var lines: *BoundedArray([]const u8, MAX_LINES) = undefined;
@@ -154,6 +159,9 @@ pub fn write(allocator: Allocator, path: []const u8) !void {
                     "DDFD_LDHLN_WR_T2",
                     "DDFD_LDHLN_WR_T3",
                     "DDFD_LDHLN_OVERLAPPED",
+                    "ED_M1_T2",
+                    "ED_M1_T3",
+                    "ED_M1_T4",
                 }, 0..) |str, i| {
                     try addLine(dst, consts_prefix, f("const {s}: u16 = 0x{X};", .{ str, m1_t1 + i }));
                 }

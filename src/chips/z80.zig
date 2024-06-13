@@ -450,15 +450,12 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         }
 
         inline fn fetchED(self: *Self, bus: Bus) Bus {
-            _ = self;
-            _ = bus;
-            @panic("fetchED(): implement me");
-            //self.rixy = 0;
-            //self.prefix_active = true;
-            //self.step = ED_M1_T2;
-            //const out_bus = setAddr(bus, self.pc) | comptime mask(&.{ M1, MREQ, RD });
-            //self.pc +%= 1;
-            //return out_bus;
+            self.rixy = 0;
+            self.prefix_active = true;
+            self.step = ED_M1_T2;
+            const out_bus = setAddr(bus, self.pc) | comptime mask(&.{ M1, MREQ, RD });
+            self.pc +%= 1;
+            return out_bus;
         }
 
         inline fn fetchCB(self: *Self, bus: Bus) Bus {
@@ -707,6 +704,9 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         const DDFD_LDHLN_WR_T2: u16 = 0x5B1;
         const DDFD_LDHLN_WR_T3: u16 = 0x5B2;
         const DDFD_LDHLN_OVERLAPPED: u16 = 0x5B3;
+        const ED_M1_T2: u16 = 0x5B4;
+        const ED_M1_T3: u16 = 0x5B5;
+        const ED_M1_T4: u16 = 0x5B6;
         // END CONSTS
 
         // zig fmt: off
@@ -819,6 +819,22 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break: next;
                     },
                     DDFD_LDHLN_OVERLAPPED => {
+                    },
+                    // fetch machine cycle for ED prefixed ops
+                    ED_M1_T2 => {
+                        if (wait(bus)) break :next;
+                        self.opcode = gd(bus);
+                        self.step = ED_M1_T3;
+                        break :next;
+                    },
+                    ED_M1_T3 => {
+                        bus = self.refresh(bus);
+                        self.step = ED_M1_T4;
+                        break :next;
+                    },
+                    ED_M1_T4 => {
+                        self.step = @as(u16, self.opcode) + 0x100;
+                        break :next;
                     },
                     // BEGIN DECODE
                     // NOP

@@ -40,3 +40,7 @@ pub fn mc(s: []const MCycle) []MCycle {
 pub fn op(opcode: usize, o: Op) void {
     main_ops[opcode] = o;
 }
+
+pub fn edop(opcode: usize, o: Op) void {
+    ed_ops[opcode] = o;
+}
