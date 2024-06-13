@@ -22,9 +22,11 @@ const endFetch = mcycles.endFetch;
 const endOverlapped = mcycles.endOverlapped;
 const endBreak = mcycles.endBreak;
 const tick = mcycles.tick;
-const mread = mcycles.mread;
 const imm = mcycles.imm;
+const mread = mcycles.mread;
 const mwrite = mcycles.mwrite;
+const ioread = mcycles.ioread;
+const iowrite = mcycles.iowrite;
 
 pub fn nop(code: u8) void {
     op(code, .{
@@ -632,6 +634,28 @@ pub fn ei(code: u8) void {
         .dasm = "EI",
         .mcycles = mc(&.{
             endBreak("self.iff1 = false; self.iff2 = false; bus = self.fetch(bus); self.iff1 = true; self.iff2 = true"),
+        }),
+    });
+}
+
+pub fn @"OUT (n),A"(code: u8) void {
+    op(code, .{
+        .dasm = "OUT (n),A",
+        .mcycles = mc(&.{
+            imm("self.r[WZL]", "self.r[WZH] = self.r[A]"),
+            iowrite("self.WZ()", "self.r[A]", "self.r[WZL] +%=1"),
+            endFetch(),
+        }),
+    });
+}
+
+pub fn @"IN A,(n)"(code: u8) void {
+    op(code, .{
+        .dasm = "IN A,(n)",
+        .mcycles = mc(&.{
+            imm("self.r[WZL]", "self.r[WZH] = self.r[A]"),
+            ioread("self.WZ()", "self.r[A]", "self.incWZ()", null),
+            endFetch(),
         }),
     });
 }

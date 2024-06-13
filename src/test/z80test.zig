@@ -29,8 +29,11 @@ const SF = z80.SF;
 var cpu: Z80 = undefined;
 var bus: u64 = 0;
 var mem = [_]u8{0} ** 0x10000;
+var out_port: u16 = 0;
+var out_byte: u8 = 0;
 
 const MREQ = z80.DefaultPins.MREQ;
+const IORQ = z80.DefaultPins.IORQ;
 const RD = z80.DefaultPins.RD;
 const WR = z80.DefaultPins.WR;
 const HALT = z80.DefaultPins.HALT;
@@ -82,6 +85,13 @@ fn tick() void {
             bus = Z80.setData(bus, mem[addr]);
         } else if (bits.tst(bus, WR)) {
             mem[addr] = Z80.getData(bus);
+        }
+    } else if (bits.tst(bus, IORQ)) {
+        if (bits.tst(bus, RD)) {
+            bus = Z80.setData(bus, @truncate((Z80.getAddr(bus) & 0xFF) * 2));
+        } else if (bits.tst(bus, WR)) {
+            out_port = Z80.getAddr(bus);
+            out_byte = Z80.getData(bus);
         }
     }
     // FIXME: IORQ

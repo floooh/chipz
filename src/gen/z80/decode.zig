@@ -108,6 +108,8 @@ fn decodeMain() void {
                     2 => ops.@"JP cc,nn"(op, y),
                     3 => switch (y) {
                         0 => ops.@"JP nn"(op),
+                        2 => ops.@"OUT (n),A"(op),
+                        3 => ops.@"IN A,(n)"(op),
                         4 => ops.@"EX (SP),HL"(op),
                         5 => ops.@"EX DE,HL"(op),
                         6 => ops.di(op),
