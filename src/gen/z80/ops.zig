@@ -11,8 +11,11 @@ const CC = types.CC;
 const r = types.r;
 const rr = types.rr;
 const rp = types.rp;
+const rrp = types.rrp;
 const rpl = types.rpl;
+const rrpl = types.rrpl;
 const rph = types.rph;
+const rrph = types.rrph;
 const rp2l = types.rp2l;
 const rp2h = types.rp2h;
 const alu = types.alu;
@@ -715,6 +718,32 @@ pub fn @"LD A,R"(code: u8) void {
         .mcycles = mc(&.{
             tick(null),
             endOverlapped("self.r[A] = self.R(); self.r[F] = self.sziff2Flags(self.R())"),
+        }),
+    });
+}
+
+pub fn @"LD (nn),dd"(code: u8, p: u2) void {
+    oped(code, .{
+        .dasm = f("LD (nn),{s}", .{rrp(p)}),
+        .mcycles = mc(&.{
+            imm("self.r[WZL]", null),
+            imm("self.r[WZH]", null),
+            mwrite("self.WZ()", rrpl(p), "self.incWZ()"),
+            mwrite("self.WZ()", rrph(p), null),
+            endFetch(),
+        }),
+    });
+}
+
+pub fn @"LD dd,(nn)"(code: u8, p: u2) void {
+    oped(code, .{
+        .dasm = f("LD {s},(nn)", .{rrp(p)}),
+        .mcycles = mc(&.{
+            imm("self.r[WZL]", null),
+            imm("self.r[WZH]", null),
+            mread("self.WZ()", rrpl(p), "self.incWZ()", null),
+            mread("self.WZ()", rrph(p), null, null),
+            endFetch(),
         }),
     });
 }

@@ -108,6 +108,15 @@ pub fn rp(any: anytype) []const u8 {
     };
 }
 
+pub fn rrp(any: anytype) []const u8 {
+    return switch (RP.asEnum(any)) {
+        .BC => "BC",
+        .DE => "DE",
+        .HL => "HL",
+        .SP => "SP",
+    };
+}
+
 pub fn rpl(any: anytype) []const u8 {
     return switch (RP.asEnum(any)) {
         .BC => "self.r[C]",
@@ -117,11 +126,29 @@ pub fn rpl(any: anytype) []const u8 {
     };
 }
 
+pub fn rrpl(any: anytype) []const u8 {
+    return switch (RP.asEnum(any)) {
+        .BC => "self.r[C]",
+        .DE => "self.r[E]",
+        .HL => "self.r[L]",
+        .SP => "self.r[SPL]",
+    };
+}
+
 pub fn rph(any: anytype) []const u8 {
     return switch (RP.asEnum(any)) {
         .BC => "self.r[B]",
         .DE => "self.r[D]",
         .HL => "self.r[H + self.rixy]",
+        .SP => "self.r[SPH]",
+    };
+}
+
+pub fn rrph(any: anytype) []const u8 {
+    return switch (RP.asEnum(any)) {
+        .BC => "self.r[B]",
+        .DE => "self.r[D]",
+        .HL => "self.r[H]",
         .SP => "self.r[SPH]",
     };
 }

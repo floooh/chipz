@@ -140,10 +140,14 @@ fn decodeED() void {
         const x: u2 = @truncate((i >> 6) & 3);
         const y: u3 = @truncate((i >> 3) & 7);
         const z: u3 = @truncate(i & 7);
-        //const p: u2 = @truncate(y >> 1);
-        //const q: u1 = @truncate(y);
+        const p: u2 = @truncate(y >> 1);
+        const q: u1 = @truncate(y);
         switch (x) {
             1 => switch (z) {
+                3 => switch (q) {
+                    0 => ops.@"LD (nn),dd"(op, p),
+                    1 => ops.@"LD dd,(nn)"(op, p),
+                },
                 7 => switch (y) {
                     0 => ops.@"LD I,A"(op),
                     1 => ops.@"LD R,A"(op),

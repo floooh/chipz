@@ -1591,6 +1591,32 @@ fn @"LD R/I,A"() void {
     ok();
 }
 
+fn @"LD HL/dd/IX/IY,(nn)"() void {
+    start("LD HL/dd/IX/IY,nn");
+    const prog = [_]u8{
+        0x2A, 0x00, 0x10,           // LD HL,(0x1000)
+        0xED, 0x4B, 0x01, 0x10,     // LD BC,(0x1001)
+        0xED, 0x5B, 0x02, 0x10,     // LD DE,(0x1002)
+        0xED, 0x6B, 0x03, 0x10,     // LD HL,(0x1003) undocumented 'long' version
+        0xED, 0x7B, 0x04, 0x10,     // LD SP,(0x1004)
+        0xDD, 0x2A, 0x05, 0x10,     // LD IX,(0x1005)
+        0xFD, 0x2A, 0x06, 0x10,     // LD IY,(0x1006)
+    };
+    const data = [_]u8{
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+    };
+    init(0, &prog);
+    copy(0x1000, &data);
+    T(16==step()); T(0x0201 == cpu.HL()); T(0x1001 == cpu.WZ());
+    T(20==step()); T(0x0302 == cpu.BC()); T(0x1002 == cpu.WZ());
+    T(20==step()); T(0x0403 == cpu.DE()); T(0x1003 == cpu.WZ());
+    T(20==step()); T(0x0504 == cpu.HL()); T(0x1004 == cpu.WZ());
+    T(20==step()); T(0x0605 == cpu.SP()); T(0x1005 == cpu.WZ());
+    T(20==step()); T(0x0706 == cpu.IX()); T(0x1006 == cpu.WZ());
+    T(20==step()); T(0x0807 == cpu.IY()); T(0x1007 == cpu.WZ());
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -1638,4 +1664,5 @@ pub fn main() void {
     @"JP cc,nn"();
     @"LD A,R/I"();
     @"LD R/I,A"();
+    @"LD HL/dd/IX/IY,(nn)"();
 }
