@@ -843,3 +843,45 @@ pub fn @"OUT (C)"(code: u8, y: u3) void {
         }),
     });
 }
+
+pub fn retni(code: u8, y: u3) void {
+    // NOTE do we want a virtual RETI pin, or let support chips snoop the data bus?
+    oped(code, .{
+        .dasm = if (y == 0) "RETN" else "RETI",
+        .mcycles = mc(&.{
+            mread("self.SP()", "self.r[WZL]", "self.incSP()", null),
+            mread("self.SP()", "self.r[WZH]", "self.incSP()", "self.pc = self.WZ()"),
+            endOverlapped("self.iff1 = self.iff2"),
+        }),
+    });
+}
+
+pub fn rrd(code: u8) void {
+    oped(code, .{
+        .dasm = "RRD",
+        .mcycles = mc(&.{
+            mread("self.HL()", "self.dlatch", null, null),
+            tick("self.dlatch = self.rrd(self.dlatch)"),
+            tick(null),
+            tick(null),
+            tick(null),
+            mwrite("self.HL()", "self.dlatch", "self.setWZ(self.HL() +% 1)"),
+            endFetch(),
+        }),
+    });
+}
+
+pub fn rld(code: u8) void {
+    oped(code, .{
+        .dasm = "RLD",
+        .mcycles = mc(&.{
+            mread("self.HL()", "self.dlatch", null, null),
+            tick("self.dlatch = self.rld(self.dlatch)"),
+            tick(null),
+            tick(null),
+            tick(null),
+            mwrite("self.HL()", "self.dlatch", "self.setWZ(self.HL() +% 1)"),
+            endFetch(),
+        }),
+    });
+}

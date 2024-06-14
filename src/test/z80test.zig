@@ -1802,6 +1802,47 @@ fn @"DI/EI/IM"() void {
     ok();
 }
 
+fn @"RLD/RRD"() void {
+    start("RLD/RRD");
+    const prog = [_]u8{
+        0x3E, 0x12,         // LD A,0x12
+        0x21, 0x00, 0x10,   // LD HL,0x1000
+        0x36, 0x34,         // LD (HL),0x34
+        0xED, 0x67,         // RRD
+        0xED, 0x6F,         // RLD
+        0x7E,               // LD A,(HL)
+        0x3E, 0xFE,         // LD A,0xFE
+        0x36, 0x00,         // LD (HL),0x00
+        0xED, 0x6F,         // RLD
+        0xED, 0x67,         // RRD
+        0x7E,               // LD A,(HL)
+        0x3E, 0x01,         // LD A,0x01
+        0x36, 0x00,         // LD (HL),0x00
+        0xED, 0x6F,         // RLD
+        0xED, 0x67,         // RRD
+        0x7E
+    };
+    init(0, &prog);
+    T(7  == step()); T(0x12 == cpu.r[A]);
+    T(10 == step()); T(0x1000 == cpu.HL());
+    T(10 == step()); T(0x34 == mem[0x1000]);
+    T(18 == step()); T(0x14 == cpu.r[A]); T(0x23 == mem[0x1000]); T(0x1001 == cpu.WZ());
+    T(18 == step()); T(0x12 == cpu.r[A]); T(0x34 == mem[0x1000]); T(0x1001 == cpu.WZ());
+    T(7  == step()); T(0x34 == cpu.r[A]);
+    T(7  == step()); T(0xFE == cpu.r[A]);
+    T(10 == step()); T(0x00 == mem[0x1000]);
+    T(18 == step()); T(0xF0 == cpu.r[A]); T(0x0E == mem[0x1000]); T(flags(SF|PF)); T(0x1001 == cpu.WZ());
+    T(18 == step()); T(0xFE == cpu.r[A]); T(0x00 == mem[0x1000]); T(flags(SF)); T(0x1001 == cpu.WZ());
+    T(7  == step()); T(0x00 == cpu.r[A]);
+    T(7  == step()); T(0x01 == cpu.r[A]);
+    T(10 == step()); T(0x00 == mem[0x1000]);
+    cpu.r[F] |= CF;
+    T(18 == step()); T(0x00 == cpu.r[A]); T(0x01 == mem[0x1000]); T(flags(ZF|PF|CF)); T(0x1001 == cpu.WZ());
+    T(18 == step()); T(0x01 == cpu.r[A]); T(0x00 == mem[0x1000]); T(flags(CF)); T(0x1001 == cpu.WZ());
+    T(7  == step()); T(0x00 == cpu.r[A]);
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -1855,4 +1896,5 @@ pub fn main() void {
     @"DI/EI/IM"();
     IN();
     OUT();
+    @"RLD/RRD"();
 }
