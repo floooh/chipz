@@ -1,4 +1,5 @@
 //! op structure declarations
+const assert = @import("std").debug.assert;
 const op = @import("accumulate.zig").op;
 const oped = @import("accumulate.zig").oped;
 const f = @import("format.zig").f;
@@ -795,6 +796,50 @@ pub fn im(code: u8, y: u3) void {
         .dasm = f("IM {}", .{map[y]}),
         .mcycles = mc(&.{
             endOverlapped(f("self.im = {}", .{map[y]})),
+        }),
+    });
+}
+
+pub fn @"IN r,(C)"(code: u8, y: u3) void {
+    assert(y != 6);
+    oped(code, .{
+        .dasm = f("IN {s},(C)", .{R.dasm(y)}),
+        .mcycles = mc(&.{
+            ioread("self.BC()", "self.dlatch", "self.setWZ(self.BC() +% 1)", null),
+            endOverlapped(f("{s} = self.in(self.dlatch)", .{rr(y)})),
+        }),
+    });
+}
+
+pub fn @"IN (C)"(code: u8, y: u3) void {
+    assert(y == 6);
+    oped(code, .{
+        .dasm = "IN (C)",
+        .mcycles = mc(&.{
+            ioread("self.BC()", "self.dlatch", "self.setWZ(self.BC() +% 1)", null),
+            endOverlapped("_ = self.in(self.dlatch)"),
+        }),
+    });
+}
+
+pub fn @"OUT (C),r"(code: u8, y: u3) void {
+    assert(y != 6);
+    oped(code, .{
+        .dasm = f("OUT (C),{s}", .{R.dasm(y)}),
+        .mcycles = mc(&.{
+            iowrite("self.BC()", rr(y), "self.setWZ(self.BC() +% 1)"),
+            endFetch(),
+        }),
+    });
+}
+
+pub fn @"OUT (C)"(code: u8, y: u3) void {
+    assert(y == 6);
+    oped(code, .{
+        .dasm = "OUT (C)",
+        .mcycles = mc(&.{
+            iowrite("self.BC()", "0", "self.setWZ(self.BC() +% 1)"),
+            endFetch(),
         }),
     });
 }

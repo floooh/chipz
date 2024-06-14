@@ -144,6 +144,14 @@ fn decodeED() void {
         const q: u1 = @truncate(y);
         switch (x) {
             1 => switch (z) {
+                0 => switch (y) {
+                    6 => ops.@"IN (C)"(op, y),
+                    else => ops.@"IN r,(C)"(op, y),
+                },
+                1 => switch (y) {
+                    6 => ops.@"OUT (C)"(op, y),
+                    else => ops.@"OUT (C),r"(op, y),
+                },
                 2 => switch (q) {
                     0 => ops.@"SBC HL,dd"(op, p),
                     1 => ops.@"ADC HL,dd"(op, p),

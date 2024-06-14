@@ -1634,6 +1634,81 @@ fn @"ADD/ADC/SBC HL/IX/IY,dd"() void {
     ok();
 }
 
+fn IN() void {
+    start("IN");
+    const prog = [_]u8{
+        0x3E, 0x01,         // LD A,0x01
+        0xDB, 0x03,         // IN A,(0x03)
+        0xDB, 0x04,         // IN A,(0x04)
+        0x01, 0x02, 0x02,   // LD BC,0x0202
+        0xED, 0x78,         // IN A,(C)
+        0x01, 0xFF, 0x05,   // LD BC,0x05FF
+        0xED, 0x50,         // IN D,(C)
+        0x01, 0x05, 0x05,   // LD BC,0x0505
+        0xED, 0x58,         // IN E,(C)
+        0x01, 0x06, 0x01,   // LD BC,0x0106
+        0xED, 0x60,         // IN H,(C)
+        0x01, 0x00, 0x10,   // LD BC,0x0000
+        0xED, 0x68,         // IN L,(C)
+        0xED, 0x40,         // IN B,(C)
+        0xED, 0x48,         // IN C,(c)
+    };
+    init(0, &prog);
+    cpu.r[F] |= CF|HF;
+    T(7  == step()); T(0x01 == cpu.r[A]); T(flags(HF|CF));
+    T(11 == step()); T(0x06 == cpu.r[A]); T(flags(HF|CF)); T(0x0104 == cpu.WZ());
+    T(11 == step()); T(0x08 == cpu.r[A]); T(flags(HF|CF)); T(0x0605 == cpu.WZ());
+    T(10 == step()); T(0x0202 == cpu.BC());
+    T(12 == step()); T(0x04 == cpu.r[A]); T(flags(CF)); T(0x0203 == cpu.WZ());
+    T(10 == step()); T(0x05FF == cpu.BC());
+    T(12 == step()); T(0xFE == cpu.r[D]); T(flags(SF|CF)); T(0x0600 == cpu.WZ());
+    T(10 == step()); T(0x0505 == cpu.BC());
+    T(12 == step()); T(0x0A == cpu.r[E]); T(flags(PF|CF)); T(0x0506 == cpu.WZ());
+    T(10 == step()); T(0x0106 == cpu.BC());
+    T(12 == step()); T(0x0C == cpu.r[H]); T(flags(PF|CF)); T(0x0107 == cpu.WZ());
+    T(10 == step()); T(0x1000 == cpu.BC());
+    T(12 == step()); T(0x00 == cpu.r[L]); T(flags(ZF|PF|CF)); T(0x1001 == cpu.WZ());
+    T(12 == step()); T(0x00 == cpu.r[B]); T(flags(ZF|PF|CF)); T(0x1001 == cpu.WZ());
+    T(12 == step()); T(0x00 == cpu.r[C]); T(flags(ZF|PF|CF)); T(0x0001 == cpu.WZ());
+    ok();
+}
+
+fn OUT() void {
+    start("OUT");
+    const prog = [_]u8{
+        0x3E, 0x01,         // LD A,0x01
+        0xD3, 0x01,         // OUT (0x01),A
+        0xD3, 0xFF,         // OUT (0xFF),A
+        0x01, 0x34, 0x12,   // LD BC,0x1234
+        0x11, 0x78, 0x56,   // LD DE,0x5678
+        0x21, 0xCD, 0xAB,   // LD HL,0xABCD
+        0xED, 0x79,         // OUT (C),A
+        0xED, 0x41,         // OUT (C),B
+        0xED, 0x49,         // OUT (C),C
+        0xED, 0x51,         // OUT (C),D
+        0xED, 0x59,         // OUT (C),E
+        0xED, 0x61,         // OUT (C),H
+        0xED, 0x69,         // OUT (C),L
+        0xED, 0x71,         // OUT (C),0 (undocumented)
+    };
+    init(0, &prog);
+    T(7  == step()); T(0x01 == cpu.r[A]);
+    T(11 == step()); T(0x0101 == out_port); T(0x01 == out_byte); T(0x0102 == cpu.WZ());
+    T(11 == step()); T(0x01FF == out_port); T(0x01 == out_byte); T(0x0100 == cpu.WZ());
+    T(10 == step()); T(0x1234 == cpu.BC());
+    T(10 == step()); T(0x5678 == cpu.DE());
+    T(10 == step()); T(0xABCD == cpu.HL());
+    T(12 == step()); T(0x1234 == out_port); T(0x01 == out_byte); T(0x1235 == cpu.WZ());
+    T(12 == step()); T(0x1234 == out_port); T(0x12 == out_byte); T(0x1235 == cpu.WZ());
+    T(12 == step()); T(0x1234 == out_port); T(0x34 == out_byte); T(0x1235 == cpu.WZ());
+    T(12 == step()); T(0x1234 == out_port); T(0x56 == out_byte); T(0x1235 == cpu.WZ());
+    T(12 == step()); T(0x1234 == out_port); T(0x78 == out_byte); T(0x1235 == cpu.WZ());
+    T(12 == step()); T(0x1234 == out_port); T(0xAB == out_byte); T(0x1235 == cpu.WZ());
+    T(12 == step()); T(0x1234 == out_port); T(0xCD == out_byte); T(0x1235 == cpu.WZ());
+    T(12 == step()); T(0x1234 == out_port); T(0x00 == out_byte); T(0x1235 == cpu.WZ());
+    ok();
+}
+
 fn @"JP cc,nn"() void {
     start("JP cc,nn");
     const prog = [_]u8{
@@ -1778,4 +1853,6 @@ pub fn main() void {
     @"ADD/ADC/SBC HL/IX/IY,dd"();
     NEG();
     @"DI/EI/IM"();
+    IN();
+    OUT();
 }
