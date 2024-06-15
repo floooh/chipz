@@ -1021,7 +1021,7 @@ pub fn ini(code: u8) void {
         .mcycles = mc(&.{
             tick(null),
             ioread("self.BC()", "self.dlatch", null, "self.setWZ(self.BC() +% 1); self.r[B] -%= 1"),
-            mwrite("self.HL()", "self.dlatch", "self.incHL(); _ = self.iniind(self.r[C] -% 1)"),
+            mwrite("self.HL()", "self.dlatch", "self.incHL(); _ = self.iniind(self.r[C] +% 1)"),
             endFetch(),
         }),
     });
@@ -1034,6 +1034,40 @@ pub fn ind(code: u8) void {
             tick(null),
             ioread("self.BC()", "self.dlatch", null, "self.setWZ(self.BC() -% 1); self.r[B] -%= 1"),
             mwrite("self.HL()", "self.dlatch", "self.decHL(); _ = self.iniind(self.r[C] -% 1)"),
+            endFetch(),
+        }),
+    });
+}
+
+pub fn inir(code: u8) void {
+    oped(code, .{
+        .dasm = "INIR",
+        .mcycles = mc(&.{
+            tick(null),
+            ioread("self.BC()", "self.dlatch", null, "self.setWZ(self.BC() +% 1); self.r[B] -%= 1"),
+            mwrite("self.HL()", "self.dlatch", "self.incHL(); if (self.gotoFalse(self.iniind(self.r[C] +% 1), $NEXTSTEP + 5)) break :next"),
+            tick("self.decPC(); self.setWZ(self.pc); self.decPC()"),
+            tick(null),
+            tick(null),
+            tick(null),
+            tick(null),
+            endFetch(),
+        }),
+    });
+}
+
+pub fn indr(code: u8) void {
+    oped(code, .{
+        .dasm = "INDR",
+        .mcycles = mc(&.{
+            tick(null),
+            ioread("self.BC()", "self.dlatch", null, "self.setWZ(self.BC() -% 1); self.r[B] -%= 1"),
+            mwrite("self.HL()", "self.dlatch", "self.decHL(); if (self.gotoFalse(self.iniind(self.r[C] -% 1), $NEXTSTEP + 5)) break :next"),
+            tick("self.decPC(); self.setWZ(self.pc); self.decPC()"),
+            tick(null),
+            tick(null),
+            tick(null),
+            tick(null),
             endFetch(),
         }),
     });

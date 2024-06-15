@@ -191,6 +191,8 @@ fn decodeED() void {
                 2 => switch (y) {
                     4 => ops.ini(op),
                     5 => ops.ind(op),
+                    6 => ops.inir(op),
+                    7 => ops.indr(op),
                     else => {},
                 },
                 else => {},

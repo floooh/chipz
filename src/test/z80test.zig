@@ -2230,6 +2230,58 @@ fn @"INI/IND"() void {
     ok();
 }
 
+fn @"INIR/INDR"() void {
+    start("INIR/INDR");
+    const prog = [_]u8{
+        0x21, 0x00, 0x10,       // LD HL,0x1000
+        0x01, 0x02, 0x03,       // LD BC,0x0302
+        0xED, 0xB2,             // INIR
+        0x01, 0x03, 0x03,       // LD BC,0x0303
+        0xED, 0xBA              // INDR
+    };
+    init(0, &prog);
+    T(10 == step()); T(0x1000 == cpu.HL());
+    T(10 == step()); T(0x0302 == cpu.BC());
+    T(21 == step());
+    T(0x1001 == cpu.HL());
+    T(0x0202 == cpu.BC());
+    T(0x0007 == cpu.WZ());
+    T(0x04 == mem[0x1000]);
+    T(0 == (cpu.r[F] & ZF));
+    T(21 == step());
+    T(0x1002 == cpu.HL());
+    T(0x0102 == cpu.BC());
+    T(0x0007 == cpu.WZ());
+    T(0x04 == mem[0x1001]);
+    T(0 == (cpu.r[F] & ZF));
+    T(16 == step());
+    T(0x1003 == cpu.HL());
+    T(0x0002 == cpu.BC());
+    T(0x0103 == cpu.WZ());
+    T(0x04 == mem[0x1002]);
+    T(0 != (cpu.r[F] & ZF));
+    T(10 == step()); T(0x0303 == cpu.BC());
+    T(21 == step());
+    T(0x1002 == cpu.HL());
+    T(0x0203 == cpu.BC());
+    T(0x000C == cpu.WZ());
+    T(0x06 == mem[0x1003]);
+    T(0 == (cpu.r[F] & ZF));
+    T(21 == step());
+    T(0x1001 == cpu.HL());
+    T(0x0103 == cpu.BC());
+    T(0x000C == cpu.WZ());
+    T(0x06 == mem[0x1002]);
+    T(0 == (cpu.r[F] & ZF));
+    T(16 == step());
+    T(0x1000 == cpu.HL());
+    T(0x0003 == cpu.BC());
+    T(0x0102 == cpu.WZ());
+    T(0x06 == mem[0x1001]);
+    T(0 != (cpu.r[F] & ZF));
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -2293,4 +2345,5 @@ pub fn main() void {
     CPIR();
     CPDR();
     @"INI/IND"();
+    @"INIR/INDR"();
 }
