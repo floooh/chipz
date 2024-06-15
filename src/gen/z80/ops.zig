@@ -1014,3 +1014,27 @@ pub fn cpdr(code: u8) void {
         }),
     });
 }
+
+pub fn ini(code: u8) void {
+    oped(code, .{
+        .dasm = "INI",
+        .mcycles = mc(&.{
+            tick(null),
+            ioread("self.BC()", "self.dlatch", null, "self.setWZ(self.BC() +% 1); self.r[B] -%= 1"),
+            mwrite("self.HL()", "self.dlatch", "self.incHL(); _ = self.iniind(self.r[C] -% 1)"),
+            endFetch(),
+        }),
+    });
+}
+
+pub fn ind(code: u8) void {
+    oped(code, .{
+        .dasm = "IND",
+        .mcycles = mc(&.{
+            tick(null),
+            ioread("self.BC()", "self.dlatch", null, "self.setWZ(self.BC() -% 1); self.r[B] -%= 1"),
+            mwrite("self.HL()", "self.dlatch", "self.decHL(); _ = self.iniind(self.r[C] -% 1)"),
+            endFetch(),
+        }),
+    });
+}

@@ -188,6 +188,11 @@ fn decodeED() void {
                     7 => ops.cpdr(op),
                     else => {},
                 },
+                2 => switch (y) {
+                    4 => ops.ini(op),
+                    5 => ops.ind(op),
+                    else => {},
+                },
                 else => {},
             },
             else => {},
