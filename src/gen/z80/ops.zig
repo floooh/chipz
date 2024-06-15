@@ -892,7 +892,7 @@ pub fn ldi(code: u8) void {
         .mcycles = mc(&.{
             mread("self.HL()", "self.dlatch", "self.incHL()", null),
             mwrite("self.DE()", "self.dlatch", "self.incDE()"),
-            tick("_ = ldildd(self.dlatch)"),
+            tick("_ = self.ldildd()"),
             tick(null),
             endFetch(),
         }),
@@ -903,8 +903,44 @@ pub fn ldd(code: u8) void {
     oped(code, .{ .dasm = "LDD", .mcycles = mc(&.{
         mread("self.HL()", "self.dlatch", "self.decHL()", null),
         mwrite("self.DE()", "self.dlatch", "self.decDE()"),
-        tick("_ = ldildd(self.dlatch)"),
+        tick("_ = self.ldildd()"),
         tick(null),
         endFetch(),
     }) });
+}
+
+pub fn ldir(code: u8) void {
+    oped(code, .{
+        .dasm = "LDIR",
+        .mcycles = mc(&.{
+            mread("self.HL()", "self.dlatch", "self.incHL()", null),
+            mwrite("self.DE()", "self.dlatch", "self.incDE()"),
+            tick("if (self.gotoFalse(self.ldildd(), $NEXTSTEP + 5)) break :next"),
+            tick(null),
+            tick("self.decPC(); self.setWZ(self.pc); self.decPC()"),
+            tick(null),
+            tick(null),
+            tick(null),
+            tick(null),
+            endFetch(),
+        }),
+    });
+}
+
+pub fn lddr(code: u8) void {
+    oped(code, .{
+        .dasm = "LDDR",
+        .mcycles = mc(&.{
+            mread("self.HL()", "self.dlatch", "self.decHL()", null),
+            mwrite("self.DE()", "self.dlatch", "self.decDE()"),
+            tick("if (self.gotoFalse(self.ldildd(), $NEXTSTEP + 5)) break :next"),
+            tick(null),
+            tick("self.decPC(); self.setWZ(self.pc); self.decPC()"),
+            tick(null),
+            tick(null),
+            tick(null),
+            tick(null),
+            endFetch(),
+        }),
+    });
 }

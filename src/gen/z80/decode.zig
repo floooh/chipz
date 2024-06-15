@@ -177,6 +177,8 @@ fn decodeED() void {
                 0 => switch (y) {
                     4 => ops.ldi(op),
                     5 => ops.ldd(op),
+                    6 => ops.ldir(op),
+                    7 => ops.lddr(op),
                     else => {},
                 },
                 else => {},
