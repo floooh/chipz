@@ -181,6 +181,11 @@ fn decodeED() void {
                     7 => ops.lddr(op),
                     else => {},
                 },
+                1 => switch (y) {
+                    4 => ops.cpi(op),
+                    5 => ops.cpd(op),
+                    else => {},
+                },
                 else => {},
             },
             else => {},

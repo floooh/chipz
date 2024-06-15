@@ -2012,6 +2012,94 @@ fn LDDR() void {
     ok();
 }
 
+fn CPI() void {
+    start("CPI");
+    const prog = [_]u8{
+        0x21, 0x00, 0x10,       // ld hl,0x1000
+        0x01, 0x04, 0x00,       // ld bc,0x0004
+        0x3e, 0x03,             // ld a,0x03
+        0xed, 0xa1,             // cpi
+        0xed, 0xa1,             // cpi
+        0xed, 0xa1,             // cpi
+        0xed, 0xa1,             // cpi
+    };
+    const data = [_]u8{
+        0x01, 0x02, 0x03, 0x04
+    };
+    init(0, &prog);
+    copy(0x1000, &data);
+    cpu.setWZ(0x1111);
+    for (0..3) |_| {
+        _ = step();
+    }
+    T(16 == step());
+    T(0x1001 == cpu.HL());
+    T(0x0003 == cpu.BC());
+    T(0x1112 == cpu.WZ());
+    T(flags(PF|NF));
+    cpu.r[F] |= CF;
+    T(16 == step());
+    T(0x1002 == cpu.HL());
+    T(0x0002 == cpu.BC());
+    T(0x1113 == cpu.WZ());
+    T(flags(PF|NF|CF));
+    T(16 == step());
+    T(0x1003 == cpu.HL());
+    T(0x0001 == cpu.BC());
+    T(0x1114 == cpu.WZ());
+    T(flags(ZF|PF|NF|CF));
+    T(16 == step());
+    T(0x1004 == cpu.HL());
+    T(0x0000 == cpu.BC());
+    T(0x1115 == cpu.WZ());
+    T(flags(SF|HF|NF|CF));
+    ok();
+}
+
+fn CPD() void {
+    start("CPD");
+    const prog = [_]u8{
+        0x21, 0x03, 0x10,       // ld hl,0x1004
+        0x01, 0x04, 0x00,       // ld bc,0x0004
+        0x3e, 0x02,             // ld a,0x03
+        0xed, 0xa9,             // cpi
+        0xed, 0xa9,             // cpi
+        0xed, 0xa9,             // cpi
+        0xed, 0xa9,             // cpi
+    };
+    const data = [_]u8{
+        0x01, 0x02, 0x03, 0x04
+    };
+    init(0, &prog);
+    copy(0x1000, &data);
+    cpu.setWZ(0x1111);
+    for (0..3) |_| {
+        _ = step();
+    }
+    T(16 == step());
+    T(0x1002 == cpu.HL());
+    T(0x0003 == cpu.BC());
+    T(0x1110 == cpu.WZ());
+    T(flags(SF|HF|PF|NF));
+    cpu.r[F] |= CF;
+    T(16 == step());
+    T(0x1001 == cpu.HL());
+    T(0x0002 == cpu.BC());
+    T(0x110F == cpu.WZ());
+    T(flags(SF|HF|PF|NF|CF));
+    T(16 == step());
+    T(0x1000 == cpu.HL());
+    T(0x0001 == cpu.BC());
+    T(0x110E == cpu.WZ());
+    T(flags(ZF|PF|NF|CF));
+    T(16 == step());
+    T(0x0FFF == cpu.HL());
+    T(0x0000 == cpu.BC());
+    T(0x110D == cpu.WZ());
+    T(flags(NF|CF));
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -2070,4 +2158,6 @@ pub fn main() void {
     LDD();
     LDIR();
     LDDR();
+    CPI();
+    CPD();
 }

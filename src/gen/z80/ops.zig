@@ -944,3 +944,33 @@ pub fn lddr(code: u8) void {
         }),
     });
 }
+
+pub fn cpi(code: u8) void {
+    oped(code, .{
+        .dasm = "CPI",
+        .mcycles = mc(&.{
+            mread("self.HL()", "self.dlatch", "self.incHL()", null),
+            tick("self.incWZ(); _ = self.cpicpd()"),
+            tick(null),
+            tick(null),
+            tick(null),
+            tick(null),
+            endFetch(),
+        }),
+    });
+}
+
+pub fn cpd(code: u8) void {
+    oped(code, .{
+        .dasm = "CPD",
+        .mcycles = mc(&.{
+            mread("self.HL()", "self.dlatch", "self.decHL()", null),
+            tick("self.decWZ(); _ = self.cpicpd()"),
+            tick(null),
+            tick(null),
+            tick(null),
+            tick(null),
+            endFetch(),
+        }),
+    });
+}
