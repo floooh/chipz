@@ -184,6 +184,8 @@ fn decodeED() void {
                 1 => switch (y) {
                     4 => ops.cpi(op),
                     5 => ops.cpd(op),
+                    6 => ops.cpir(op),
+                    7 => ops.cpdr(op),
                     else => {},
                 },
                 else => {},

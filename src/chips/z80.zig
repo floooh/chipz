@@ -818,27 +818,27 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         }
 
         // BEGIN CONSTS
-        const M1_T2: u16 = 0x6FC;
-        const M1_T3: u16 = 0x6FD;
-        const M1_T4: u16 = 0x6FE;
-        const DDFD_M1_T2: u16 = 0x6FF;
-        const DDFD_M1_T3: u16 = 0x700;
-        const DDFD_M1_T4: u16 = 0x701;
-        const DDFD_D_T1: u16 = 0x702;
-        const DDFD_D_T2: u16 = 0x703;
-        const DDFD_D_T3: u16 = 0x704;
-        const DDFD_D_T4: u16 = 0x705;
-        const DDFD_D_T5: u16 = 0x706;
-        const DDFD_D_T6: u16 = 0x707;
-        const DDFD_D_T7: u16 = 0x708;
-        const DDFD_D_T8: u16 = 0x709;
-        const DDFD_LDHLN_WR_T1: u16 = 0x70A;
-        const DDFD_LDHLN_WR_T2: u16 = 0x70B;
-        const DDFD_LDHLN_WR_T3: u16 = 0x70C;
-        const DDFD_LDHLN_OVERLAPPED: u16 = 0x70D;
-        const ED_M1_T2: u16 = 0x70E;
-        const ED_M1_T3: u16 = 0x70F;
-        const ED_M1_T4: u16 = 0x710;
+        const M1_T2: u16 = 0x716;
+        const M1_T3: u16 = 0x717;
+        const M1_T4: u16 = 0x718;
+        const DDFD_M1_T2: u16 = 0x719;
+        const DDFD_M1_T3: u16 = 0x71A;
+        const DDFD_M1_T4: u16 = 0x71B;
+        const DDFD_D_T1: u16 = 0x71C;
+        const DDFD_D_T2: u16 = 0x71D;
+        const DDFD_D_T3: u16 = 0x71E;
+        const DDFD_D_T4: u16 = 0x71F;
+        const DDFD_D_T5: u16 = 0x720;
+        const DDFD_D_T6: u16 = 0x721;
+        const DDFD_D_T7: u16 = 0x722;
+        const DDFD_D_T8: u16 = 0x723;
+        const DDFD_LDHLN_WR_T1: u16 = 0x724;
+        const DDFD_LDHLN_WR_T2: u16 = 0x725;
+        const DDFD_LDHLN_WR_T3: u16 = 0x726;
+        const DDFD_LDHLN_OVERLAPPED: u16 = 0x727;
+        const ED_M1_T2: u16 = 0x728;
+        const ED_M1_T3: u16 = 0x729;
+        const ED_M1_T4: u16 = 0x72A;
         // END CONSTS
 
         // zig fmt: off
@@ -2475,9 +2475,19 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         self.step = 0x6E2;
                         break :next;
                     },
+                    // CPIR
+                    0x1B1 => {
+                        self.step = 0x6EF;
+                        break :next;
+                    },
                     // LDDR
                     0x1B8 => {
-                        self.step = 0x6EF;
+                        self.step = 0x6FC;
+                        break :next;
+                    },
+                    // CPDR
+                    0x1B9 => {
+                        self.step = 0x709;
                         break :next;
                     },
                     // LD BC,nn (continued...)
@@ -7367,11 +7377,11 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     },
                     0x6EE => {
                     },
-                    // LDDR (continued...)
+                    // CPIR (continued...)
                     0x6EF => {
                         if (wait(bus)) break :next;
                         bus = mrd(bus, self.HL());
-                        self.decHL();
+                        self.incHL();
                         self.step = 0x6F0;
                         break :next;
                     },
@@ -7381,13 +7391,11 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break :next;
                     },
                     0x6F1 => {
+                        self.incWZ(); if (self.gotoFalse(self.cpicpd(), 0x6F2 + 5)) break :next;
                         self.step = 0x6F2;
                         break :next;
                     },
                     0x6F2 => {
-                        if (wait(bus)) break :next;
-                        bus = mwr(bus, self.DE(), self.dlatch);
-                        self.decDE();
                         self.step = 0x6F3;
                         break :next;
                     },
@@ -7396,7 +7404,6 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break :next;
                     },
                     0x6F4 => {
-                        if (self.gotoFalse(self.ldildd(), 0x6F5 + 5)) break :next;
                         self.step = 0x6F5;
                         break :next;
                     },
@@ -7426,6 +7433,123 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         break :next;
                     },
                     0x6FB => {
+                    },
+                    // LDDR (continued...)
+                    0x6FC => {
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.HL());
+                        self.decHL();
+                        self.step = 0x6FD;
+                        break :next;
+                    },
+                    0x6FD => {
+                        self.dlatch = gd(bus);
+                        self.step = 0x6FE;
+                        break :next;
+                    },
+                    0x6FE => {
+                        self.step = 0x6FF;
+                        break :next;
+                    },
+                    0x6FF => {
+                        if (wait(bus)) break :next;
+                        bus = mwr(bus, self.DE(), self.dlatch);
+                        self.decDE();
+                        self.step = 0x700;
+                        break :next;
+                    },
+                    0x700 => {
+                        self.step = 0x701;
+                        break :next;
+                    },
+                    0x701 => {
+                        if (self.gotoFalse(self.ldildd(), 0x702 + 5)) break :next;
+                        self.step = 0x702;
+                        break :next;
+                    },
+                    0x702 => {
+                        self.step = 0x703;
+                        break :next;
+                    },
+                    0x703 => {
+                        self.decPC(); self.setWZ(self.pc); self.decPC();
+                        self.step = 0x704;
+                        break :next;
+                    },
+                    0x704 => {
+                        self.step = 0x705;
+                        break :next;
+                    },
+                    0x705 => {
+                        self.step = 0x706;
+                        break :next;
+                    },
+                    0x706 => {
+                        self.step = 0x707;
+                        break :next;
+                    },
+                    0x707 => {
+                        self.step = 0x708;
+                        break :next;
+                    },
+                    0x708 => {
+                    },
+                    // CPDR (continued...)
+                    0x709 => {
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.HL());
+                        self.decHL();
+                        self.step = 0x70A;
+                        break :next;
+                    },
+                    0x70A => {
+                        self.dlatch = gd(bus);
+                        self.step = 0x70B;
+                        break :next;
+                    },
+                    0x70B => {
+                        self.decWZ(); if (self.gotoFalse(self.cpicpd(), 0x70C + 5)) break :next;
+                        self.step = 0x70C;
+                        break :next;
+                    },
+                    0x70C => {
+                        self.step = 0x70D;
+                        break :next;
+                    },
+                    0x70D => {
+                        self.step = 0x70E;
+                        break :next;
+                    },
+                    0x70E => {
+                        self.step = 0x70F;
+                        break :next;
+                    },
+                    0x70F => {
+                        self.step = 0x710;
+                        break :next;
+                    },
+                    0x710 => {
+                        self.decPC(); self.setWZ(self.pc); self.decPC();
+                        self.step = 0x711;
+                        break :next;
+                    },
+                    0x711 => {
+                        self.step = 0x712;
+                        break :next;
+                    },
+                    0x712 => {
+                        self.step = 0x713;
+                        break :next;
+                    },
+                    0x713 => {
+                        self.step = 0x714;
+                        break :next;
+                    },
+                    0x714 => {
+                        self.step = 0x715;
+                        break :next;
+                    },
+                    0x715 => {
                     },
                     // END DECODE
                     else => unreachable,

@@ -974,3 +974,43 @@ pub fn cpd(code: u8) void {
         }),
     });
 }
+
+pub fn cpir(code: u8) void {
+    oped(code, .{
+        .dasm = "CPIR",
+        .mcycles = mc(&.{
+            mread("self.HL()", "self.dlatch", "self.incHL()", null),
+            tick("self.incWZ(); if (self.gotoFalse(self.cpicpd(), $NEXTSTEP + 5)) break :next"),
+            tick(null),
+            tick(null),
+            tick(null),
+            tick(null),
+            tick("self.decPC(); self.setWZ(self.pc); self.decPC()"),
+            tick(null),
+            tick(null),
+            tick(null),
+            tick(null),
+            endFetch(),
+        }),
+    });
+}
+
+pub fn cpdr(code: u8) void {
+    oped(code, .{
+        .dasm = "CPDR",
+        .mcycles = mc(&.{
+            mread("self.HL()", "self.dlatch", "self.decHL()", null),
+            tick("self.decWZ(); if (self.gotoFalse(self.cpicpd(), $NEXTSTEP + 5)) break :next"),
+            tick(null),
+            tick(null),
+            tick(null),
+            tick(null),
+            tick("self.decPC(); self.setWZ(self.pc); self.decPC()"),
+            tick(null),
+            tick(null),
+            tick(null),
+            tick(null),
+            endFetch(),
+        }),
+    });
+}

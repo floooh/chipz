@@ -2100,6 +2100,80 @@ fn CPD() void {
     ok();
 }
 
+fn CPIR() void {
+    start("CPIR");
+    const prog = [_]u8{
+        0x21, 0x00, 0x10,       // ld hl,0x1000
+        0x01, 0x04, 0x00,       // ld bc,0x0004
+        0x3e, 0x03,             // ld a,0x03
+        0xed, 0xb1,             // cpir
+        0xed, 0xb1,             // cpir
+    };
+    const data = [_]u8{
+        0x01, 0x02, 0x03, 0x04
+    };
+    init(0, &prog);
+    copy(0x1000, &data);
+    for (0..3) |_| {
+        _ = step();
+    }
+    T(21 == step());
+    T(0x1001 == cpu.HL());
+    T(0x0003 == cpu.BC());
+    T(flags(PF|NF));
+    cpu.r[F] |= CF;
+    T(21 == step());
+    T(0x1002 == cpu.HL());
+    T(0x0002 == cpu.BC());
+    T(flags(PF|NF|CF));
+    T(16 == step());
+    T(0x1003 == cpu.HL());
+    T(0x0001 == cpu.BC());
+    T(flags(ZF|PF|NF|CF));
+    T(16 == step());
+    T(0x1004 == cpu.HL());
+    T(0x0000 == cpu.BC());
+    T(flags(SF|HF|NF|CF));
+    ok();
+}
+
+fn CPDR() void {
+    start("CPDR");
+    const prog = [_]u8{
+        0x21, 0x03, 0x10,       // ld hl,0x1004
+        0x01, 0x04, 0x00,       // ld bc,0x0004
+        0x3e, 0x02,             // ld a,0x03
+        0xed, 0xb9,             // cpdr
+        0xed, 0xb9,             // cpdr
+    };
+    const data = [_]u8{
+        0x01, 0x02, 0x03, 0x04
+    };
+    init(0, &prog);
+    copy(0x1000, &data);
+    for (0..3) |_| {
+        _ = step();
+    }
+    T(21 == step());
+    T(0x1002 == cpu.HL());
+    T(0x0003 == cpu.BC());
+    T(flags(SF|HF|PF|NF));
+    cpu.r[F] |= CF;
+    T(21 == step());
+    T(0x1001 == cpu.HL());
+    T(0x0002 == cpu.BC());
+    T(flags(SF|HF|PF|NF|CF));
+    T(16 == step());
+    T(0x1000 == cpu.HL());
+    T(0x0001 == cpu.BC());
+    T(flags(ZF|PF|NF|CF));
+    T(16 == step());
+    T(0x0FFF == cpu.HL());
+    T(0x0000 == cpu.BC());
+    T(flags(NF|CF));
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -2160,4 +2234,6 @@ pub fn main() void {
     LDDR();
     CPI();
     CPD();
+    CPIR();
+    CPDR();
 }
