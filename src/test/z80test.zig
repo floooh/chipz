@@ -2282,6 +2282,122 @@ fn @"INIR/INDR"() void {
     ok();
 }
 
+fn @"OUTI/OUTD"() void {
+    start("OUTI/OUTD");
+    const prog = [_]u8{
+        0x21, 0x00, 0x10,       // LD HL,0x1000
+        0x01, 0x02, 0x03,       // LD BC,0x0302
+        0xED, 0xA3,             // OUTI
+        0xED, 0xA3,             // OUTI
+        0xED, 0xA3,             // OUTI
+        0x01, 0x03, 0x03,       // LD BC,0x0303
+        0xED, 0xAB,             // OUTD
+        0xED, 0xAB,             // OUTD
+        0xED, 0xAB,             // OUTD
+    };
+    const data = [_]u8{
+        0x01, 0x02, 0x03, 0x04,
+    };
+    init(0, &prog);
+    copy(0x1000, &data);
+    T(10 == step()); T(0x1000 == cpu.HL());
+    T(10 == step()); T(0x0302 == cpu.BC());
+    T(16 == step());
+    T(0x1001 == cpu.HL());
+    T(0x0202 == cpu.BC());
+    T(0x0203 == cpu.WZ());
+    T(0x0202 == out_port); T(0x01 == out_byte);
+    T(0 == (cpu.r[F] & ZF));
+    T(16 == step());
+    T(0x1002 == cpu.HL());
+    T(0x0102 == cpu.BC());
+    T(0x0103 == cpu.WZ());
+    T(0x0102 == out_port); T(0x02 == out_byte);
+    T(0 == (cpu.r[F] & ZF));
+    T(16 == step());
+    T(0x1003 == cpu.HL());
+    T(0x0002 == cpu.BC());
+    T(0x0003 == cpu.WZ());
+    T(0x0002 == out_port); T(0x03 == out_byte);
+    T(0 != (cpu.r[F] & ZF));
+    T(10 == step()); T(0x0303 == cpu.BC());
+    T(16 == step());
+    T(0x1002 == cpu.HL());
+    T(0x0203 == cpu.BC());
+    T(0x0202 == cpu.WZ());
+    T(0x0203 == out_port); T(0x04 == out_byte);
+    T(0 == (cpu.r[F] & ZF));
+    T(16 == step());
+    T(0x1001 == cpu.HL());
+    T(0x0103 == cpu.BC());
+    T(0x0102 == cpu.WZ());
+    T(0x0103 == out_port); T(0x03 == out_byte);
+    T(0 == (cpu.r[F] & ZF));
+    T(16 == step());
+    T(0x1000 == cpu.HL());
+    T(0x0003 == cpu.BC());
+    T(0x0002 == cpu.WZ());
+    T(0x0003 == out_port); T(0x02 == out_byte);
+    T(0 != (cpu.r[F] & ZF));
+    ok();
+}
+
+fn @"OTIR/OTDR"() void {
+    start("OTIR/OTDR");
+    const prog = [_]u8{
+        0x21, 0x00, 0x10,       // LD HL,0x1000
+        0x01, 0x02, 0x03,       // LD BC,0x0302
+        0xED, 0xB3,             // OTIR
+        0x01, 0x03, 0x03,       // LD BC,0x0303
+        0xED, 0xBB,             // OTDR
+    };
+    const data = [_]u8{
+        0x01, 0x02, 0x03, 0x04
+    };
+    init(0, &prog);
+    copy(0x1000, &data);
+    T(10 == step()); T(0x1000 == cpu.HL());
+    T(10 == step()); T(0x0302 == cpu.BC());
+    T(21 == step());
+    T(0x1001 == cpu.HL());
+    T(0x0202 == cpu.BC());
+    T(0x0007 == cpu.WZ());
+    T(0x0202 == out_port); T(0x01 == out_byte);
+    T(0 == (cpu.r[F] & ZF));
+    T(21 == step());
+    T(0x1002 == cpu.HL());
+    T(0x0102 == cpu.BC());
+    T(0x0007 == cpu.WZ());
+    T(0x0102 == out_port); T(0x02 == out_byte);
+    T(0 == (cpu.r[F] & ZF));
+    T(16 == step());
+    T(0x1003 == cpu.HL());
+    T(0x0002 == cpu.BC());
+    T(0x0003 == cpu.WZ());
+    T(0x0002 == out_port); T(0x03 == out_byte);
+    T(0 != (cpu.r[F] & ZF));
+    T(10 == step()); T(0x0303 == cpu.BC());
+    T(21 == step());
+    T(0x1002 == cpu.HL());
+    T(0x0203 == cpu.BC());
+    T(0x000C == cpu.WZ());
+    T(0x0203 == out_port); T(0x04 == out_byte);
+    T(0 == (cpu.r[F] & ZF));
+    T(21 == step());
+    T(0x1001 == cpu.HL());
+    T(0x0103 == cpu.BC());
+    T(0x000C == cpu.WZ());
+    T(0x0103 == out_port); T(0x03 == out_byte);
+    T(0 == (cpu.r[F] & ZF));
+    T(16 == step());
+    T(0x1000 == cpu.HL());
+    T(0x0003 == cpu.BC());
+    T(0x0002 == cpu.WZ());
+    T(0x0003 == out_port); T(0x02 == out_byte);
+    T(0 != (cpu.r[F] & ZF));
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -2346,4 +2462,6 @@ pub fn main() void {
     CPDR();
     @"INI/IND"();
     @"INIR/INDR"();
+    @"OUTI/OUTD"();
+    @"OTIR/OTDR"();
 }

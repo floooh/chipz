@@ -195,6 +195,13 @@ fn decodeED() void {
                     7 => ops.indr(op),
                     else => {},
                 },
+                3 => switch (y) {
+                    4 => ops.outi(op),
+                    5 => ops.outd(op),
+                    6 => ops.otir(op),
+                    7 => ops.otdr(op),
+                    else => {},
+                },
                 else => {},
             },
             else => {},

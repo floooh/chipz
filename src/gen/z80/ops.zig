@@ -1072,3 +1072,58 @@ pub fn indr(code: u8) void {
         }),
     });
 }
+
+pub fn outi(code: u8) void {
+    oped(code, .{ .dasm = "OUTI", .mcycles = mc(&.{
+        tick(null),
+        mread("self.HL()", "self.dlatch", "self.incHL()", "self.r[B] -%= 1"),
+        iowrite("self.BC()", "self.dlatch", "self.setWZ(self.BC() +% 1); _ = self.outioutd()"),
+        endFetch(),
+    }) });
+}
+
+pub fn outd(code: u8) void {
+    oped(code, .{
+        .dasm = "OUTD",
+        .mcycles = mc(&.{
+            tick(null),
+            mread("self.HL()", "self.dlatch", "self.decHL()", "self.r[B] -%= 1"),
+            iowrite("self.BC()", "self.dlatch", "self.setWZ(self.BC() -% 1); _ = self.outioutd()"),
+            endFetch(),
+        }),
+    });
+}
+
+pub fn otir(code: u8) void {
+    oped(code, .{
+        .dasm = "OTIR",
+        .mcycles = mc(&.{
+            tick(null),
+            mread("self.HL()", "self.dlatch", "self.incHL()", "self.r[B] -%= 1"),
+            iowrite("self.BC()", "self.dlatch", "self.setWZ(self.BC() +% 1); if (self.gotoFalse(self.outioutd(), $NEXTSTEP + 5)) break :next"),
+            tick("self.decPC(); self.setWZ(self.pc); self.decPC()"),
+            tick(null),
+            tick(null),
+            tick(null),
+            tick(null),
+            endFetch(),
+        }),
+    });
+}
+
+pub fn otdr(code: u8) void {
+    oped(code, .{
+        .dasm = "OTDR",
+        .mcycles = mc(&.{
+            tick(null),
+            mread("self.HL()", "self.dlatch", "self.decHL()", "self.r[B] -%= 1"),
+            iowrite("self.BC()", "self.dlatch", "self.setWZ(self.BC() -% 1); if (self.gotoFalse(self.outioutd(), $NEXTSTEP + 5)) break :next"),
+            tick("self.decPC(); self.setWZ(self.pc); self.decPC()"),
+            tick(null),
+            tick(null),
+            tick(null),
+            tick(null),
+            endFetch(),
+        }),
+    });
+}
