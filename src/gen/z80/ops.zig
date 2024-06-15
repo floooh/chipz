@@ -1127,3 +1127,12 @@ pub fn otdr(code: u8) void {
         }),
     });
 }
+
+pub fn ednop(code: u8) void {
+    oped(code, .{
+        .dasm = "ED NOP",
+        .mcycles = mc(&.{
+            endFetch(),
+        }),
+    });
+}

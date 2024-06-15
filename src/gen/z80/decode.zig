@@ -170,41 +170,41 @@ fn decodeED() void {
                     3 => ops.@"LD A,R"(op),
                     4 => ops.rrd(op),
                     5 => ops.rld(op),
-                    else => {},
+                    6, 7 => ops.ednop(op),
                 },
             },
             2 => switch (z) {
                 0 => switch (y) {
+                    0...3 => ops.ednop(op),
                     4 => ops.ldi(op),
                     5 => ops.ldd(op),
                     6 => ops.ldir(op),
                     7 => ops.lddr(op),
-                    else => {},
                 },
                 1 => switch (y) {
+                    0...3 => ops.ednop(op),
                     4 => ops.cpi(op),
                     5 => ops.cpd(op),
                     6 => ops.cpir(op),
                     7 => ops.cpdr(op),
-                    else => {},
                 },
                 2 => switch (y) {
+                    0...3 => ops.ednop(op),
                     4 => ops.ini(op),
                     5 => ops.ind(op),
                     6 => ops.inir(op),
                     7 => ops.indr(op),
-                    else => {},
                 },
                 3 => switch (y) {
+                    0...3 => ops.ednop(op),
                     4 => ops.outi(op),
                     5 => ops.outd(op),
                     6 => ops.otir(op),
                     7 => ops.otdr(op),
-                    else => {},
                 },
-                else => {},
+                4...7 => ops.ednop(op),
             },
-            else => {},
+            0, 3 => ops.ednop(op),
         }
     }
 }

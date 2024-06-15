@@ -2174,6 +2174,198 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         self.step = 0x59B;
                         break :next;
                     },
+                    // ED NOP
+                    0x100 => {
+                    },
+                    // ED NOP
+                    0x101 => {
+                    },
+                    // ED NOP
+                    0x102 => {
+                    },
+                    // ED NOP
+                    0x103 => {
+                    },
+                    // ED NOP
+                    0x104 => {
+                    },
+                    // ED NOP
+                    0x105 => {
+                    },
+                    // ED NOP
+                    0x106 => {
+                    },
+                    // ED NOP
+                    0x107 => {
+                    },
+                    // ED NOP
+                    0x108 => {
+                    },
+                    // ED NOP
+                    0x109 => {
+                    },
+                    // ED NOP
+                    0x10A => {
+                    },
+                    // ED NOP
+                    0x10B => {
+                    },
+                    // ED NOP
+                    0x10C => {
+                    },
+                    // ED NOP
+                    0x10D => {
+                    },
+                    // ED NOP
+                    0x10E => {
+                    },
+                    // ED NOP
+                    0x10F => {
+                    },
+                    // ED NOP
+                    0x110 => {
+                    },
+                    // ED NOP
+                    0x111 => {
+                    },
+                    // ED NOP
+                    0x112 => {
+                    },
+                    // ED NOP
+                    0x113 => {
+                    },
+                    // ED NOP
+                    0x114 => {
+                    },
+                    // ED NOP
+                    0x115 => {
+                    },
+                    // ED NOP
+                    0x116 => {
+                    },
+                    // ED NOP
+                    0x117 => {
+                    },
+                    // ED NOP
+                    0x118 => {
+                    },
+                    // ED NOP
+                    0x119 => {
+                    },
+                    // ED NOP
+                    0x11A => {
+                    },
+                    // ED NOP
+                    0x11B => {
+                    },
+                    // ED NOP
+                    0x11C => {
+                    },
+                    // ED NOP
+                    0x11D => {
+                    },
+                    // ED NOP
+                    0x11E => {
+                    },
+                    // ED NOP
+                    0x11F => {
+                    },
+                    // ED NOP
+                    0x120 => {
+                    },
+                    // ED NOP
+                    0x121 => {
+                    },
+                    // ED NOP
+                    0x122 => {
+                    },
+                    // ED NOP
+                    0x123 => {
+                    },
+                    // ED NOP
+                    0x124 => {
+                    },
+                    // ED NOP
+                    0x125 => {
+                    },
+                    // ED NOP
+                    0x126 => {
+                    },
+                    // ED NOP
+                    0x127 => {
+                    },
+                    // ED NOP
+                    0x128 => {
+                    },
+                    // ED NOP
+                    0x129 => {
+                    },
+                    // ED NOP
+                    0x12A => {
+                    },
+                    // ED NOP
+                    0x12B => {
+                    },
+                    // ED NOP
+                    0x12C => {
+                    },
+                    // ED NOP
+                    0x12D => {
+                    },
+                    // ED NOP
+                    0x12E => {
+                    },
+                    // ED NOP
+                    0x12F => {
+                    },
+                    // ED NOP
+                    0x130 => {
+                    },
+                    // ED NOP
+                    0x131 => {
+                    },
+                    // ED NOP
+                    0x132 => {
+                    },
+                    // ED NOP
+                    0x133 => {
+                    },
+                    // ED NOP
+                    0x134 => {
+                    },
+                    // ED NOP
+                    0x135 => {
+                    },
+                    // ED NOP
+                    0x136 => {
+                    },
+                    // ED NOP
+                    0x137 => {
+                    },
+                    // ED NOP
+                    0x138 => {
+                    },
+                    // ED NOP
+                    0x139 => {
+                    },
+                    // ED NOP
+                    0x13A => {
+                    },
+                    // ED NOP
+                    0x13B => {
+                    },
+                    // ED NOP
+                    0x13C => {
+                    },
+                    // ED NOP
+                    0x13D => {
+                    },
+                    // ED NOP
+                    0x13E => {
+                    },
+                    // ED NOP
+                    0x13F => {
+                    },
                     // IN B,(C)
                     0x140 => {
                         self.step = 0x5A2;
@@ -2442,6 +2634,9 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0x176 => {
                         self.im = 1;
                     },
+                    // ED NOP
+                    0x177 => {
+                    },
                     // IN A,(C)
                     0x178 => {
                         self.step = 0x6A1;
@@ -2476,6 +2671,105 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0x17E => {
                         self.im = 2;
                     },
+                    // ED NOP
+                    0x17F => {
+                    },
+                    // ED NOP
+                    0x180 => {
+                    },
+                    // ED NOP
+                    0x181 => {
+                    },
+                    // ED NOP
+                    0x182 => {
+                    },
+                    // ED NOP
+                    0x183 => {
+                    },
+                    // ED NOP
+                    0x184 => {
+                    },
+                    // ED NOP
+                    0x185 => {
+                    },
+                    // ED NOP
+                    0x186 => {
+                    },
+                    // ED NOP
+                    0x187 => {
+                    },
+                    // ED NOP
+                    0x188 => {
+                    },
+                    // ED NOP
+                    0x189 => {
+                    },
+                    // ED NOP
+                    0x18A => {
+                    },
+                    // ED NOP
+                    0x18B => {
+                    },
+                    // ED NOP
+                    0x18C => {
+                    },
+                    // ED NOP
+                    0x18D => {
+                    },
+                    // ED NOP
+                    0x18E => {
+                    },
+                    // ED NOP
+                    0x18F => {
+                    },
+                    // ED NOP
+                    0x190 => {
+                    },
+                    // ED NOP
+                    0x191 => {
+                    },
+                    // ED NOP
+                    0x192 => {
+                    },
+                    // ED NOP
+                    0x193 => {
+                    },
+                    // ED NOP
+                    0x194 => {
+                    },
+                    // ED NOP
+                    0x195 => {
+                    },
+                    // ED NOP
+                    0x196 => {
+                    },
+                    // ED NOP
+                    0x197 => {
+                    },
+                    // ED NOP
+                    0x198 => {
+                    },
+                    // ED NOP
+                    0x199 => {
+                    },
+                    // ED NOP
+                    0x19A => {
+                    },
+                    // ED NOP
+                    0x19B => {
+                    },
+                    // ED NOP
+                    0x19C => {
+                    },
+                    // ED NOP
+                    0x19D => {
+                    },
+                    // ED NOP
+                    0x19E => {
+                    },
+                    // ED NOP
+                    0x19F => {
+                    },
                     // LDI
                     0x1A0 => {
                         self.step = 0x6C2;
@@ -2495,6 +2789,18 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0x1A3 => {
                         self.step = 0x6DA;
                         break :next;
+                    },
+                    // ED NOP
+                    0x1A4 => {
+                    },
+                    // ED NOP
+                    0x1A5 => {
+                    },
+                    // ED NOP
+                    0x1A6 => {
+                    },
+                    // ED NOP
+                    0x1A7 => {
                     },
                     // LDD
                     0x1A8 => {
@@ -2516,6 +2822,18 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         self.step = 0x6FA;
                         break :next;
                     },
+                    // ED NOP
+                    0x1AC => {
+                    },
+                    // ED NOP
+                    0x1AD => {
+                    },
+                    // ED NOP
+                    0x1AE => {
+                    },
+                    // ED NOP
+                    0x1AF => {
+                    },
                     // LDIR
                     0x1B0 => {
                         self.step = 0x702;
@@ -2536,6 +2854,18 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         self.step = 0x729;
                         break :next;
                     },
+                    // ED NOP
+                    0x1B4 => {
+                    },
+                    // ED NOP
+                    0x1B5 => {
+                    },
+                    // ED NOP
+                    0x1B6 => {
+                    },
+                    // ED NOP
+                    0x1B7 => {
+                    },
                     // LDDR
                     0x1B8 => {
                         self.step = 0x736;
@@ -2555,6 +2885,210 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0x1BB => {
                         self.step = 0x75D;
                         break :next;
+                    },
+                    // ED NOP
+                    0x1BC => {
+                    },
+                    // ED NOP
+                    0x1BD => {
+                    },
+                    // ED NOP
+                    0x1BE => {
+                    },
+                    // ED NOP
+                    0x1BF => {
+                    },
+                    // ED NOP
+                    0x1C0 => {
+                    },
+                    // ED NOP
+                    0x1C1 => {
+                    },
+                    // ED NOP
+                    0x1C2 => {
+                    },
+                    // ED NOP
+                    0x1C3 => {
+                    },
+                    // ED NOP
+                    0x1C4 => {
+                    },
+                    // ED NOP
+                    0x1C5 => {
+                    },
+                    // ED NOP
+                    0x1C6 => {
+                    },
+                    // ED NOP
+                    0x1C7 => {
+                    },
+                    // ED NOP
+                    0x1C8 => {
+                    },
+                    // ED NOP
+                    0x1C9 => {
+                    },
+                    // ED NOP
+                    0x1CA => {
+                    },
+                    // ED NOP
+                    0x1CB => {
+                    },
+                    // ED NOP
+                    0x1CC => {
+                    },
+                    // ED NOP
+                    0x1CD => {
+                    },
+                    // ED NOP
+                    0x1CE => {
+                    },
+                    // ED NOP
+                    0x1CF => {
+                    },
+                    // ED NOP
+                    0x1D0 => {
+                    },
+                    // ED NOP
+                    0x1D1 => {
+                    },
+                    // ED NOP
+                    0x1D2 => {
+                    },
+                    // ED NOP
+                    0x1D3 => {
+                    },
+                    // ED NOP
+                    0x1D4 => {
+                    },
+                    // ED NOP
+                    0x1D5 => {
+                    },
+                    // ED NOP
+                    0x1D6 => {
+                    },
+                    // ED NOP
+                    0x1D7 => {
+                    },
+                    // ED NOP
+                    0x1D8 => {
+                    },
+                    // ED NOP
+                    0x1D9 => {
+                    },
+                    // ED NOP
+                    0x1DA => {
+                    },
+                    // ED NOP
+                    0x1DB => {
+                    },
+                    // ED NOP
+                    0x1DC => {
+                    },
+                    // ED NOP
+                    0x1DD => {
+                    },
+                    // ED NOP
+                    0x1DE => {
+                    },
+                    // ED NOP
+                    0x1DF => {
+                    },
+                    // ED NOP
+                    0x1E0 => {
+                    },
+                    // ED NOP
+                    0x1E1 => {
+                    },
+                    // ED NOP
+                    0x1E2 => {
+                    },
+                    // ED NOP
+                    0x1E3 => {
+                    },
+                    // ED NOP
+                    0x1E4 => {
+                    },
+                    // ED NOP
+                    0x1E5 => {
+                    },
+                    // ED NOP
+                    0x1E6 => {
+                    },
+                    // ED NOP
+                    0x1E7 => {
+                    },
+                    // ED NOP
+                    0x1E8 => {
+                    },
+                    // ED NOP
+                    0x1E9 => {
+                    },
+                    // ED NOP
+                    0x1EA => {
+                    },
+                    // ED NOP
+                    0x1EB => {
+                    },
+                    // ED NOP
+                    0x1EC => {
+                    },
+                    // ED NOP
+                    0x1ED => {
+                    },
+                    // ED NOP
+                    0x1EE => {
+                    },
+                    // ED NOP
+                    0x1EF => {
+                    },
+                    // ED NOP
+                    0x1F0 => {
+                    },
+                    // ED NOP
+                    0x1F1 => {
+                    },
+                    // ED NOP
+                    0x1F2 => {
+                    },
+                    // ED NOP
+                    0x1F3 => {
+                    },
+                    // ED NOP
+                    0x1F4 => {
+                    },
+                    // ED NOP
+                    0x1F5 => {
+                    },
+                    // ED NOP
+                    0x1F6 => {
+                    },
+                    // ED NOP
+                    0x1F7 => {
+                    },
+                    // ED NOP
+                    0x1F8 => {
+                    },
+                    // ED NOP
+                    0x1F9 => {
+                    },
+                    // ED NOP
+                    0x1FA => {
+                    },
+                    // ED NOP
+                    0x1FB => {
+                    },
+                    // ED NOP
+                    0x1FC => {
+                    },
+                    // ED NOP
+                    0x1FD => {
+                    },
+                    // ED NOP
+                    0x1FE => {
+                    },
+                    // ED NOP
+                    0x1FF => {
                     },
                     // LD BC,nn (continued...)
                     0x300 => {
