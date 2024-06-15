@@ -8,6 +8,7 @@ const mem = std.mem;
 const fs = std.fs;
 const format = @import("format.zig");
 const f = format.f;
+const dup = format.dup;
 const replace = format.replace;
 const join = format.join;
 const acc = @import("accumulate.zig");
@@ -16,6 +17,7 @@ const Op = types.Op;
 const TCycle = types.TCycle;
 
 const MAX_LINES = 16 * 1024;
+const MAX_LINE_LENGTH = 1024;
 var op_lines = BoundedArray([]const u8, MAX_LINES){};
 var extra_lines = BoundedArray([]const u8, MAX_LINES){};
 
@@ -60,33 +62,33 @@ fn genTcycle(opcode_step_index: usize, op: Op, tcycle: TCycle, tcount: usize) !v
         extra_step_index += 1;
         next_step_index = extra_step_index;
     }
-    if (tcount == 0) {
-        try lines.append(f("// {s}", .{op.dasm}));
-    } else if (tcount == 1) {
-        try lines.append(f("// {s} (continued...)", .{op.dasm}));
-    }
-    try lines.append(f("0x{X} => {{", .{step_index}));
+    var line = BoundedArray(u8, MAX_LINE_LENGTH){};
+    try line.appendSlice(f("0x{X} => {{ ", .{step_index}));
     if (tcycle.wait) {
-        try lines.append("    if (wait(bus)) break :next;");
+        try line.appendSlice("if (wait(bus)) break :next; ");
     }
     for (tcycle.actions) |action_or_null| {
         if (action_or_null) |action| {
             const l = replace(action, "$NEXTSTEP", f("0x{X}", .{next_step_index}));
-            try lines.append(f("    {s};", .{l}));
+            try line.appendSlice(f("{s}; ", .{l}));
         }
     }
-
     switch (tcycle.next) {
         .BreakNext => {
-            try lines.append("    break :next;");
+            try line.appendSlice("break :next; ");
         },
         .StepAndBreakNext => {
-            try lines.append(f("    self.step = 0x{X};", .{next_step_index}));
-            try lines.append("    break :next;");
+            try line.appendSlice(f("self.step = 0x{X}; break :next; ", .{next_step_index}));
         },
         .Fetch => {},
     }
-    try lines.append("},");
+    try line.appendSlice("}, ");
+    if (tcount == 0) {
+        try line.appendSlice(f("// {s}", .{op.dasm}));
+    } else if (tcount == 1) {
+        try line.appendSlice(f("// {s} (cont...)", .{op.dasm}));
+    }
+    try lines.append(dup(line.slice()));
 }
 
 fn addLine(file: fs.File, prefix: []const u8, line: []const u8) !void {
