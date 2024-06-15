@@ -1843,6 +1843,84 @@ fn @"RLD/RRD"() void {
     ok();
 }
 
+fn LDI() void {
+    start("LDI");
+    const prog = [_]u8{
+        0x21, 0x00, 0x10,       // LD HL,0x1000
+        0x11, 0x00, 0x20,       // LD DE,0x2000
+        0x01, 0x03, 0x00,       // LD BC,0x0003
+        0xED, 0xA0,             // LDI
+        0xED, 0xA0,             // LDI
+        0xED, 0xA0,             // LDI
+    };
+    const data = [_]u8{
+        0x01, 0x02, 0x03,
+    };
+    init(0, &prog);
+    copy(0x1000, &data);
+    for (0..3) |_| {
+        _ = step();
+    }
+    T(16 == step());
+    T(0x1001 == cpu.HL());
+    T(0x2001 == cpu.DE());
+    T(0x0002 == cpu.BC());
+    T(0x01 == mem[0x2000]);
+    T(flags(PF));
+    T(16 == step());
+    T(0x1002 == cpu.HL());
+    T(0x2002 == cpu.DE());
+    T(0x0001 == cpu.BC());
+    T(0x02 == mem[0x2001]);
+    T(flags(PF));
+    T(16 == step());
+    T(0x1003 == cpu.HL());
+    T(0x2003 == cpu.DE());
+    T(0x0000 == cpu.BC());
+    T(0x03 == mem[0x2002]);
+    T(flags(0));
+    ok();
+}
+
+fn LDD() void {
+    start("LDD");
+    const prog = [_]u8{
+        0x21, 0x02, 0x10,       // LD HL,0x1002
+        0x11, 0x02, 0x20,       // LD DE,0x2002
+        0x01, 0x03, 0x00,       // LD BC,0x0003
+        0xED, 0xA8,             // LDD
+        0xED, 0xA8,             // LDD
+        0xED, 0xA8,             // LDD
+    };
+    const data = [_]u8{
+        0x01, 0x02, 0x03,
+    };
+    init(0, &prog);
+    copy(0x1000, &data);
+    for (0..3) |_| {
+        _ = step();
+    }
+    T(16 == step());
+    T(0x1001 == cpu.HL());
+    T(0x2001 == cpu.DE());
+    T(0x0002 == cpu.BC());
+    T(0x03 == mem[0x2002]);
+    T(flags(PF));
+    T(16 == step());
+    T(0x1000 == cpu.HL());
+    T(0x2000 == cpu.DE());
+    T(0x0001 == cpu.BC());
+    T(0x02 == mem[0x2001]);
+    T(flags(PF));
+    T(16 == step());
+    T(0x0FFF == cpu.HL());
+    T(0x1FFF == cpu.DE());
+    T(0x0000 == cpu.BC());
+    T(0x01 == mem[0x2000]);
+    T(flags(0));
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -1897,4 +1975,6 @@ pub fn main() void {
     IN();
     OUT();
     @"RLD/RRD"();
+    LDI();
+    LDD();
 }

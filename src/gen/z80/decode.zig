@@ -173,6 +173,14 @@ fn decodeED() void {
                     else => {},
                 },
             },
+            2 => switch (z) {
+                0 => switch (y) {
+                    4 => ops.ldi(op),
+                    5 => ops.ldd(op),
+                    else => {},
+                },
+                else => {},
+            },
             else => {},
         }
     }

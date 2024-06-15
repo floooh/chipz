@@ -885,3 +885,26 @@ pub fn rld(code: u8) void {
         }),
     });
 }
+
+pub fn ldi(code: u8) void {
+    oped(code, .{
+        .dasm = "LDI",
+        .mcycles = mc(&.{
+            mread("self.HL()", "self.dlatch", "self.incHL()", null),
+            mwrite("self.DE()", "self.dlatch", "self.incDE()"),
+            tick("_ = ldildd(self.dlatch)"),
+            tick(null),
+            endFetch(),
+        }),
+    });
+}
+
+pub fn ldd(code: u8) void {
+    oped(code, .{ .dasm = "LDD", .mcycles = mc(&.{
+        mread("self.HL()", "self.dlatch", "self.decHL()", null),
+        mwrite("self.DE()", "self.dlatch", "self.decDE()"),
+        tick("_ = ldildd(self.dlatch)"),
+        tick(null),
+        endFetch(),
+    }) });
+}
