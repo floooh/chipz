@@ -1,4 +1,4 @@
-const f = @import("format.zig").f;
+const f = @import("string.zig").f;
 
 // how to invoke next TCycle
 pub const Next = enum {

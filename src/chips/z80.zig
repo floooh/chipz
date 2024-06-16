@@ -905,7 +905,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     DDFD_M1_T4 => {
                         self.step = if (indirect_table[self.opcode]) DDFD_D_T1 else self.opcode;
                         // should we move this into DDFD_D_T1?
-                        self.addr = (@as(u16, self.r[H + self.rixy]) << 8) | self.r[L + self.rixy];
+                        self.addr = self.HLIXY();
                         break :next;
                     },
                     // fallthrough for (IX/IY+d) d-offset loading

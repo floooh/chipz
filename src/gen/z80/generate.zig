@@ -2,33 +2,26 @@
 
 const std = @import("std");
 const assert = std.debug.assert;
-const Allocator = std.mem.Allocator;
-const BoundedArray = std.BoundedArray;
-const mem = std.mem;
-const fs = std.fs;
-const format = @import("format.zig");
-const f = format.f;
-const dup = format.dup;
-const replace = format.replace;
-const join = format.join;
-const acc = @import("accumulate.zig");
-const types = @import("types.zig");
-const Op = types.Op;
-const TCycle = types.TCycle;
+const f = @import("string.zig").f;
+const dup = @import("string.zig").dup;
+const replace = @import("string.zig").replace;
+const accumulate = @import("accumulate.zig");
+const Op = @import("types.zig").Op;
+const TCycle = @import("types.zig").TCycle;
 
 const MAX_LINES = 16 * 1024;
 const MAX_LINE_LENGTH = 1024;
-var op_lines = BoundedArray([]const u8, MAX_LINES){};
-var extra_lines = BoundedArray([]const u8, MAX_LINES){};
+var op_lines = std.BoundedArray([]const u8, MAX_LINES){};
+var extra_lines = std.BoundedArray([]const u8, MAX_LINES){};
 
 var extra_step_index: usize = undefined;
 
 pub fn generate() !void {
     extra_step_index = 3 * 256;
-    for (acc.main_ops, 0..) |op, opcode_step_index| {
+    for (accumulate.main_ops, 0..) |op, opcode_step_index| {
         try genOp(op, opcode_step_index);
     }
-    for (acc.ed_ops, 256..) |op, opcode_step_index| {
+    for (accumulate.ed_ops, 256..) |op, opcode_step_index| {
         try genOp(op, opcode_step_index);
     }
 }
@@ -51,7 +44,7 @@ fn genOp(op: Op, opcode_step_index: usize) !void {
 fn genTcycle(opcode_step_index: usize, op: Op, tcycle: TCycle, tcount: usize) !void {
     var step_index: usize = undefined;
     var next_step_index: usize = undefined;
-    var lines: *BoundedArray([]const u8, MAX_LINES) = undefined;
+    var lines: *std.BoundedArray([]const u8, MAX_LINES) = undefined;
     if (tcount == 0) {
         lines = &op_lines;
         step_index = opcode_step_index;
@@ -62,7 +55,7 @@ fn genTcycle(opcode_step_index: usize, op: Op, tcycle: TCycle, tcount: usize) !v
         extra_step_index += 1;
         next_step_index = extra_step_index;
     }
-    var line = BoundedArray(u8, MAX_LINE_LENGTH){};
+    var line = std.BoundedArray(u8, MAX_LINE_LENGTH){};
     try line.appendSlice(f("0x{X} => {{ ", .{step_index}));
     if (tcycle.wait) {
         try line.appendSlice("if (wait(bus)) break :next; ");
@@ -91,7 +84,7 @@ fn genTcycle(opcode_step_index: usize, op: Op, tcycle: TCycle, tcount: usize) !v
     try lines.append(dup(line.slice()));
 }
 
-fn addLine(file: fs.File, prefix: []const u8, line: []const u8) !void {
+fn addLine(file: std.fs.File, prefix: []const u8, line: []const u8) !void {
     try file.writeAll(prefix);
     try file.writeAll(line);
     try file.writeAll("\n");
@@ -102,28 +95,28 @@ const BeginEndState = struct {
     skip: bool,
 };
 
-fn checkBeginEnd(line: []const u8, file: fs.File, comptime key: []const u8, cur_state: BeginEndState) !BeginEndState {
-    const trimmed = mem.trim(u8, line, " \t");
-    if (mem.eql(u8, trimmed, "// BEGIN " ++ key)) {
+fn checkBeginEnd(line: []const u8, file: std.fs.File, comptime key: []const u8, cur_state: BeginEndState) !BeginEndState {
+    const trimmed = std.mem.trim(u8, line, " \t");
+    if (std.mem.eql(u8, trimmed, "// BEGIN " ++ key)) {
         try file.writeAll(line);
         try file.writeAll("\n");
         return .{ .inside = true, .skip = false };
     }
-    if (mem.eql(u8, trimmed, "// END " ++ key)) {
+    if (std.mem.eql(u8, trimmed, "// END " ++ key)) {
         return .{ .inside = false, .skip = cur_state.skip };
     }
     return cur_state;
 }
 
-pub fn write(allocator: Allocator, path: []const u8) !void {
+pub fn write(allocator: std.mem.Allocator, path: []const u8) !void {
     const max_size = 5 * 1024 * 1024;
-    const src = try fs.cwd().readFileAlloc(allocator, path, max_size);
-    const dst = try fs.cwd().createFile(path, .{ .truncate = true, .lock = .exclusive });
+    const src = try std.fs.cwd().readFileAlloc(allocator, path, max_size);
+    const dst = try std.fs.cwd().createFile(path, .{ .truncate = true, .lock = .exclusive });
     defer dst.close();
 
     var decode = BeginEndState{ .inside = false, .skip = false };
     var consts = BeginEndState{ .inside = false, .skip = false };
-    var it = mem.splitScalar(u8, src, '\n');
+    var it = std.mem.splitScalar(u8, src, '\n');
     const decode_prefix = "    " ** 5;
     const consts_prefix = "    " ** 2;
     const m1_t1 = extra_step_index;

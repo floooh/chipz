@@ -1,9 +1,6 @@
-const std = @import("std");
-const format = @import("format.zig");
 const ops = @import("ops.zig");
 
-pub fn decode(allocator: std.mem.Allocator) void {
-    format.init(allocator);
+pub fn decode() void {
     decodeMain();
     decodeED();
     decodeCB();

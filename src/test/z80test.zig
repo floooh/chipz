@@ -94,7 +94,6 @@ fn tick() void {
             out_byte = Z80.getData(bus);
         }
     }
-    // FIXME: IORQ
 }
 
 fn step() usize {

@@ -1,8 +1,8 @@
 //! machine cycles are are instruction building blocks
-const f = @import("format.zig").f;
-const MCycle = @import("types.zig").MCycle;
+const f = @import("string.zig").f;
 const ac = @import("accumulate.zig").ac;
 const tc = @import("accumulate.zig").tc;
+const MCycle = @import("types.zig").MCycle;
 
 pub fn mrd(addr: []const u8) []const u8 {
     return f("bus = mrd(bus, {s})", .{addr});
