@@ -17,7 +17,7 @@ var extra_lines = std.BoundedArray([]const u8, MAX_LINES){};
 var extra_step_index: usize = undefined;
 
 pub fn generate() !void {
-    extra_step_index = 3 * 256;
+    extra_step_index = 2 * 256;
     for (accumulate.main_ops, 0..) |op, opcode_step_index| {
         try genOp(op, opcode_step_index);
     }
@@ -157,6 +157,33 @@ pub fn write(allocator: std.mem.Allocator, path: []const u8) !void {
                     "ED_M1_T2",
                     "ED_M1_T3",
                     "ED_M1_T4",
+                    "CB_M1_T2",
+                    "CB_M1_T3",
+                    "CB_M1_T4",
+                    "CB_M1_OVERLAPPED",
+                    "CB_HL_T1",
+                    "CB_HL_T2",
+                    "CB_HL_T3",
+                    "CB_HL_T4",
+                    "CB_HL_T5",
+                    "CB_HL_T6",
+                    "CB_HL_T7",
+                    "CB_HL_OVERLAPPED",
+                    "DDFDCB_T1",
+                    "DDFDCB_T2",
+                    "DDFDCB_T3",
+                    "DDFDCB_T4",
+                    "DDFDCB_T5",
+                    "DDFDCB_T6",
+                    "DDFDCB_T7",
+                    "DDFDCB_T8",
+                    "DDFDCB_T9",
+                    "DDFDCB_T10",
+                    "DDFDCB_T11",
+                    "DDFDCB_T12",
+                    "DDFDCB_T13",
+                    "DDFDCB_T14",
+                    "DDFDCB_OVERLAPPED",
                 }, 0..) |str, i| {
                     try addLine(dst, consts_prefix, f("const {s}: u16 = 0x{X};", .{ str, m1_t1 + i }));
                 }
