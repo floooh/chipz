@@ -2473,6 +2473,102 @@ pub fn @"RLC/RL/RRC/RR r"() void {
     ok();
 }
 
+fn @"SLA r"() void {
+    start("SLA r");
+    const prog = [_]u8{
+        0x3E, 0x01,         // LD A,0x01
+        0x06, 0x80,         // LD B,0x80
+        0x0E, 0xAA,         // LD C,0xAA
+        0x16, 0xFE,         // LD D,0xFE
+        0x1E, 0x7F,         // LD E,0x7F
+        0x26, 0x11,         // LD H,0x11
+        0x2E, 0x00,         // LD L,0x00
+        0xCB, 0x27,         // SLA A
+        0xCB, 0x20,         // SLA B
+        0xCB, 0x21,         // SLA C
+        0xCB, 0x22,         // SLA D
+        0xCB, 0x23,         // SLA E
+        0xCB, 0x24,         // SLA H
+        0xCB, 0x25,         // SLA L
+    };
+    init(0, &prog);
+    for (0..7) |_| {
+        _ = step();
+    }
+    T(8==step()); T(0x02 == cpu.r[A]); T(flags(0));
+    T(8==step()); T(0x00 == cpu.r[B]); T(flags(ZF|PF|CF));
+    T(8==step()); T(0x54 == cpu.r[C]); T(flags(CF));
+    T(8==step()); T(0xFC == cpu.r[D]); T(flags(SF|PF|CF));
+    T(8==step()); T(0xFE == cpu.r[E]); T(flags(SF));
+    T(8==step()); T(0x22 == cpu.r[H]); T(flags(PF));
+    T(8==step()); T(0x00 == cpu.r[L]); T(flags(ZF|PF));
+    ok();
+}
+
+fn @"SRA r"() void {
+    start("SRA r");
+    const prog = [_]u8{
+        0x3E, 0x01,         // LD A,0x01
+        0x06, 0x80,         // LD B,0x80
+        0x0E, 0xAA,         // LD C,0xAA
+        0x16, 0xFE,         // LD D,0xFE
+        0x1E, 0x7F,         // LD E,0x7F
+        0x26, 0x11,         // LD H,0x11
+        0x2E, 0x00,         // LD L,0x00
+        0xCB, 0x2F,         // SRA A
+        0xCB, 0x28,         // SRA B
+        0xCB, 0x29,         // SRA C
+        0xCB, 0x2A,         // SRA D
+        0xCB, 0x2B,         // SRA E
+        0xCB, 0x2C,         // SRA H
+        0xCB, 0x2D,         // SRA L
+    };
+    init(0, &prog);
+    for (0..7) |_| {
+        _ = step();
+    }
+    T(8==step()); T(0x00 == cpu.r[A]); T(flags(ZF|PF|CF));
+    T(8==step()); T(0xC0 == cpu.r[B]); T(flags(SF|PF));
+    T(8==step()); T(0xD5 == cpu.r[C]); T(flags(SF));
+    T(8==step()); T(0xFF == cpu.r[D]); T(flags(SF|PF));
+    T(8==step()); T(0x3F == cpu.r[E]); T(flags(PF|CF));
+    T(8==step()); T(0x08 == cpu.r[H]); T(flags(CF));
+    T(8==step()); T(0x00 == cpu.r[L]); T(flags(ZF|PF));
+    ok();
+}
+
+fn @"SRL r"() void {
+    start("SRL r");
+    const prog = [_]u8{
+        0x3E, 0x01,         // LD A,0x01
+        0x06, 0x80,         // LD B,0x80
+        0x0E, 0xAA,         // LD C,0xAA
+        0x16, 0xFE,         // LD D,0xFE
+        0x1E, 0x7F,         // LD E,0x7F
+        0x26, 0x11,         // LD H,0x11
+        0x2E, 0x00,         // LD L,0x00
+        0xCB, 0x3F,         // SRL A
+        0xCB, 0x38,         // SRL B
+        0xCB, 0x39,         // SRL C
+        0xCB, 0x3A,         // SRL D
+        0xCB, 0x3B,         // SRL E
+        0xCB, 0x3C,         // SRL H
+        0xCB, 0x3D,         // SRL L
+    };
+    init(0, &prog);
+    for (0..7) |_| {
+        _ = step();
+    }
+    T(8==step()); T(0x00 == cpu.r[A]); T(flags(ZF|PF|CF));
+    T(8==step()); T(0x40 == cpu.r[B]); T(flags(0));
+    T(8==step()); T(0x55 == cpu.r[C]); T(flags(PF));
+    T(8==step()); T(0x7F == cpu.r[D]); T(flags(0));
+    T(8==step()); T(0x3F == cpu.r[E]); T(flags(PF|CF));
+    T(8==step()); T(0x08 == cpu.r[H]); T(flags(CF));
+    T(8==step()); T(0x00 == cpu.r[L]); T(flags(ZF|PF));
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -2540,4 +2636,7 @@ pub fn main() void {
     @"OUTI/OUTD"();
     @"OTIR/OTDR"();
     @"RLC/RL/RRC/RR r"();
+    @"SLA r"();
+    @"SRA r"();
+    @"SRL r"();
 }
