@@ -2397,6 +2397,82 @@ fn @"OTIR/OTDR"() void {
     ok();
 }
 
+pub fn @"RLC/RL/RRC/RR r"() void {
+    start("RLC/RL/RRC/RR r");
+    const prog = [_]u8{
+        0x3E, 0x01,     // LD A,0x01
+        0x06, 0xFF,     // LD B,0xFF
+        0x0E, 0x03,     // LD C,0x03
+        0x16, 0xFE,     // LD D,0xFE
+        0x1E, 0x11,     // LD E,0x11
+        0x26, 0x3F,     // LD H,0x3F
+        0x2E, 0x70,     // LD L,0x70
+
+        0xCB, 0x0F,     // RRC A
+        0xCB, 0x07,     // RLC A
+        0xCB, 0x08,     // RRC B
+        0xCB, 0x00,     // RLC B
+        0xCB, 0x01,     // RLC C
+        0xCB, 0x09,     // RRC C
+        0xCB, 0x02,     // RLC D
+        0xCB, 0x0A,     // RRC D
+        0xCB, 0x0B,     // RRC E
+        0xCB, 0x03,     // RLC E
+        0xCB, 0x04,     // RLC H
+        0xCB, 0x0C,     // RCC H
+        0xCB, 0x05,     // RLC L
+        0xCB, 0x0D,     // RRC L
+
+        0xCB, 0x1F,     // RR A
+        0xCB, 0x17,     // RL A
+        0xCB, 0x18,     // RR B
+        0xCB, 0x10,     // RL B
+        0xCB, 0x11,     // RL C
+        0xCB, 0x19,     // RR C
+        0xCB, 0x12,     // RL D
+        0xCB, 0x1A,     // RR D
+        0xCB, 0x1B,     // RR E
+        0xCB, 0x13,     // RL E
+        0xCB, 0x14,     // RL H
+        0xCB, 0x1C,     // RR H
+        0xCB, 0x15,     // RL L
+        0xCB, 0x1D,     // RR L
+    };
+    init (0, &prog);
+    for (0..7) |_| {
+        _ = step();
+    }
+    T(8==step()); T(0x80 == cpu.r[A]); T(flags(SF|CF));
+    T(8==step()); T(0x01 == cpu.r[A]); T(flags(CF));
+    T(8==step()); T(0xFF == cpu.r[B]); T(flags(SF|PF|CF));
+    T(8==step()); T(0xFF == cpu.r[B]); T(flags(SF|PF|CF));
+    T(8==step()); T(0x06 == cpu.r[C]); T(flags(PF));
+    T(8==step()); T(0x03 == cpu.r[C]); T(flags(PF));
+    T(8==step()); T(0xFD == cpu.r[D]); T(flags(SF|CF));
+    T(8==step()); T(0xFE == cpu.r[D]); T(flags(SF|CF));
+    T(8==step()); T(0x88 == cpu.r[E]); T(flags(SF|PF|CF));
+    T(8==step()); T(0x11 == cpu.r[E]); T(flags(PF|CF));
+    T(8==step()); T(0x7E == cpu.r[H]); T(flags(PF));
+    T(8==step()); T(0x3F == cpu.r[H]); T(flags(PF));
+    T(8==step()); T(0xE0 == cpu.r[L]); T(flags(SF));
+    T(8==step()); T(0x70 == cpu.r[L]); T(flags(0));
+    T(8==step()); T(0x00 == cpu.r[A]); T(flags(ZF|PF|CF));
+    T(8==step()); T(0x01 == cpu.r[A]); T(flags(0));
+    T(8==step()); T(0x7F == cpu.r[B]); T(flags(CF));
+    T(8==step()); T(0xFF == cpu.r[B]); T(flags(SF|PF));
+    T(8==step()); T(0x06 == cpu.r[C]); T(flags(PF));
+    T(8==step()); T(0x03 == cpu.r[C]); T(flags(PF));
+    T(8==step()); T(0xFC == cpu.r[D]); T(flags(SF|PF|CF));
+    T(8==step()); T(0xFE == cpu.r[D]); T(flags(SF));
+    T(8==step()); T(0x08 == cpu.r[E]); T(flags(CF));
+    T(8==step()); T(0x11 == cpu.r[E]); T(flags(PF));
+    T(8==step()); T(0x7E == cpu.r[H]); T(flags(PF));
+    T(8==step()); T(0x3F == cpu.r[H]); T(flags(PF));
+    T(8==step()); T(0xE0 == cpu.r[L]); T(flags(SF));
+    T(8==step()); T(0x70 == cpu.r[L]); T(flags(0));
+    ok();
+}
+
 pub fn main() void {
     NOP();
     @"LD r,s/n"();
@@ -2463,4 +2539,5 @@ pub fn main() void {
     @"INIR/INDR"();
     @"OUTI/OUTD"();
     @"OTIR/OTDR"();
+    @"RLC/RL/RRC/RR r"();
 }

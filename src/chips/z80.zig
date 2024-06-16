@@ -480,7 +480,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             // FIXME: check int bits
             self.step = M1_T2;
             const out_bus = setAddr(bus, self.pc) | comptime mask(&.{ M1, MREQ, RD });
-            self.pc +%= 1;
+            self.incPC();
             return out_bus;
         }
 
@@ -489,7 +489,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             self.prefix_active = true;
             self.step = DDFD_M1_T2;
             const out_bus = setAddr(bus, self.pc) | comptime mask(&.{ M1, MREQ, RD });
-            self.pc +%= 1;
+            self.incPC();
             return out_bus;
         }
 
@@ -1158,6 +1158,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         } else {
                             self.step = CB_M1_OVERLAPPED;
                         }
+                        break :next;
                     },
                     // payload cycle for regular CB-prefixed instructions
                     CB_M1_OVERLAPPED => {
