@@ -520,8 +520,8 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                 self.incPC();
                 return out_bus;
             } else {
-                // FIXME: DD/FD+CB double prefixed instruction
-                @panic("fetchCB(): implement me!");
+                self.step = DDFDCB_T1;
+                return bus;
             }
         }
 
@@ -1177,8 +1177,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                         self.dlatch = gd(bus);
                         if (!self.cbAction(6, 6)) {
                             // don't write back
-                            // FIXME: correct timing?
-                            self.step = CB_HL_OVERLAPPED;
+                            self.step = CB_HL_T7;
                         } else {
                             self.step = CB_HL_T4;
                         }
@@ -1189,26 +1188,70 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     CB_HL_T6 => {
                         if (wait(bus)) break :next;
                         bus = mwr(bus, self.addr, self.dlatch);
-                        self.step = CB_HL_T6;
+                        self.step = CB_HL_T7;
                         break :next;
                     },
                     CB_HL_T7 => { self.step = CB_HL_OVERLAPPED; break :next; },
                     CB_HL_OVERLAPPED => { }, // fetch next
                     // DD/FD-CB double-prefixed instructions
-                    DDFDCB_T1 => { @panic("FIXME"); },
-                    DDFDCB_T2 => { @panic("FIXME"); },
-                    DDFDCB_T3 => { @panic("FIXME"); },
-                    DDFDCB_T4 => { @panic("FIXME"); },
-                    DDFDCB_T5 => { @panic("FIXME"); },
-                    DDFDCB_T6 => { @panic("FIXME"); },
-                    DDFDCB_T7 => { @panic("FIXME"); },
-                    DDFDCB_T8 => { @panic("FIXME"); },
-                    DDFDCB_T9 => { @panic("FIXME"); },
-                    DDFDCB_T10 => { @panic("FIXME"); },
-                    DDFDCB_T11 => { @panic("FIXME"); },
-                    DDFDCB_T12 => { @panic("FIXME"); },
-                    DDFDCB_T13 => { @panic("FIXME"); },
-                    DDFDCB_T14 => { @panic("FIXME"); },
+                    // => read d offset
+                    DDFDCB_T1 => {
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.pc);
+                        self.incPC();
+                        self.step = DDFDCB_T2;
+                        break :next;
+                    },
+                    DDFDCB_T2 => {
+                        self.addr +%= dimm8(gd(bus));
+                        self.setWZ(self.addr);
+                        self.step = DDFDCB_T3;
+                        break :next;
+                    },
+                    // => read opcode byte
+                    DDFDCB_T3 => { self.step = DDFDCB_T4; break :next; },
+                    DDFDCB_T4 => {
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.pc);
+                        self.incPC();
+                        self.step = DDFDCB_T5;
+                        break :next;
+                    },
+                    DDFDCB_T5 => {
+                        self.opcode = gd(bus);
+                        self.step = DDFDCB_T6;
+                        break :next;
+                    },
+                    DDFDCB_T6 => { self.step = DDFDCB_T7; break :next; },
+                    DDFDCB_T7 => { self.step = DDFDCB_T8; break :next; },
+                    // => read (IX/IY+d) and perform action
+                    DDFDCB_T8 => { self.step = DDFDCB_T9; break :next; },
+                    DDFDCB_T9 => {
+                        if (wait(bus)) break :next;
+                        bus = mrd(bus, self.addr);
+                        self.step = DDFDCB_T10;
+                        break :next;
+                    },
+                    DDFDCB_T10 => {
+                        self.dlatch = gd(bus);
+                        if (!self.cbAction(6, @truncate(self.opcode & 7))) {
+                            // skip writing the result back
+                            self.step = DDFDCB_T14;
+                        } else {
+                            self.step = DDFDCB_T11;
+                        }
+                        break :next;
+                    },
+                    DDFDCB_T11 => { self.step = DDFDCB_T12; break :next; },
+                    // => write result to (IX/IY+d)
+                    DDFDCB_T12 => { self.step = DDFDCB_T13; break :next; },
+                    DDFDCB_T13 => {
+                        if (wait(bus)) break :next;
+                        bus = mwr(bus, self.addr, self.dlatch);
+                        self.step = DDFDCB_T14;
+                        break :next;
+                    },
+                    DDFDCB_T14 => { self.step = DDFDCB_OVERLAPPED; break :next; },
                     DDFDCB_OVERLAPPED => { }, // fetch next
                     // BEGIN DECODE
                     0x0 => { }, // NOP
