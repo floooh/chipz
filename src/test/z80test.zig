@@ -2571,6 +2571,36 @@ fn @"SLA r"() void {
     ok();
 }
 
+fn @"SLA (HL)/(IX/IY+d)"() void {
+    start("SLA (HL)/(IX/IY+d)");
+    const prog =[_]u8{
+        0x21, 0x00, 0x10,           // LD HL,0x1000
+        0xDD, 0x21, 0x00, 0x10,     // LD IX,0x1001
+        0xFD, 0x21, 0x03, 0x10,     // LD IY,0x1003
+        0xCB, 0x26,                 // SLA (HL)
+        0x7E,                       // LD A,(HL)
+        0xDD, 0xCB, 0x01, 0x26,     // SLA (IX+1)
+        0xDD, 0x7E, 0x01,           // LD A,(IX+1)
+        0xFD, 0xCB, 0xFF, 0x26,     // SLA (IY-1)
+        0xFD, 0x7E, 0xFF,           // LD A,(IY-1)
+    };
+    const data = [_]u8{
+        0x01, 0x80, 0xAA,
+    };
+    init(0, &prog);
+    copy(0x1000, &data);
+    for (0..3) |_| {
+        _ = step();
+    }
+    T(15 == step()); T(0x02 == mem[0x1000]); T(flags(0));
+    T(7  == step()); T(0x02 == cpu.r[A]);
+    T(23 == step()); T(0x00 == mem[0x1001]); T(flags(ZF|PF|CF));
+    T(19 == step()); T(0x00 == cpu.r[A]);
+    T(23 == step()); T(0x54 == mem[0x1002]); T(flags(CF));
+    T(19 == step()); T(0x54 == cpu.r[A]);
+    ok();
+}
+
 fn @"SRA r"() void {
     start("SRA r");
     const prog = [_]u8{
@@ -2603,6 +2633,36 @@ fn @"SRA r"() void {
     ok();
 }
 
+fn @"SRA (HL)/(IX/IY+d)"() void {
+    start("SRA (HL)/(IX/IY+d)");
+    const prog = [_]u8{
+        0x21, 0x00, 0x10,           // LD HL,0x1000
+        0xDD, 0x21, 0x00, 0x10,     // LD IX,0x1001
+        0xFD, 0x21, 0x03, 0x10,     // LD IY,0x1003
+        0xCB, 0x2E,                 // SRA (HL)
+        0x7E,                       // LD A,(HL)
+        0xDD, 0xCB, 0x01, 0x2E,     // SRA (IX+1)
+        0xDD, 0x7E, 0x01,           // LD A,(IX+1)
+        0xFD, 0xCB, 0xFF, 0x2E,     // SRA (IY-1)
+        0xFD, 0x7E, 0xFF,           // LD A,(IY-1)
+    };
+    const data = [_]u8{
+        0x01, 0x80, 0xAA,
+    };
+    init(0, &prog);
+    copy(0x1000, &data);
+    for (0..3) |_| {
+        _ = step();
+    }
+    T(15 == step()); T(0x00 == mem[0x1000]); T(flags(ZF|PF|CF));
+    T(7  == step()); T(0x00 == cpu.r[A]);
+    T(23 == step()); T(0xC0 == mem[0x1001]); T(flags(SF|PF));
+    T(19 == step()); T(0xC0 == cpu.r[A]);
+    T(23 == step()); T(0xD5 == mem[0x1002]); T(flags(SF));
+    T(19 == step()); T(0xD5 == cpu.r[A]);
+    ok();
+}
+
 fn @"SRL r"() void {
     start("SRL r");
     const prog = [_]u8{
@@ -2632,6 +2692,99 @@ fn @"SRL r"() void {
     T(8==step()); T(0x3F == cpu.r[E]); T(flags(PF|CF));
     T(8==step()); T(0x08 == cpu.r[H]); T(flags(CF));
     T(8==step()); T(0x00 == cpu.r[L]); T(flags(ZF|PF));
+    ok();
+}
+
+fn @"SRL (HL)/(IX/IY+d)"() void {
+    start("SRL (HL)/(IX/IY+d)");
+    const prog = [_]u8{
+        0x21, 0x00, 0x10,           // LD HL,0x1000
+        0xDD, 0x21, 0x00, 0x10,     // LD IX,0x1001
+        0xFD, 0x21, 0x03, 0x10,     // LD IY,0x1003
+        0xCB, 0x3E,                 // SRL (HL)
+        0x7E,                       // LD A,(HL)
+        0xDD, 0xCB, 0x01, 0x3E,     // SRL (IX+1)
+        0xDD, 0x7E, 0x01,           // LD A,(IX+1)
+        0xFD, 0xCB, 0xFF, 0x3E,     // SRL (IY-1)
+        0xFD, 0x7E, 0xFF,           // LD A,(IY-1)
+    };
+    const data = [_]u8{
+        0x01, 0x80, 0xAA,
+    };
+    init(0, &prog);
+    copy(0x1000, &data);
+    for (0..3) |_| {
+        _ = step();
+    }
+    T(15 == step()); T(0x00 == mem[0x1000]); T(flags(ZF|PF|CF));
+    T(7  == step()); T(0x00 == cpu.r[A]);
+    T(23 == step()); T(0x40 == mem[0x1001]); T(flags(0));
+    T(19 == step()); T(0x40 == cpu.r[A]);
+    T(23 == step()); T(0x55 == mem[0x1002]); T(flags(PF));
+    T(19 == step()); T(0x55 == cpu.r[A]);
+    ok();
+}
+
+fn @"SET/RES"() void {
+    start("SET/RES");
+    const prog = [_]u8{
+        0xAF,                   // XOR A
+        0x21, 0x40, 0x00,       // LD HL,0x0040
+        0xDD, 0x21, 0x50, 0x00, // LD IX,0x0050
+        0xFD, 0x21, 0x60, 0x00, // LD IY,0x0060
+        0xCB, 0xC7,             // SET 0,A
+        0xCB, 0xC6,             // SET 0,(HL)
+        0xDD, 0xCB, 0x01, 0xC6, // SET 0,(IX+1)
+        0xFD, 0xCB, 0xFF, 0xC6, // SET 0,(IY-1)
+        0xDD, 0xCB, 0x02, 0xCF, // undocumented: SET 1,(IX+2),A
+        0xCB, 0x8F,             // RES 1,A
+        0xCB, 0x86,             // RES 0,(HL)
+        0xDD, 0xCB, 0x01, 0x86, // RES 0,(IX+1)
+        0xFD, 0xCB, 0xFF, 0x86, // RES 0,(IY-1)
+        0xDD, 0xCB, 0x02, 0x8F, // undocumented: RES 1,(IX+2),A
+    };
+    init(0, &prog);
+    T(4  == step()); T(cpu.r[A] == 0);
+    T(10 == step()); T(cpu.HL() == 0x0040);
+    T(14 == step()); T(cpu.IX() == 0x0050);
+    T(14 == step()); T(cpu.IY() == 0x0060);
+    T(8  == step()); T(cpu.r[A] == 1);
+    T(15 == step()); T(mem[0x40] == 1);
+    T(23 == step()); T(mem[0x51] == 1); T(cpu.WZ() == 0x0051);
+    T(23 == step()); T(mem[0x5F] == 1); T(cpu.WZ() == 0x005F);
+    T(23 == step()); T(mem[0x52] == 2); T(cpu.r[A] == 2); T(cpu.WZ() == 0x0052);
+    T(8  == step()); T(cpu.r[A] == 0);
+    T(15 == step()); T(mem[0x40] == 0);
+    T(23 == step()); T(mem[0x51] == 0); T(cpu.WZ() == 0x0051);
+    T(23 == step()); T(mem[0x5F] == 0); T(cpu.WZ() == 0x005F);
+    T(23 == step()); T(mem[0x52] == 0); T(cpu.r[A] == 0); T(cpu.WZ() == 0x0052);
+    ok();
+}
+
+fn BIT() void {
+    start("BIT");
+    const prog = [_]u8{
+        0x3E, 0x01,             // LD A,1
+        0x21, 0x40, 0x00,       // LD HL,0x0040
+        0xDD, 0x21, 0x50, 0x00, // LD IX,0x0050
+        0xFD, 0x21, 0x60, 0x00, // LD IY,0x0060
+        0xCB, 0x47,             // BIT 0,A
+        0xCB, 0x46,             // BIT 0,(HL)
+        0xDD, 0xCB, 0x01, 0x46, // BIT 0,(IX+1)
+        0xFD, 0xCB, 0xFF, 0x46, // BIT 0,(IY-1)
+        0xDD, 0xCB, 0x02, 0x47, // undocumented: BIT 0,(IX+2),A
+    };
+    init(0, &prog);
+    cpu.r[F] = 0;
+    T(7  == step()); T(cpu.r[A] == 1);
+    T(10 == step()); T(cpu.HL() == 0x0040);
+    T(14 == step()); T(cpu.IX() == 0x0050);
+    T(14 == step()); T(cpu.IY() == 0x0060);
+    T(8  == step()); T(flags(HF));
+    T(12 == step()); T(flags(ZF|HF|VF));
+    T(20 == step()); T(cpu.WZ() == 0x0051); T(flags(ZF|HF|VF));
+    T(20 == step()); T(cpu.WZ() == 0x005F); T(flags(ZF|HF|VF));
+    T(20 == step()); T(cpu.WZ() == 0x0052); T(flags(ZF|HF|VF));
     ok();
 }
 
@@ -2704,6 +2857,11 @@ pub fn main() void {
     @"RLC/RL/RRC/RR r"();
     @"RLC/RL/RRC/RR (HL)/(IX/IY+d)"();
     @"SLA r"();
+    @"SLA (HL)/(IX/IY+d)"();
     @"SRA r"();
+    @"SRA (HL)/(IX/IY+d)"();
     @"SRL r"();
+    @"SRL (HL)/(IX/IY+d)"();
+    @"SET/RES"();
+    BIT();
 }
