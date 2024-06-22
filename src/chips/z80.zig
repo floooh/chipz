@@ -43,36 +43,6 @@ pub const DefaultPins = Pins{
     .BUSAK = 36,
 };
 
-// indices into register bank
-pub const F = 0;
-pub const A = 1;
-pub const C = 2;
-pub const B = 3;
-pub const E = 4;
-pub const D = 5;
-pub const L = 6;
-pub const H = 7;
-pub const IXL = 8;
-pub const IXH = 9;
-pub const IYL = 10;
-pub const IYH = 11;
-pub const WZL = 12;
-pub const WZH = 13;
-pub const SPL = 14;
-pub const SPH = 15;
-pub const NumRegs = 16;
-
-// flag bits
-pub const CF: u8 = 1 << 0;
-pub const NF: u8 = 1 << 1;
-pub const VF: u8 = 1 << 2;
-pub const PF: u8 = VF;
-pub const XF: u8 = 1 << 3;
-pub const HF: u8 = 1 << 4;
-pub const YF: u8 = 1 << 5;
-pub const ZF: u8 = 1 << 6;
-pub const SF: u8 = 1 << 7;
-
 // lookup table for (HL)/(IX+d)/(IY+d) ops
 // FIXME: pack and align?
 // zig fmt: off
@@ -97,17 +67,53 @@ const indirect_table = init: {
 // zig fmt: on
 
 pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
-    const M1 = P.M1;
-    const MREQ = P.MREQ;
-    const IORQ = P.IORQ;
-    const RD = P.RD;
-    const WR = P.WR;
-    const HALT = P.HALT;
-    const WAIT = P.WAIT;
-    const RFSH = P.RFSH;
-
     return struct {
         const Self = @This();
+
+        // pin constants
+        pub const M1 = P.M1;
+        pub const MREQ = P.MREQ;
+        pub const IORQ = P.IORQ;
+        pub const RD = P.RD;
+        pub const WR = P.WR;
+        pub const RFSH = P.RFSH;
+        pub const HALT = P.HALT;
+        pub const WAIT = P.WAIT;
+        pub const INT = P.INT;
+        pub const NMI = P.NMI;
+        pub const RESET = P.RESET;
+        pub const BUSRQ = P.BUSRQ;
+        pub const BUSAK = P.BUSAK;
+
+        // indices into register bank
+        pub const F = 0;
+        pub const A = 1;
+        pub const C = 2;
+        pub const B = 3;
+        pub const E = 4;
+        pub const D = 5;
+        pub const L = 6;
+        pub const H = 7;
+        pub const IXL = 8;
+        pub const IXH = 9;
+        pub const IYL = 10;
+        pub const IYH = 11;
+        pub const WZL = 12;
+        pub const WZH = 13;
+        pub const SPL = 14;
+        pub const SPH = 15;
+        pub const NumRegs = 16;
+
+        // flag bits
+        pub const CF: u8 = 1 << 0;
+        pub const NF: u8 = 1 << 1;
+        pub const VF: u8 = 1 << 2;
+        pub const PF: u8 = VF;
+        pub const XF: u8 = 1 << 3;
+        pub const HF: u8 = 1 << 4;
+        pub const YF: u8 = 1 << 5;
+        pub const ZF: u8 = 1 << 6;
+        pub const SF: u8 = 1 << 7;
 
         // current switch-case step
         step: u16 = 0,
@@ -394,11 +400,11 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             self.set16(SPL, sp);
         }
 
-        inline fn decSP(self: *Self) void {
+        pub inline fn decSP(self: *Self) void {
             self.setSP(self.SP() -% 1);
         }
 
-        inline fn incSP(self: *Self) void {
+        pub inline fn incSP(self: *Self) void {
             self.setSP(self.SP() +% 1);
         }
 
@@ -2781,159 +2787,4 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         }
         // zig fmt: on
     };
-}
-
-//==============================================================================
-// ████████ ███████ ███████ ████████ ███████
-//    ██    ██      ██         ██    ██
-//    ██    █████   ███████    ██    ███████
-//    ██    ██           ██    ██         ██
-//    ██    ███████ ███████    ██    ███████
-//==============================================================================
-const expect = std.testing.expect;
-
-test "init" {
-    const cpu = Z80(DefaultPins, u64){};
-    try expect(cpu.af2 == 0xFFFF);
-}
-
-test "tick" {
-    const M1 = DefaultPins.M1;
-    const MREQ = DefaultPins.MREQ;
-    const RD = DefaultPins.RD;
-    var cpu = Z80(DefaultPins, u64){};
-    const bus = cpu.tick(0);
-    try expect(bus == mask(&.{ M1, MREQ, RD }));
-}
-
-test "bc" {
-    var cpu = Z80(DefaultPins, u64){};
-    cpu.setBC(0x2345);
-    try expect(cpu.r[C] == 0x45);
-    try expect(cpu.r[B] == 0x23);
-    try expect(cpu.BC() == 0x2345);
-}
-
-test "de" {
-    var cpu = Z80(DefaultPins, u64){};
-    cpu.setDE(0x3456);
-    try expect(cpu.r[E] == 0x56);
-    try expect(cpu.r[D] == 0x34);
-    try expect(cpu.DE() == 0x3456);
-}
-
-test "hl" {
-    var cpu = Z80(DefaultPins, u64){};
-    cpu.setHL(0x1234);
-    try expect(cpu.r[L] == 0x34);
-    try expect(cpu.r[H] == 0x12);
-    try expect(cpu.HL() == 0x1234);
-}
-
-test "ix" {
-    var cpu = Z80(DefaultPins, u64){};
-    cpu.setIX(0x4567);
-    try expect(cpu.r[IXL] == 0x67);
-    try expect(cpu.r[IXH] == 0x45);
-    try expect(cpu.IX() == 0x4567);
-}
-
-test "iy" {
-    var cpu = Z80(DefaultPins, u64){};
-    cpu.setIY(0x5678);
-    try expect(cpu.r[IYL] == 0x78);
-    try expect(cpu.r[IYH] == 0x56);
-    try expect(cpu.IY() == 0x5678);
-}
-
-test "wz" {
-    var cpu = Z80(DefaultPins, u64){};
-    cpu.setWZ(0x6789);
-    try expect(cpu.r[WZL] == 0x89);
-    try expect(cpu.r[WZH] == 0x67);
-    try expect(cpu.WZ() == 0x6789);
-}
-
-test "sp" {
-    var cpu = Z80(DefaultPins, u64){};
-    cpu.setSP(0x789A);
-    try expect(cpu.r[SPL] == 0x9A);
-    try expect(cpu.r[SPH] == 0x78);
-    try expect(cpu.SP() == 0x789A);
-}
-
-test "setAddr" {
-    const CPU = Z80(DefaultPins, u64);
-    var bus: u64 = 0;
-    bus = CPU.setAddr(bus, 0x1234);
-    try expect(bus == 0x1234 << 8);
-}
-
-test "getAddr" {
-    const CPU = Z80(DefaultPins, u64);
-    var bus: u64 = 0;
-    bus = CPU.setAddr(bus, 0x1234);
-    try expect(CPU.getAddr(bus) == 0x1234);
-}
-
-test "setAddrData" {
-    const CPU = Z80(DefaultPins, u64);
-    var bus: u64 = 0;
-    bus = CPU.setAddrData(bus, 0x1234, 0x56);
-    try expect(bus == 0x123456);
-}
-
-test "setData" {
-    const CPU = Z80(DefaultPins, u64);
-    var bus: u64 = 0;
-    bus = CPU.setData(bus, 0x56);
-    try expect(bus == 0x56);
-}
-
-test "getData" {
-    const CPU = Z80(DefaultPins, u64);
-    var bus: u64 = 0;
-    bus = CPU.setAddrData(bus, 0x1234, 0x56);
-    try expect(CPU.getData(bus) == 0x56);
-}
-
-test "mrd" {
-    const P = DefaultPins;
-    const CPU = Z80(P, u64);
-    try expect(CPU.mrd(0, 0x1234) == (0x123400 | bit(P.MREQ) | bit(P.RD)));
-}
-
-test "mwr" {
-    const P = DefaultPins;
-    const CPU = Z80(P, u64);
-    try expect(CPU.mwr(0, 0x1234, 0x56) == (0x123456 | bit(P.MREQ) | bit(P.WR)));
-}
-
-test "wait" {
-    const P = DefaultPins;
-    const CPU = Z80(P, u64);
-    try expect(CPU.wait(0) == false);
-    try expect(CPU.wait(bit(P.WAIT)) == true);
-}
-
-test "halt" {
-    const HALT = bit(DefaultPins.HALT);
-    var cpu = Z80(DefaultPins, u64){};
-    const bus = cpu.halt(0);
-    try expect(cpu.pc == 0xFFFF);
-    try expect(bus == HALT);
-}
-
-test "szFlags" {
-    const Cpu = Z80(DefaultPins, u64);
-    try expect(Cpu.szFlags(0) == ZF);
-    try expect(Cpu.szFlags(0x40) == 0);
-    try expect(Cpu.szFlags(0x84) == SF);
-}
-
-test "add8" {
-    var cpu = Z80(DefaultPins, u64){};
-    cpu.add8(1);
-    try expect(cpu.r[A] == 0);
-    try expect((cpu.r[F] & ZF) == ZF);
 }
