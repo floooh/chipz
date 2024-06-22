@@ -15,6 +15,7 @@ pub fn build(b: *Build) void {
     });
     buildZ80gen(b, target, optimize);
     buildZ80test(b, target, optimize, chips);
+    buildZ80zex(b, target, optimize, chips);
     buildTests(b, target, optimize);
 }
 
@@ -45,6 +46,21 @@ fn buildZ80test(b: *Build, target: ResolvedTarget, optimize: OptimizeMode, chips
     const run_z80test = b.addRunArtifact(z80test);
     run_z80test.step.dependOn(b.getInstallStep());
     b.step("run-z80test", "Run Z80 instruction test").dependOn(&run_z80test.step);
+}
+
+fn buildZ80zex(b: *Build, target: ResolvedTarget, optimize: OptimizeMode, chips: *Module) void {
+    const z80zex = b.addExecutable(.{
+        .name = "z80zex",
+        .root_source_file = b.path("src/test/z80zex.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    z80zex.root_module.addImport("chips", chips);
+    b.installArtifact(z80zex);
+
+    const run_z80zex = b.addRunArtifact(z80zex);
+    run_z80zex.step.dependOn(b.getInstallStep());
+    b.step("run-z80zex", "Run Z80 ZEX test").dependOn(&run_z80zex.step);
 }
 
 fn buildTests(b: *Build, target: ResolvedTarget, optimize: OptimizeMode) void {

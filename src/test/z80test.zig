@@ -7,24 +7,24 @@ const z80 = chips.z80;
 
 const Z80 = z80.Z80(z80.DefaultPins, u64);
 
-const A = z80.A;
-const F = z80.F;
-const B = z80.B;
-const C = z80.C;
-const D = z80.D;
-const E = z80.E;
-const L = z80.L;
-const H = z80.H;
+const A = Z80.A;
+const F = Z80.F;
+const B = Z80.B;
+const C = Z80.C;
+const D = Z80.D;
+const E = Z80.E;
+const L = Z80.L;
+const H = Z80.H;
 
-const CF = z80.CF;
-const NF = z80.NF;
-const VF = z80.VF;
-const PF = z80.PF;
-const XF = z80.XF;
-const HF = z80.HF;
-const YF = z80.YF;
-const ZF = z80.ZF;
-const SF = z80.SF;
+const CF = Z80.CF;
+const NF = Z80.NF;
+const VF = Z80.VF;
+const PF = Z80.PF;
+const XF = Z80.XF;
+const HF = Z80.HF;
+const YF = Z80.YF;
+const ZF = Z80.ZF;
+const SF = Z80.SF;
 
 var cpu: Z80 = undefined;
 var bus: u64 = 0;
@@ -57,7 +57,7 @@ fn ok() void {
 
 fn init(start_addr: u16, bytes: []const u8) void {
     cpu = Z80{};
-    cpu.r[z80.F] = 0;
+    cpu.r[Z80.F] = 0;
     cpu.af2 = 0xFF00;
     cpu.bc2 = 0xFFFF;
     cpu.de2 = 0xFFFF;
@@ -68,7 +68,7 @@ fn init(start_addr: u16, bytes: []const u8) void {
 }
 
 fn copy(start_addr: u16, bytes: []const u8) void {
-    std.mem.copyForwards(u8, mem[start_addr..(start_addr+bytes.len)], bytes);
+    std.mem.copyForwards(u8, mem[start_addr..], bytes);
 }
 
 fn mem16(addr: u16) u16 {
