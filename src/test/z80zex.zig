@@ -6,11 +6,13 @@
 //------------------------------------------------------------------------------
 const std = @import("std");
 const assert = std.debug.assert;
+const print = std.debug.print;
 const chips = @import("chips");
 const bits = chips.bits;
 const z80 = chips.z80;
 
-const Z80 = z80.Z80(z80.DefaultPins, u64);
+const Bus = u64;
+const Z80 = z80.Z80(z80.DefaultPins, Bus);
 const MREQ = Z80.MREQ;
 const RD = Z80.RD;
 const WR = Z80.WR;
@@ -22,7 +24,7 @@ const WZL = Z80.WZL;
 var cpu: Z80 = undefined;
 var mem = [_]u8{0} ** 0x10000;
 
-fn tick(in_bus: u64) u64 {
+fn tick(in_bus: Bus) Bus {
     var bus = cpu.tick(in_bus);
     if (bits.tst(bus, MREQ)) {
         const addr = Z80.getAddr(bus);
@@ -67,12 +69,12 @@ fn cpmBDOS() void {
 }
 
 // run the currently configured test
-fn runTest(name: []const u8) void {
-    std.debug.print("Running {s}...\n\n", .{name});
+fn runTest() u64 {
     cpu = Z80{};
     cpu.setSP(0xF000);
     cpu.prefetch(0x0100);
-    var bus: u64 = 0;
+    var num_ticks: u64 = 0;
+    var bus: Bus = 0;
     while (true) {
         bus = tick(bus);
         // check for BDOS call
@@ -81,15 +83,20 @@ fn runTest(name: []const u8) void {
         } else if (cpu.pc == 0) {
             break;
         }
+        num_ticks += 1;
     }
-    std.debug.print("\n\n", .{});
+    return num_ticks;
 }
 
-fn zexall() void {
+fn zexall() !void {
+    print("ZEXALL...\n\n", .{});
     copy(0x0100, @embedFile("roms/zexall.com"));
-    runTest("ZEXALL");
+    var timer = try std.time.Timer.start();
+    const num_ticks = runTest();
+    const ns: f64 = @floatFromInt(timer.read());
+    print("\n{} ticks in {d:.4} seconds\n", .{ num_ticks, ns / std.time.ns_per_s });
 }
 
-pub fn main() void {
-    zexall();
+pub fn main() !void {
+    try zexall();
 }
