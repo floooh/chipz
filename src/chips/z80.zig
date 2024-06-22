@@ -1017,242 +1017,6 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             var bus = clr(in_bus, &.{ M1, MREQ, IORQ, RD, WR, RFSH });
             next: {
                 switch (self.step) {
-                    // fetch machine cycle
-                    M1_T2 => {
-                        if (wait(bus)) break :next;
-                        self.opcode = gd(bus);
-                        self.step = M1_T3;
-                        break :next;
-                    },
-                    M1_T3 => {
-                        bus = self.refresh(bus);
-                        self.step = M1_T4;
-                        break :next;
-                    },
-                    M1_T4 => {
-                        self.step = self.opcode;
-                        self.addr = self.HL();
-                        break :next;
-                    },
-                    // special fetch machine cycle for DD/FD prefixed ops
-                    DDFD_M1_T2 => {
-                        if (wait(bus)) break :next;
-                        self.opcode = gd(bus);
-                        self.step = DDFD_M1_T3;
-                        break :next;
-                    },
-                    DDFD_M1_T3 => {
-                        bus = self.refresh(bus);
-                        self.step = DDFD_M1_T4;
-                        break :next;
-                    },
-                    DDFD_M1_T4 => {
-                        self.step = if (indirect_table[self.opcode]) DDFD_D_T1 else self.opcode;
-                        // should we move this into DDFD_D_T1?
-                        self.addr = self.HLIXY();
-                        break :next;
-                    },
-                    // fallthrough for (IX/IY+d) d-offset loading
-                    DDFD_D_T1 => {
-                        self.step = DDFD_D_T2;
-                        break :next;
-                    },
-                    DDFD_D_T2 => {
-                        if (wait(bus)) break :next;
-                        bus = mrd(bus, self.pc);
-                        self.pc +%= 1;
-                        self.step = DDFD_D_T3;
-                        break :next;
-                    },
-                    DDFD_D_T3 => {
-                        self.addr +%= dimm8(gd(bus));
-                        self.setWZ(self.addr);
-                        self.step = DDFD_D_T4;
-                        break :next;
-                    },
-                    DDFD_D_T4 => {
-                        self.step = DDFD_D_T5;
-                        break :next;
-                    },
-                    DDFD_D_T5 => {
-                        // special case LD (IX/IY+d),n: load n
-                        if (self.opcode == 0x36) {
-                            if (wait(bus)) break :next;
-                            bus = mrd(bus, self.pc);
-                            self.pc +%= 1;
-                        }
-                        self.step = DDFD_D_T6;
-                        break :next;
-                    },
-                    DDFD_D_T6 => {
-                        // special case LD (IX/IY+d),n: load n
-                        if (self.opcode == 0x36) {
-                            self.dlatch = gd(bus);
-                        }
-                        self.step = DDFD_D_T7;
-                        break :next;
-                    },
-                    DDFD_D_T7 => {
-                        self.step = DDFD_D_T8;
-                        break :next;
-                    },
-                    DDFD_D_T8 => {
-                        // special case LD (IX/IY+d),n
-                        if (self.opcode == 0x36) {
-                            self.step = DDFD_LDHLN_WR_T1;
-                        } else {
-                            self.step = self.opcode;
-                        }
-                        break :next;
-                    },
-                    DDFD_LDHLN_WR_T1 => {
-                        // special case LD (IX/IY+d),n write mcycle
-                        self.step = DDFD_LDHLN_WR_T2;
-                        break :next;
-                    },
-                    DDFD_LDHLN_WR_T2 => {
-                        if (wait(bus)) break :next;
-                        bus = mwr(bus, self.addr, self.dlatch);
-                        self.step = DDFD_LDHLN_WR_T3;
-                        break :next;
-                    },
-                    DDFD_LDHLN_WR_T3 => {
-                        self.step = DDFD_LDHLN_OVERLAPPED;
-                        break: next;
-                    },
-                    DDFD_LDHLN_OVERLAPPED => {
-                        // fetch next
-                    },
-                    // fetch machine cycle for ED prefixed ops
-                    ED_M1_T2 => {
-                        if (wait(bus)) break :next;
-                        self.opcode = gd(bus);
-                        self.step = ED_M1_T3;
-                        break :next;
-                    },
-                    ED_M1_T3 => {
-                        bus = self.refresh(bus);
-                        self.step = ED_M1_T4;
-                        break :next;
-                    },
-                    ED_M1_T4 => {
-                        self.step = @as(u16, self.opcode) + 0x100;
-                        break :next;
-                    },
-                    // fetch machine cycle for CB prefixed ops
-                    CB_M1_T2 => {
-                        if (wait(bus)) break :next;
-                        self.opcode = gd(bus);
-                        self.step = CB_M1_T3;
-                        break :next;
-                    },
-                    CB_M1_T3 => {
-                        bus = self.refresh(bus);
-                        self.step = CB_M1_T4;
-                        break  :next;
-                    },
-                    CB_M1_T4 => {
-                        if ((self.opcode & 7) == 6) {
-                            self.addr = self.HL();
-                            self.step = CB_HL_T1;
-                        } else {
-                            self.step = CB_M1_OVERLAPPED;
-                        }
-                        break :next;
-                    },
-                    // payload cycle for regular CB-prefixed instructions
-                    CB_M1_OVERLAPPED => {
-                        const z: u3 = @truncate(self.opcode & 7);
-                        _ = self.cbAction(z, z);
-                    },
-                    // CB-prefixed instructions involving (HL) (but not IX/IY)
-                    CB_HL_T1 => { self.step = CB_HL_T2; break :next; },
-                    CB_HL_T2 => {
-                        if (wait(bus)) break :next;
-                        bus = mrd(bus, self.addr);
-                        self.step = CB_HL_T3;
-                        break :next;
-                    },
-                    CB_HL_T3 => {
-                        self.dlatch = gd(bus);
-                        if (!self.cbAction(6, 6)) {
-                            // don't write back
-                            self.step = CB_HL_T7;
-                        } else {
-                            self.step = CB_HL_T4;
-                        }
-                        break :next;
-                    },
-                    CB_HL_T4 => { self.step = CB_HL_T5; break :next; },
-                    CB_HL_T5 => { self.step = CB_HL_T6; break :next; },
-                    CB_HL_T6 => {
-                        if (wait(bus)) break :next;
-                        bus = mwr(bus, self.addr, self.dlatch);
-                        self.step = CB_HL_T7;
-                        break :next;
-                    },
-                    CB_HL_T7 => { self.step = CB_HL_OVERLAPPED; break :next; },
-                    CB_HL_OVERLAPPED => { }, // fetch next
-                    // DD/FD-CB double-prefixed instructions
-                    // => read d offset
-                    DDFDCB_T1 => {
-                        if (wait(bus)) break :next;
-                        bus = mrd(bus, self.pc);
-                        self.incPC();
-                        self.step = DDFDCB_T2;
-                        break :next;
-                    },
-                    DDFDCB_T2 => {
-                        self.addr +%= dimm8(gd(bus));
-                        self.setWZ(self.addr);
-                        self.step = DDFDCB_T3;
-                        break :next;
-                    },
-                    // => read opcode byte
-                    DDFDCB_T3 => { self.step = DDFDCB_T4; break :next; },
-                    DDFDCB_T4 => {
-                        if (wait(bus)) break :next;
-                        bus = mrd(bus, self.pc);
-                        self.incPC();
-                        self.step = DDFDCB_T5;
-                        break :next;
-                    },
-                    DDFDCB_T5 => {
-                        self.opcode = gd(bus);
-                        self.step = DDFDCB_T6;
-                        break :next;
-                    },
-                    DDFDCB_T6 => { self.step = DDFDCB_T7; break :next; },
-                    DDFDCB_T7 => { self.step = DDFDCB_T8; break :next; },
-                    // => read (IX/IY+d) and perform action
-                    DDFDCB_T8 => { self.step = DDFDCB_T9; break :next; },
-                    DDFDCB_T9 => {
-                        if (wait(bus)) break :next;
-                        bus = mrd(bus, self.addr);
-                        self.step = DDFDCB_T10;
-                        break :next;
-                    },
-                    DDFDCB_T10 => {
-                        self.dlatch = gd(bus);
-                        if (!self.cbAction(6, @truncate(self.opcode & 7))) {
-                            // skip writing the result back
-                            self.step = DDFDCB_T14;
-                        } else {
-                            self.step = DDFDCB_T11;
-                        }
-                        break :next;
-                    },
-                    DDFDCB_T11 => { self.step = DDFDCB_T12; break :next; },
-                    // => write result to (IX/IY+d)
-                    DDFDCB_T12 => { self.step = DDFDCB_T13; break :next; },
-                    DDFDCB_T13 => {
-                        if (wait(bus)) break :next;
-                        bus = mwr(bus, self.addr, self.dlatch);
-                        self.step = DDFDCB_T14;
-                        break :next;
-                    },
-                    DDFDCB_T14 => { self.step = DDFDCB_OVERLAPPED; break :next; },
-                    DDFDCB_OVERLAPPED => { }, // fetch next
                     // BEGIN DECODE
                     0x0 => { }, // NOP
                     0x1 => { self.step = 0x200; break :next; }, // LD BC,nn
@@ -2897,6 +2661,117 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0x668 => { self.step = 0x669; break :next; },
                     0x669 => { },
                     // END DECODE
+                    // fetch machine cycle
+                    M1_T2 => { if (wait(bus)) break :next; self.opcode = gd(bus); self.step = M1_T3; break :next; },
+                    M1_T3 => { bus = self.refresh(bus); self.step = M1_T4; break :next; },
+                    M1_T4 => { self.step = self.opcode; self.addr = self.HL(); break :next; },
+                    // special fetch machine cycle for DD/FD prefixed ops
+                    DDFD_M1_T2 => { if (wait(bus)) break :next; self.opcode = gd(bus); self.step = DDFD_M1_T3; break :next; },
+                    DDFD_M1_T3 => { bus = self.refresh(bus); self.step = DDFD_M1_T4; break :next; },
+                    DDFD_M1_T4 => { self.addr = self.HLIXY(); self.step = if (indirect_table[self.opcode]) DDFD_D_T1 else self.opcode; break :next; },
+                    // fallthrough for (IX/IY+d) d-offset loading
+                    DDFD_D_T1 => { self.step = DDFD_D_T2; break :next; },
+                    DDFD_D_T2 => { if (wait(bus)) break :next; bus = mrd(bus, self.pc); self.incPC(); self.step = DDFD_D_T3; break :next; },
+                    DDFD_D_T3 => { self.addr +%= dimm8(gd(bus)); self.setWZ(self.addr); self.step = DDFD_D_T4; break :next; },
+                    DDFD_D_T4 => { self.step = DDFD_D_T5; break :next; },
+                    DDFD_D_T5 => {
+                        // special case LD (IX/IY+d),n: load n
+                        if (self.opcode == 0x36) {
+                            if (wait(bus)) break :next;
+                            bus = mrd(bus, self.pc);
+                            self.pc +%= 1;
+                        }
+                        self.step = DDFD_D_T6;
+                        break :next;
+                    },
+                    DDFD_D_T6 => {
+                        // special case LD (IX/IY+d),n: load n
+                        if (self.opcode == 0x36) {
+                            self.dlatch = gd(bus);
+                        }
+                        self.step = DDFD_D_T7;
+                        break :next;
+                    },
+                    DDFD_D_T7 => { self.step = DDFD_D_T8; break :next; },
+                    DDFD_D_T8 => {
+                        // special case LD (IX/IY+d),n
+                        if (self.opcode == 0x36) {
+                            self.step = DDFD_LDHLN_WR_T1;
+                        } else {
+                            self.step = self.opcode;
+                        }
+                        break :next;
+                    },
+                    // special case LD (IX/IY+d),n write mcycle
+                    DDFD_LDHLN_WR_T1 => { self.step = DDFD_LDHLN_WR_T2; break :next; },
+                    DDFD_LDHLN_WR_T2 => { if (wait(bus)) break :next; bus = mwr(bus, self.addr, self.dlatch); self.step = DDFD_LDHLN_WR_T3; break :next; },
+                    DDFD_LDHLN_WR_T3 => { self.step = DDFD_LDHLN_OVERLAPPED; break: next; },
+                    DDFD_LDHLN_OVERLAPPED => { },
+                    // fetch machine cycle for ED prefixed ops
+                    ED_M1_T2 => { if (wait(bus)) break :next; self.opcode = gd(bus); self.step = ED_M1_T3; break :next; },
+                    ED_M1_T3 => { bus = self.refresh(bus); self.step = ED_M1_T4; break :next; },
+                    ED_M1_T4 => { self.step = @as(u16, self.opcode) + 0x100; break :next; },
+                    // fetch machine cycle for CB prefixed ops
+                    CB_M1_T2 => { if (wait(bus)) break :next; self.opcode = gd(bus); self.step = CB_M1_T3; break :next; },
+                    CB_M1_T3 => { bus = self.refresh(bus); self.step = CB_M1_T4; break  :next; },
+                    CB_M1_T4 => {
+                        if ((self.opcode & 7) == 6) {
+                            self.addr = self.HL();
+                            self.step = CB_HL_T1;
+                        } else {
+                            self.step = CB_M1_OVERLAPPED;
+                        }
+                        break :next;
+                    },
+                    // payload cycle for regular CB-prefixed instructions
+                    CB_M1_OVERLAPPED => { const z: u3 = @truncate(self.opcode & 7); _ = self.cbAction(z, z); },
+                    // CB-prefixed instructions involving (HL) (but not IX/IY)
+                    CB_HL_T1 => { self.step = CB_HL_T2; break :next; },
+                    CB_HL_T2 => { if (wait(bus)) break :next; bus = mrd(bus, self.addr); self.step = CB_HL_T3; break :next; },
+                    CB_HL_T3 => {
+                        self.dlatch = gd(bus);
+                        if (!self.cbAction(6, 6)) {
+                            // don't write back
+                            self.step = CB_HL_T7;
+                        } else {
+                            self.step = CB_HL_T4;
+                        }
+                        break :next;
+                    },
+                    CB_HL_T4 => { self.step = CB_HL_T5; break :next; },
+                    CB_HL_T5 => { self.step = CB_HL_T6; break :next; },
+                    CB_HL_T6 => { if (wait(bus)) break :next; bus = mwr(bus, self.addr, self.dlatch); self.step = CB_HL_T7; break :next; },
+                    CB_HL_T7 => { self.step = CB_HL_OVERLAPPED; break :next; },
+                    CB_HL_OVERLAPPED => { }, // fetch next
+                    // DD/FD-CB double-prefixed instructions
+                    // => read d-offset
+                    DDFDCB_T1 => { if (wait(bus)) break :next; bus = mrd(bus, self.pc); self.incPC(); self.step = DDFDCB_T2; break :next; },
+                    DDFDCB_T2 => { self.addr +%= dimm8(gd(bus)); self.setWZ(self.addr); self.step = DDFDCB_T3; break :next; },
+                    // => read opcode byte
+                    DDFDCB_T3 => { self.step = DDFDCB_T4; break :next; },
+                    DDFDCB_T4 => { if (wait(bus)) break :next; bus = mrd(bus, self.pc); self.incPC(); self.step = DDFDCB_T5; break :next; },
+                    DDFDCB_T5 => { self.opcode = gd(bus); self.step = DDFDCB_T6; break :next; },
+                    DDFDCB_T6 => { self.step = DDFDCB_T7; break :next; },
+                    DDFDCB_T7 => { self.step = DDFDCB_T8; break :next; },
+                    // => read (IX/IY+d) and perform action
+                    DDFDCB_T8 => { self.step = DDFDCB_T9; break :next; },
+                    DDFDCB_T9 => { if (wait(bus)) break :next; bus = mrd(bus, self.addr); self.step = DDFDCB_T10; break :next; },
+                    DDFDCB_T10 => {
+                        self.dlatch = gd(bus);
+                        if (!self.cbAction(6, @truncate(self.opcode & 7))) {
+                            // skip writing the result back
+                            self.step = DDFDCB_T14;
+                        } else {
+                            self.step = DDFDCB_T11;
+                        }
+                        break :next;
+                    },
+                    DDFDCB_T11 => { self.step = DDFDCB_T12; break :next; },
+                    // => write result to (IX/IY+d)
+                    DDFDCB_T12 => { self.step = DDFDCB_T13; break :next; },
+                    DDFDCB_T13 => { if (wait(bus)) break :next; bus = mwr(bus, self.addr, self.dlatch); self.step = DDFDCB_T14; break :next; },
+                    DDFDCB_T14 => { self.step = DDFDCB_OVERLAPPED; break :next; },
+                    DDFDCB_OVERLAPPED => { }, // fetch next
                     else => unreachable,
                 }
                 bus = self.fetch(bus);
