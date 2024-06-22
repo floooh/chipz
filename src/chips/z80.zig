@@ -813,7 +813,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             const res = self.r[A] +% val;
             self.decBC();
             const bcnz = self.BC() != 0;
-            self.r[F] = (self.r[F] & (SF | ZF | CF)) | ((res << 2) & (YF | XF)) | if (bcnz) VF else 0;
+            self.r[F] = (self.r[F] & (SF | ZF | CF)) | ((res << 4) & YF) | (res & XF) | if (bcnz) VF else 0;
             return bcnz;
         }
 
@@ -827,7 +827,8 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                 f |= HF;
                 res -%= 1;
             }
-            self.r[F] = f | ((trn8(res) << 2) & (YF | XF)) | if (bcnz) VF else 0;
+            const res8: u8 = @truncate(res);
+            self.r[F] = f | ((res8 << 4) & YF) | (res8 & XF) | if (bcnz) VF else 0;
             return bcnz and ((f & ZF) == 0);
         }
 
