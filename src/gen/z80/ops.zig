@@ -647,7 +647,7 @@ pub fn di(code: u8) void {
     op(code, .{
         .dasm = "DI",
         .mcycles = mc(&.{
-            endOverlapped("self.iff1 = false; self.iff2 = false"),
+            endOverlapped("self.iff1 = 0; self.iff2 = 0"),
         }),
     });
 }
@@ -656,7 +656,7 @@ pub fn ei(code: u8) void {
     op(code, .{
         .dasm = "EI",
         .mcycles = mc(&.{
-            endBreak("self.iff1 = false; self.iff2 = false; bus = self.fetch(bus); self.iff1 = true; self.iff2 = true"),
+            endBreak("self.iff1 = 0; self.iff2 = 0; bus = self.fetch(bus); self.iff1 = 1; self.iff2 = 1"),
         }),
     });
 }

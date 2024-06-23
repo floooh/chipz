@@ -167,9 +167,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         // interrupt mode (0, 1 or 2)
         im: u2 = 0,
 
-        // interrupt enable flags
-        iff1: bool = false,
-        iff2: bool = false,
+        // interrupt tracking flags
+        iff1: u1 = 0,
+        iff2: u1 = 0,
+        nmi: u1 = 0,
 
         pub fn prefetch(self: *Self, addr: u16) void {
             self.pc = addr;
@@ -590,7 +591,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         }
 
         inline fn sziff2Flags(self: *const Self, val: u8) u8 {
-            return (self.r[F] & CF) | szFlags(val) | (val & (YF | XF)) | if (self.iff2) PF else 0;
+            return (self.r[F] & CF) | szFlags(val) | (val & (YF | XF)) | ((@as(u8, self.iff2) << 2) & PF);
         }
 
         fn halt(self: *Self, bus: Bus) Bus {
@@ -1290,7 +1291,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0xF0 => { if (self.gotoP(0x44B + 6)) break :next; self.step = 0x44B; break :next; }, // RET P
                     0xF1 => { self.step = 0x452; break :next; }, // POP AF
                     0xF2 => { self.step = 0x458; break :next; }, // JP P,nn
-                    0xF3 => { self.iff1 = false; self.iff2 = false; }, // DI
+                    0xF3 => { self.iff1 = 0; self.iff2 = 0; }, // DI
                     0xF4 => { self.step = 0x45E; break :next; }, // CALL P,nn
                     0xF5 => { self.decSP(); self.step = 0x46B; break :next; }, // PUSH AF
                     0xF6 => { self.step = 0x472; break :next; }, // OR n
@@ -1298,7 +1299,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0xF8 => { if (self.gotoM(0x47C + 6)) break :next; self.step = 0x47C; break :next; }, // RET M
                     0xF9 => { self.setSP(self.HLIXY()); self.step = 0x483; break :next; }, // LD SP,HL
                     0xFA => { self.step = 0x485; break :next; }, // JP M,nn
-                    0xFB => { self.iff1 = false; self.iff2 = false; bus = self.fetch(bus); self.iff1 = true; self.iff2 = true; break :next; }, // EI
+                    0xFB => { self.iff1 = 0; self.iff2 = 0; bus = self.fetch(bus); self.iff1 = 1; self.iff2 = 1; break :next; }, // EI
                     0xFC => { self.step = 0x48B; break :next; }, // CALL M,nn
                     0xFD => { bus = self.fetchFD(bus); break :next; }, // FD Prefix
                     0xFE => { self.step = 0x498; break :next; }, // CP n
@@ -2805,7 +2806,8 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                 }
                 bus = self.fetch(bus);
             }
-            // FIXME: track NMI rising edge
+            // keep track of interrupt bits
+
             return bus;
         }
         // zig fmt: on

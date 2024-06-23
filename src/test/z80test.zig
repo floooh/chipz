@@ -114,8 +114,8 @@ fn @"LD A,R/I"() void {
         0xED, 0x5F,         // LD A,R
     };
     init(0, &prog);
-    cpu.iff1 = true;
-    cpu.iff2 = true;
+    cpu.iff1 = 1;
+    cpu.iff2 = 1;
     cpu.setR(0x34);
     cpu.setI(0x01);
     cpu.r[F] = CF;
@@ -1788,12 +1788,12 @@ fn @"DI/EI/IM"() void {
         0xED, 0x46,     // IM 0
     };
     init(0, &prog);
-    T(4==step()); T(!cpu.iff2); T(!cpu.iff2);
-    T(4==step()); T(cpu.iff1);  T(cpu.iff2);
-    T(4==step()); T(cpu.iff1);  T(cpu.iff2);
-    T(4==step()); T(!cpu.iff1); T(!cpu.iff2);
-    T(4==step()); T(cpu.iff1);  T(cpu.iff2);
-    T(4==step()); T(cpu.iff1);  T(cpu.iff2);
+    T(4==step()); T(0 == cpu.iff2); T(0 == cpu.iff2);
+    T(4==step()); T(1 == cpu.iff1); T(1 == cpu.iff2);
+    T(4==step()); T(1 == cpu.iff1); T(1 == cpu.iff2);
+    T(4==step()); T(0 == cpu.iff1); T(0 == cpu.iff2);
+    T(4==step()); T(1 == cpu.iff1); T(1 == cpu.iff2);
+    T(4==step()); T(1 == cpu.iff1); T(1 == cpu.iff2);
     T(8==step()); T(0 == cpu.im);
     T(8==step()); T(1 == cpu.im);
     T(8==step()); T(2 == cpu.im);
