@@ -144,26 +144,18 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         step: u16 = 0,
         // program counter
         pc: u16 = 0,
-        // latch for data bus content
-        dlatch: u8 = 0,
         // current opcode
         opcode: u8 = 0,
+        // latch for data bus content
+        dlatch: u8 = 0,
         // index to add to H,L to reach H/L, IXH/IXL, IYH/IYL
         rixy: u8 = 0,
-        // true when one of the prefixes is active
-        prefix_active: bool = false,
         // effective address: HL, IX+d, IY+d
         addr: u16 = 0,
         // 8/16 bit register bank
         r: [NumRegs]u8 = [_]u8{0xFF} ** NumRegs,
         // merged I and R register
         ir: u16 = 0,
-        // shadow register bank
-        af2: u16 = 0xFFFF,
-        bc2: u16 = 0xFFFF,
-        de2: u16 = 0xFFFF,
-        hl2: u16 = 0xFFFF,
-
         // interrupt mode (0, 1 or 2)
         im: u2 = 0,
 
@@ -171,6 +163,14 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         iff1: u1 = 0,
         iff2: u1 = 0,
         nmi: u1 = 0,
+
+        // true when one of the prefixes is active
+        prefix_active: bool = false,
+        // shadow register bank
+        af2: u16 = 0xFFFF,
+        bc2: u16 = 0xFFFF,
+        de2: u16 = 0xFFFF,
+        hl2: u16 = 0xFFFF,
 
         pub fn prefetch(self: *Self, addr: u16) void {
             self.pc = addr;
