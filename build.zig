@@ -5,6 +5,15 @@ const OptimizeMode = std.builtin.OptimizeMode;
 const Step = Build.Step;
 const Module = Build.Module;
 
+const Options = struct {
+    name: []const u8,
+    run_desc: []const u8,
+    src: []const u8,
+    target: ResolvedTarget,
+    optimize: OptimizeMode,
+    chips: ?*Module = null,
+};
+
 pub fn build(b: *Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -13,54 +22,55 @@ pub fn build(b: *Build) void {
         .target = target,
         .optimize = optimize,
     });
-    buildZ80gen(b, target, optimize);
-    buildZ80test(b, target, optimize, chips);
-    buildZ80zex(b, target, optimize, chips);
     buildTests(b, target, optimize);
-}
-
-fn buildZ80gen(b: *Build, target: ResolvedTarget, optimize: OptimizeMode) void {
-    const z80gen = b.addExecutable(.{
+    buildTool(b, .{
         .name = "z80gen",
-        .root_source_file = b.path("src/gen/z80/main.zig"),
+        .run_desc = "Run the Z80 code generator",
+        .src = "src/gen/z80/main.zig",
         .target = target,
         .optimize = optimize,
     });
-    b.installArtifact(z80gen);
-
-    const run_z80gen = b.addRunArtifact(z80gen);
-    run_z80gen.step.dependOn(b.getInstallStep());
-    b.step("run-z80gen", "Run the Z80 code generator").dependOn(&run_z80gen.step);
-}
-
-fn buildZ80test(b: *Build, target: ResolvedTarget, optimize: OptimizeMode, chips: *Module) void {
-    const z80test = b.addExecutable(.{
+    buildTool(b, .{
         .name = "z80test",
-        .root_source_file = b.path("src/test/z80test.zig"),
+        .run_desc = "Run Z80 instruction test",
+        .src = "src/test/z80test.zig",
         .target = target,
         .optimize = optimize,
+        .chips = chips,
     });
-    z80test.root_module.addImport("chips", chips);
-    b.installArtifact(z80test);
-
-    const run_z80test = b.addRunArtifact(z80test);
-    run_z80test.step.dependOn(b.getInstallStep());
-    b.step("run-z80test", "Run Z80 instruction test").dependOn(&run_z80test.step);
+    buildTool(b, .{
+        .name = "z80zex",
+        .run_desc = "Run Z80 ZEXALL test",
+        .src = "src/test/z80zex.zig",
+        .target = target,
+        .optimize = optimize,
+        .chips = chips,
+    });
+    buildTool(b, .{
+        .name = "z80int",
+        .run_desc = "Run Z80 interrupt timing test",
+        .src = "src/test/z80int.zig",
+        .target = target,
+        .optimize = optimize,
+        .chips = chips,
+    });
 }
 
-fn buildZ80zex(b: *Build, target: ResolvedTarget, optimize: OptimizeMode, chips: *Module) void {
-    const z80zex = b.addExecutable(.{
-        .name = "z80zex",
-        .root_source_file = b.path("src/test/z80zex.zig"),
-        .target = target,
-        .optimize = optimize,
+fn buildTool(b: *Build, options: Options) void {
+    const exe = b.addExecutable(.{
+        .name = options.name,
+        .root_source_file = b.path(options.src),
+        .target = options.target,
+        .optimize = options.optimize,
     });
-    z80zex.root_module.addImport("chips", chips);
-    b.installArtifact(z80zex);
+    if (options.chips) |chips| {
+        exe.root_module.addImport("chips", chips);
+    }
+    b.installArtifact(exe);
 
-    const run_z80zex = b.addRunArtifact(z80zex);
-    run_z80zex.step.dependOn(b.getInstallStep());
-    b.step("run-z80zex", "Run Z80 ZEX test").dependOn(&run_z80zex.step);
+    const run = b.addRunArtifact(exe);
+    run.step.dependOn(b.getInstallStep());
+    b.step(b.fmt("run-{s}", .{options.name}), options.run_desc).dependOn(&run.step);
 }
 
 fn buildTests(b: *Build, target: ResolvedTarget, optimize: OptimizeMode) void {
