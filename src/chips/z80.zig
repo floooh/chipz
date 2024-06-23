@@ -1,14 +1,13 @@
 const std = @import("std");
 const bits = @import("bits.zig");
-const tst = bits.tst;
-const bit = bits.bit;
 const mask = bits.mask;
+const maskm = bits.maskm;
 const clr = bits.clr;
 
 /// map chip pin names to bit positions
 pub const Pins = struct {
-    D: [8]comptime_int,
-    A: [16]comptime_int,
+    DBUS: [8]comptime_int,
+    ABUS: [16]comptime_int,
     M1: comptime_int,
     MREQ: comptime_int,
     IORQ: comptime_int,
@@ -26,8 +25,8 @@ pub const Pins = struct {
 
 /// a default pin declaration (mainly useful for testing)
 pub const DefaultPins = Pins{
-    .D = .{ 0, 1, 2, 3, 4, 5, 6, 7 },
-    .A = .{ 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23 },
+    .DBUS = .{ 0, 1, 2, 3, 4, 5, 6, 7 },
+    .ABUS = .{ 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23 },
     .M1 = 24,
     .MREQ = 25,
     .IORQ = 26,
@@ -71,19 +70,45 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         const Self = @This();
 
         // pin constants
-        pub const M1 = P.M1;
-        pub const MREQ = P.MREQ;
-        pub const IORQ = P.IORQ;
-        pub const RD = P.RD;
-        pub const WR = P.WR;
-        pub const RFSH = P.RFSH;
-        pub const HALT = P.HALT;
-        pub const WAIT = P.WAIT;
-        pub const INT = P.INT;
-        pub const NMI = P.NMI;
-        pub const RESET = P.RESET;
-        pub const BUSRQ = P.BUSRQ;
-        pub const BUSAK = P.BUSAK;
+        pub const ABUS = maskm(Bus, &P.ABUS);
+        pub const A0 = mask(Bus, P.AB[0]);
+        pub const A1 = mask(Bus, P.AB[1]);
+        pub const A2 = mask(Bus, P.AB[2]);
+        pub const A3 = mask(Bus, P.AB[3]);
+        pub const A4 = mask(Bus, P.AB[4]);
+        pub const A5 = mask(Bus, P.AB[5]);
+        pub const A6 = mask(Bus, P.AB[6]);
+        pub const A7 = mask(Bus, P.AB[7]);
+        pub const A8 = mask(Bus, P.AB[8]);
+        pub const A9 = mask(Bus, P.AB[9]);
+        pub const A10 = mask(Bus, P.AB[10]);
+        pub const A11 = mask(Bus, P.AB[11]);
+        pub const A12 = mask(Bus, P.AB[12]);
+        pub const A13 = mask(Bus, P.AB[13]);
+        pub const A14 = mask(Bus, P.AB[14]);
+        pub const A15 = mask(Bus, P.AB[15]);
+        pub const DBUS = maskm(Bus, &P.DBUS);
+        pub const D0 = mask(Bus, P.D[0]);
+        pub const D1 = mask(Bus, P.D[1]);
+        pub const D2 = mask(Bus, P.D[2]);
+        pub const D3 = mask(Bus, P.D[3]);
+        pub const D4 = mask(Bus, P.D[4]);
+        pub const D5 = mask(Bus, P.D[5]);
+        pub const D6 = mask(Bus, P.D[6]);
+        pub const D7 = mask(Bus, P.D[7]);
+        pub const M1 = mask(Bus, P.M1);
+        pub const MREQ = mask(Bus, P.MREQ);
+        pub const IORQ = mask(Bus, P.IORQ);
+        pub const RD = mask(Bus, P.RD);
+        pub const WR = mask(Bus, P.WR);
+        pub const RFSH = mask(Bus, P.RFSH);
+        pub const HALT = mask(Bus, P.HALT);
+        pub const WAIT = mask(Bus, P.WAIT);
+        pub const INT = mask(Bus, P.INT);
+        pub const NMI = mask(Bus, P.NMI);
+        pub const RESET = mask(Bus, P.RESET);
+        pub const BUSRQ = mask(Bus, P.BUSRQ);
+        pub const BUSAK = mask(Bus, P.BUSAK);
 
         // indices into register bank
         pub const F = 0;
@@ -152,7 +177,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         }
 
         pub fn opdone(self: *const Self, bus: Bus) bool {
-            const m = mask(&.{ M1, RD });
+            const m = M1 | RD;
             return (!self.prefix_active) and ((bus & m) == m);
         }
 
@@ -433,47 +458,44 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         }
 
         pub inline fn setAddr(bus: Bus, addr: u16) Bus {
-            const m: Bus = comptime mask(&P.A);
-            return (bus & ~m) | (@as(Bus, addr) << P.A[0]);
+            return (bus & ~ABUS) | (@as(Bus, addr) << P.ABUS[0]);
         }
 
         pub inline fn getAddr(bus: Bus) u16 {
-            return @truncate(bus >> P.A[0]);
+            return @truncate(bus >> P.ABUS[0]);
         }
 
         inline fn setAddrData(bus: Bus, addr: u16, data: u8) Bus {
-            const m: Bus = comptime (mask(&P.A) | mask(&P.D));
-            return (bus & ~m) | (@as(Bus, addr) << P.A[0]) | (@as(Bus, data) << P.D[0]);
+            return (bus & ~(ABUS | DBUS)) | (@as(Bus, addr) << P.ABUS[0]) | (@as(Bus, data) << P.DBUS[0]);
         }
 
         pub inline fn getData(bus: Bus) u8 {
-            return @truncate(bus >> P.D[0]);
+            return @truncate(bus >> P.DBUS[0]);
         }
         const gd = getData;
 
         pub inline fn setData(bus: Bus, data: u8) Bus {
-            const m: Bus = comptime mask(&P.D);
-            return (bus & ~m) | (@as(Bus, data) << P.D[0]);
+            return (bus & ~DBUS) | (@as(Bus, data) << P.DBUS[0]);
         }
 
         inline fn mrd(bus: Bus, addr: u16) Bus {
-            return setAddr(bus, addr) | comptime mask(&.{ MREQ, RD });
+            return setAddr(bus, addr) | MREQ | RD;
         }
 
         inline fn mwr(bus: Bus, addr: u16, data: u8) Bus {
-            return setAddrData(bus, addr, data) | comptime mask(&.{ MREQ, WR });
+            return setAddrData(bus, addr, data) | MREQ | WR;
         }
 
         inline fn iord(bus: Bus, addr: u16) Bus {
-            return setAddr(bus, addr) | comptime mask(&.{ IORQ, RD });
+            return setAddr(bus, addr) | IORQ | RD;
         }
 
         inline fn iowr(bus: Bus, addr: u16, data: u8) Bus {
-            return setAddrData(bus, addr, data) | comptime mask(&.{ IORQ, WR });
+            return setAddrData(bus, addr, data) | IORQ | WR;
         }
 
         inline fn wait(bus: Bus) bool {
-            return tst(bus, WAIT);
+            return (bus & WAIT) != 0;
         }
 
         inline fn dimm8(val: u8) u16 {
@@ -485,7 +507,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             self.prefix_active = false;
             // FIXME: check int bits
             self.step = M1_T2;
-            const out_bus = setAddr(bus, self.pc) | comptime mask(&.{ M1, MREQ, RD });
+            const out_bus = setAddr(bus, self.pc) | M1 | MREQ | RD;
             self.incPC();
             return out_bus;
         }
@@ -494,7 +516,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             self.rixy = 2;
             self.prefix_active = true;
             self.step = DDFD_M1_T2;
-            const out_bus = setAddr(bus, self.pc) | comptime mask(&.{ M1, MREQ, RD });
+            const out_bus = setAddr(bus, self.pc) | M1 | MREQ | RD;
             self.incPC();
             return out_bus;
         }
@@ -503,7 +525,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             self.rixy = 4;
             self.prefix_active = true;
             self.step = DDFD_M1_T2;
-            const out_bus = setAddr(bus, self.pc) | comptime mask(&.{ M1, MREQ, RD });
+            const out_bus = setAddr(bus, self.pc) | M1 | MREQ | RD;
             self.incPC();
             return out_bus;
         }
@@ -512,7 +534,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             self.rixy = 0;
             self.prefix_active = true;
             self.step = ED_M1_T2;
-            const out_bus = setAddr(bus, self.pc) | comptime mask(&.{ M1, MREQ, RD });
+            const out_bus = setAddr(bus, self.pc) | M1 | MREQ | RD;
             self.incPC();
             return out_bus;
         }
@@ -522,7 +544,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             if (self.rixy == 0) {
                 // regular CB-prefixed instruction
                 self.step = CB_M1_T2;
-                const out_bus = setAddr(bus, self.pc) | comptime mask(&.{ M1, MREQ, RD });
+                const out_bus = setAddr(bus, self.pc) | M1 | MREQ | RD;
                 self.incPC();
                 return out_bus;
             } else {
@@ -532,7 +554,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         }
 
         inline fn refresh(self: *Self, bus: Bus) Bus {
-            const out_bus = setAddr(bus, self.ir) | comptime mask(&.{MREQ | RFSH});
+            const out_bus = setAddr(bus, self.ir) | MREQ | RFSH;
             var r = self.ir & 0x00FF;
             r = (r & 0x80) | ((r +% 1) & 0x7F);
             self.ir = (self.ir & 0xFF00) | r;
@@ -573,7 +595,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
 
         fn halt(self: *Self, bus: Bus) Bus {
             self.pc -%= 1;
-            return bus | bit(HALT);
+            return bus | HALT;
         }
 
         fn add8(self: *Self, val: u8) void {
@@ -1021,7 +1043,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         // zig fmt: off
         pub fn tick(self: *Self, in_bus: Bus) Bus {
             @setEvalBranchQuota(4096);
-            var bus = clr(in_bus, &.{ M1, MREQ, IORQ, RD, WR, RFSH });
+            var bus = clr(in_bus, M1 | MREQ | IORQ | RD | WR | RFSH);
             next: {
                 switch (self.step) {
                     // BEGIN DECODE

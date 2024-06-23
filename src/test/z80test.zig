@@ -32,11 +32,11 @@ var mem = [_]u8{0} ** 0x10000;
 var out_port: u16 = 0;
 var out_byte: u8 = 0;
 
-const MREQ = z80.DefaultPins.MREQ;
-const IORQ = z80.DefaultPins.IORQ;
-const RD = z80.DefaultPins.RD;
-const WR = z80.DefaultPins.WR;
-const HALT = z80.DefaultPins.HALT;
+const MREQ = Z80.MREQ;
+const IORQ = Z80.IORQ;
+const RD = Z80.RD;
+const WR = Z80.WR;
+const HALT = Z80.HALT;
 
 fn T(cond: bool) void {
     assert(cond);
@@ -80,16 +80,16 @@ fn mem16(addr: u16) u16 {
 fn tick() void {
     bus = cpu.tick(bus);
     const addr = Z80.getAddr(bus);
-    if (bits.tst(bus, MREQ)) {
-        if (bits.tst(bus, RD)) {
+    if ((bus & MREQ) != 0) {
+        if ((bus & RD) != 0) {
             bus = Z80.setData(bus, mem[addr]);
-        } else if (bits.tst(bus, WR)) {
+        } else if ((bus & WR) != 0) {
             mem[addr] = Z80.getData(bus);
         }
-    } else if (bits.tst(bus, IORQ)) {
-        if (bits.tst(bus, RD)) {
+    } else if ((bus & IORQ) != 0) {
+        if ((bus & RD) != 0) {
             bus = Z80.setData(bus, @truncate((Z80.getAddr(bus) & 0xFF) * 2));
-        } else if (bits.tst(bus, WR)) {
+        } else if ((bus & WR) != 0) {
             out_port = Z80.getAddr(bus);
             out_byte = Z80.getData(bus);
         }
@@ -1416,9 +1416,9 @@ fn HLT() void {
         0x76
     };
     init(0, &prog);
-    T(4==step()); T(0x0001 == cpu.pc); T(bits.tst(bus, HALT));
-    T(4==step()); T(0x0001 == cpu.pc); T(bits.tst(bus, HALT));
-    T(4==step()); T(0x0001 == cpu.pc); T(bits.tst(bus, HALT));
+    T(4==step()); T(0x0001 == cpu.pc); T((bus & HALT) != 0);
+    T(4==step()); T(0x0001 == cpu.pc); T((bus & HALT) != 0);
+    T(4==step()); T(0x0001 == cpu.pc); T((bus & HALT) != 0);
     ok();
 }
 

@@ -26,11 +26,11 @@ var mem = [_]u8{0} ** 0x10000;
 
 fn tick(in_bus: Bus) Bus {
     var bus = cpu.tick(in_bus);
-    if (bits.tst(bus, MREQ)) {
+    if ((bus & MREQ) != 0) {
         const addr = Z80.getAddr(bus);
-        if (bits.tst(bus, RD)) {
+        if ((bus & RD) != 0) {
             bus = Z80.setData(bus, mem[addr]);
-        } else if (bits.tst(bus, WR)) {
+        } else if ((bus & WR) != 0) {
             mem[addr] = Z80.getData(bus);
         }
     }
