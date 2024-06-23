@@ -163,6 +163,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         iff1: u1 = 0,
         iff2: u1 = 0,
         nmi: u1 = 0,
+        int: u1 = 0,
 
         // true when one of the prefixes is active
         prefix_active: bool = false,
@@ -503,17 +504,55 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             return @bitCast(@as(i16, @as(i8, @bitCast(val))));
         }
 
-        inline fn fetch(self: *Self, bus: Bus) Bus {
-            self.rixy = 0;
-            self.prefix_active = false;
-            // FIXME: check int bits
-            self.step = M1_T2;
-            const out_bus = setAddr(bus, self.pc) | M1 | MREQ | RD;
-            self.incPC();
-            return out_bus;
+        inline fn halt(self: *Self, bus: Bus) Bus {
+            self.decPC();
+            return bus | HALT;
         }
 
-        inline fn fetchDD(self: *Self, bus: Bus) Bus {
+        inline fn unhalt(self: *Self, bus: Bus) Bus {
+            if (0 != (bus & HALT)) {
+                self.incPC();
+                return bus & ~HALT;
+            } else {
+                return bus;
+            }
+        }
+
+        fn fetch(self: *Self, in_bus: Bus) Bus {
+            var bus = in_bus;
+            self.rixy = 0;
+            self.prefix_active = false;
+            if (0 != self.nmi) {
+                // non-maskable interrupts start with a regular M1 machine cycle
+                self.nmi = 0;
+                self.step = NMI_T2;
+                // cancel halt state
+                bus = self.unhalt(bus);
+                // NOTE: PC is *not* incremented)
+                bus = setAddr(bus, self.pc) | M1 | MREQ | RD;
+            } else if (0 != (self.int & self.iff1)) {
+                // maskable interrupts start with a special M1 machine cycle which
+                // doesn't fetch the next opcode, but instead activate the
+                // pins M1|IOQR to request a special byte which is handled differently
+                // depending on interrupt mode
+                self.step = switch (self.im) {
+                    0 => INT_IM0_T2,
+                    1 => INT_IM1_T2,
+                    2 => INT_IM2_T2,
+                    else => unreachable,
+                };
+                bus = self.unhalt(bus);
+                // NOTE: PC is not incremented, and no pins are activated here
+            } else {
+                // no interrupt
+                self.step = M1_T2;
+                bus = setAddr(bus, self.pc) | M1 | MREQ | RD;
+                self.incPC();
+            }
+            return bus;
+        }
+
+        fn fetchDD(self: *Self, bus: Bus) Bus {
             self.rixy = 2;
             self.prefix_active = true;
             self.step = DDFD_M1_T2;
@@ -522,7 +561,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             return out_bus;
         }
 
-        inline fn fetchFD(self: *Self, bus: Bus) Bus {
+        fn fetchFD(self: *Self, bus: Bus) Bus {
             self.rixy = 4;
             self.prefix_active = true;
             self.step = DDFD_M1_T2;
@@ -531,7 +570,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             return out_bus;
         }
 
-        inline fn fetchED(self: *Self, bus: Bus) Bus {
+        fn fetchED(self: *Self, bus: Bus) Bus {
             self.rixy = 0;
             self.prefix_active = true;
             self.step = ED_M1_T2;
@@ -540,7 +579,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             return out_bus;
         }
 
-        inline fn fetchCB(self: *Self, bus: Bus) Bus {
+        fn fetchCB(self: *Self, bus: Bus) Bus {
             self.prefix_active = true;
             if (self.rixy == 0) {
                 // regular CB-prefixed instruction
@@ -554,7 +593,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             }
         }
 
-        inline fn refresh(self: *Self, bus: Bus) Bus {
+        fn refresh(self: *Self, bus: Bus) Bus {
             const out_bus = setAddr(bus, self.ir) | MREQ | RFSH;
             var r = self.ir & 0x00FF;
             r = (r & 0x80) | ((r +% 1) & 0x7F);
@@ -592,11 +631,6 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
 
         inline fn sziff2Flags(self: *const Self, val: u8) u8 {
             return (self.r[F] & CF) | szFlags(val) | (val & (YF | XF)) | ((@as(u8, self.iff2) << 2) & PF);
-        }
-
-        fn halt(self: *Self, bus: Bus) Bus {
-            self.pc -%= 1;
-            return bus | HALT;
         }
 
         fn add8(self: *Self, val: u8) void {
@@ -1039,6 +1073,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         const DDFDCB_T13: u16 = 0x697;
         const DDFDCB_T14: u16 = 0x698;
         const DDFDCB_OVERLAPPED: u16 = 0x699;
+        const NMI_T2: u16 = 0xFFFF;
+        const INT_IM0_T2: u16 = 0xFFFF;
+        const INT_IM1_T2: u16 = 0xFFFF;
+        const INT_IM2_T2: u16 = 0xFFFF;
         // END CONSTS
 
         // zig fmt: off
@@ -2806,8 +2844,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                 }
                 bus = self.fetch(bus);
             }
-            // keep track of interrupt bits
-
+            // track interrupt state
+            const nmi: u1 = @truncate(bus >> P.NMI);
+            self.nmi |= (nmi ^ self.nmi) & nmi;
+            self.int = @truncate(bus >> P.INT);
             return bus;
         }
         // zig fmt: on
