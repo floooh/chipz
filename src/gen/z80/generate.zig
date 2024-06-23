@@ -56,30 +56,30 @@ fn genTcycle(opcode_step_index: usize, op: Op, tcycle: TCycle, tcount: usize) !v
         next_step_index = extra_step_index;
     }
     var line = std.BoundedArray(u8, MAX_LINE_LENGTH){};
-    try line.appendSlice(f("0x{X} => {{ ", .{step_index}));
+    try line.appendSlice(f("0x{X} => {{", .{step_index}));
     if (tcycle.wait) {
-        try line.appendSlice("if (wait(bus)) break :next; ");
+        try line.appendSlice(" if (wait(bus)) break :next;");
     }
     for (tcycle.actions) |action_or_null| {
         if (action_or_null) |action| {
             const l = replace(action, "$NEXTSTEP", f("0x{X}", .{next_step_index}));
-            try line.appendSlice(f("{s}; ", .{l}));
+            try line.appendSlice(f(" {s};", .{l}));
         }
     }
     switch (tcycle.next) {
         .BreakNext => {
-            try line.appendSlice("break :next; ");
+            try line.appendSlice(" break :next;");
         },
         .StepAndBreakNext => {
-            try line.appendSlice(f("self.step = 0x{X}; break :next; ", .{next_step_index}));
+            try line.appendSlice(f(" self.step = 0x{X}; break :next;", .{next_step_index}));
         },
         .Fetch => {},
     }
-    try line.appendSlice("}, ");
+    try line.appendSlice(" },");
     if (tcount == 0) {
-        try line.appendSlice(f("// {s}", .{op.dasm}));
+        try line.appendSlice(f(" // {s}", .{op.dasm}));
     } else if (tcount == 1) {
-        try line.appendSlice(f("// {s} (cont...)", .{op.dasm}));
+        try line.appendSlice(f(" // {s} (cont...)", .{op.dasm}));
     }
     try lines.append(dup(line.slice()));
 }
