@@ -1129,6 +1129,24 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         const INT_IM1_T13: u16 = 0x6B5;
         const INT_IM1_OVERLAPPED: u16 = 0x6B6;
         const INT_IM2_T2: u16 = 0x6B7;
+        const INT_IM2_T3: u16 = 0x6B8;
+        const INT_IM2_T4: u16 = 0x6B9;
+        const INT_IM2_T5: u16 = 0x6BA;
+        const INT_IM2_T6: u16 = 0x6BB;
+        const INT_IM2_T7: u16 = 0x6BC;
+        const INT_IM2_T8: u16 = 0x6BD;
+        const INT_IM2_T9: u16 = 0x6BE;
+        const INT_IM2_T10: u16 = 0x6BF;
+        const INT_IM2_T11: u16 = 0x6C0;
+        const INT_IM2_T12: u16 = 0x6C1;
+        const INT_IM2_T13: u16 = 0x6C2;
+        const INT_IM2_T14: u16 = 0x6C3;
+        const INT_IM2_T15: u16 = 0x6C4;
+        const INT_IM2_T16: u16 = 0x6C5;
+        const INT_IM2_T17: u16 = 0x6C6;
+        const INT_IM2_T18: u16 = 0x6C7;
+        const INT_IM2_T19: u16 = 0x6C8;
+        const INT_IM2_OVERLAPPED: u16 = 0x6C9;
         // END CONSTS
 
         // zig fmt: off
@@ -2934,6 +2952,33 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     INT_IM1_T13 => { self.step = INT_IM1_OVERLAPPED; break :next; },
                     // => overlapped: fetch first ISR instruction at address 0x0038
                     INT_IM1_OVERLAPPED => { },
+
+                    // INT IM2
+                    // => load interrupt vector low byte from data bus
+                    INT_IM2_T2 => { self.iff1 = 0; self.iff2 = 0; self.step = INT_IM2_T3; break :next; },
+                    INT_IM2_T3 => { bus |= M1 | IORQ; self.step = INT_IM2_T4; break :next; },
+                    INT_IM2_T4 => { if (wait(bus)) break :next; self.dlatch = gd(bus); self.step = INT_IM2_T5; break :next; },
+                    INT_IM2_T5 => { bus = self.refresh(bus); self.step = INT_IM2_T6; break :next; },
+                    INT_IM2_T6 => { self.step = INT_IM2_T7; break :next; },
+                    INT_IM2_T7 => { self.step = INT_IM2_T8; break :next; },
+                    // => push PCH
+                    INT_IM2_T8 => { self.step = INT_IM2_T9; break :next; },
+                    INT_IM2_T9 => { if (wait(bus)) break :next; bus = mwr(bus, self.@"--SP"(), self.PCH()); self.step = INT_IM2_T10; break :next; },
+                    INT_IM2_T10 => { self.step = INT_IM2_T11; break :next; },
+                    // => push PCL and load interrupt vector into WZ
+                    INT_IM2_T11 => { self.step = INT_IM2_T12; break :next; },
+                    INT_IM2_T12 => { if (wait(bus)) break :next; bus = mwr(bus, self.@"--SP"(), self.PCL()); self.r[WZL] = self.dlatch; self.r[WZH] = self.I(); self.step = INT_IM2_T13; break :next; },
+                    INT_IM2_T13 => { self.step = INT_IM2_T14; break :next; },
+                    // => read ISR low byte from interrupt vector
+                    INT_IM2_T14 => { self.step = INT_IM2_T15; break :next; },
+                    INT_IM2_T15 => { if (wait(bus)) break :next; bus = mrd(bus, self.@"WZ++"()); self.step = INT_IM2_T16; break :next; },
+                    INT_IM2_T16 => { self.dlatch = gd(bus); self.step = INT_IM2_T17; break :next; },
+                    // => read ISR high byte from interrupt vector into WZ, set PC to WZ
+                    INT_IM2_T17 => { self.step = INT_IM2_T18; break :next; },
+                    INT_IM2_T18 => { if (wait(bus)) break :next; bus = mrd(bus, self.WZ()); self.step = INT_IM2_T19; break :next; },
+                    INT_IM2_T19 => { self.r[WZH] = gd(bus); self.r[WZL] = self.dlatch; self.pc = self.WZ(); self.step = INT_IM2_OVERLAPPED; break :next; },
+                    // => overlapped: fetch first ISR instruction
+                    INT_IM2_OVERLAPPED => { },
 
                     else => unreachable,
                 }

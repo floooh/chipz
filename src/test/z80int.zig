@@ -613,6 +613,7 @@ fn INT_IM0() void {
     ok();
 }
 
+// test IM1 interrupt behaviour and timing
 fn INT_IM1() void {
     start("INT_IM1");
     const prog = [_]u8{
@@ -690,6 +691,220 @@ fn INT_IM1() void {
     ok();
 }
 
+// test IM2 interrupt behaviour and timing
+fn INT_IM2() void {
+    start("INT_IM2");
+    const prog = [_]u8{
+        0xFB,               //      EI
+        0xED, 0x5E,         //      IM 2
+        0x3E, 0x01,         //      LD A,1
+        0xED, 0x47,         //      LD I,A
+        0x00, 0x00, 0x00,   // l0:  NOPs
+        0x18, 0xFB,         //      JR l0
+        0x00,               //      ---
+        0x3E, 0x33,         // isr: LD A,33h
+        0xED, 0x4D,         //      RETI
+    };
+    const int_vec = [_]u8{
+        0x0D, 0x00,         //      DW isr (0x000D)
+    };
+    init(0x0000, &prog);
+    copy(0x01E0, &int_vec);
+
+    // EI
+    skip(4);
+    // IM 2
+    skip(8);
+    // LD A,1
+    skip(7);
+    // LD I,A
+    skip(9); T(iff1()); T(iff2()); T(cpu.im == 2);
+
+    // NOP
+    tick(); T(pins_m1()); T(cpu.I() == 1);
+    tick(); T(pins_none());
+    bus |= INT;
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+
+    // interrupt should trigger now
+    tick(); T(pins_none());
+    tick(); T(pins_none()); T(!iff1()); T(!iff2());
+    tick(); T(pins_m1iorq());
+    tick(); T(pins_none());
+    // regular refresh cycle
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+    // one extra tcycle
+    tick(); T(pins_none());
+    // two mwrite cycles (push PC to stack)
+    tick(); T(pins_none());
+    tick(); T(pins_mwrite());
+    tick(); T(pins_none());
+    tick(); T(pins_none());
+    tick(); T(pins_mwrite());
+    tick(); T(pins_none()); T(cpu.WZ() == 0x01E0);    // WZ is interrupt vector
+    // two mread cycles from interrupt vector
+    tick(); T(pins_none());
+    tick(); T(pins_mread());
+    tick(); T(pins_none());
+    tick(); T(pins_none());
+    tick(); T(pins_mread());
+    tick(); T(pins_none()); T(cpu.WZ() == 0x000D); T(cpu.pc == 0x000D);
+
+    // ISR starts here (LD A,33h)
+    tick(); T(pins_m1()); T(!iff1()); T(!iff2()); T(cpu.pc == 0x000E);
+    tick(); T(pins_none());
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+    // mread (LD A,33h)
+    tick(); T(pins_none());
+    tick(); T(pins_mread());
+    tick(); T(pins_none());
+    // RETI, ED prefix
+    tick(); T(pins_m1());
+    tick(); T(pins_none());
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+    // RETI opcode
+    tick(); T(pins_m1());
+    tick(); T(pins_none());
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+    // RETI mread (pop)
+    tick(); T(pins_none());
+    tick(); T(pins_mread());
+    tick(); T(pins_none()); T(0 != (bus & RETI));
+    // RETI mread (pop)
+    tick(); T(pins_none());
+    tick(); T(pins_mread());
+    tick(); T(pins_none());
+
+    // next NOP (interrupts still disabled!)
+    tick(); T(pins_m1()); T(!iff1()); T(!iff2()); T(cpu.pc == 9);
+
+    ok();
+}
+
+// maskable interrupts shouldn't trigger when interrupts are disabled
+fn INT_disabled() void {
+    start("INT_disabled");
+    const prog = [_]u8{
+        0xF3,       //      DI
+        0xED, 0x56, //      IM 1
+        0x00,       // l0:  NOP
+        0x18, 0xFD, //      JR l0
+    };
+    const isr = [_]u8{
+        0x3E, 0x33, //      LD A,33h
+        0xED, 0x3D, //      RETI
+    };
+    init(0x0000, &prog);
+    copy(0x0038, &isr);
+
+    // DI
+    skip(4);
+    // IM 1
+    skip(8);
+
+    // NOP
+    tick(); T(pins_m1());
+    bus |= INT;
+    tick(); T(pins_none());
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+    // JR l0 (interrupt should not have triggered)
+    tick(); T(pins_m1());
+    tick(); T(pins_none());
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+    // mread
+    tick(); T(pins_none());
+    tick(); T(pins_mread());
+    tick(); T(pins_none());
+    // 5x ticks
+    tick(); T(pins_none());
+    tick(); T(pins_none());
+    tick(); T(pins_none());
+    tick(); T(pins_none());
+    tick(); T(pins_none());
+
+    // next NOP
+    tick(); T(pins_m1());
+    tick(); T(pins_none());
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+
+    ok();
+}
+
+// maskable interrupts shouldn't trigger during EI sequences
+fn INT_EI_sequence() void {
+    start("INT_EI_sequence");
+    const prog = [_]u8{
+        0xFB,               //      EI
+        0xED, 0x56,         //      IM 1
+        0xFB, 0xFB, 0xFB,   // l0:  3x EI
+        0x00,               //      NOP
+        0x18, 0xFA,         //      JR l0
+    };
+    const isr = [_]u8{
+        0x3E, 0x33,         //      LD A,33h
+        0xED, 0x3D,         //      RETI
+    };
+    init(0x0000, &prog);
+    copy(0x0038, &isr);
+
+    // EI
+    skip(4);
+    // IM 1
+    skip(8);
+
+    // EI
+    tick(); T(pins_m1());
+    bus |= INT;
+    tick(); T(pins_none());
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+    // EI (interrupt shouldn't trigger)
+    tick(); T(pins_m1());
+    tick(); T(pins_none());
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+    // EI (interrupt shouldn't trigger)
+    tick(); T(pins_m1());
+    tick(); T(pins_none());
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+    // NOP (interrupt should trigger at end)
+    tick(); T(pins_m1());
+    tick(); T(pins_none());
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+
+    // IM1 interrupt request starts here
+    tick(); T(pins_none());
+    tick(); T(pins_none()); T(!iff1()); T(!iff2());
+    tick(); T(pins_m1iorq());
+    tick(); T(pins_none());
+    // regular refresh cycle
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+    // one extra tcycle
+    tick(); T(pins_none());
+    // two mwrite cycles (push PC to stack)
+    tick(); T(pins_none());
+    tick(); T(pins_mwrite());
+    tick(); T(pins_none());
+    tick(); T(pins_none());
+    tick(); T(pins_mwrite());
+    tick(); T(pins_none());
+    // ISR starts here (LD A,33h)
+    tick(); T(pins_m1());  T(!iff1()); T(!iff2()); T(cpu.pc == 0x0039);
+
+    ok();
+}
+
 pub fn main() void {
     NMI_regular();
     NMI_before_after();
@@ -698,4 +913,7 @@ pub fn main() void {
     NMI_prefix();
     INT_IM0();
     INT_IM1();
+    INT_IM2();
+    INT_disabled();
+    INT_EI_sequence();
 }
