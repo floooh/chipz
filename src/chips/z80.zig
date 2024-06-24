@@ -1111,8 +1111,12 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         const NMI_T11: u16 = 0x6A3;
         const NMI_OVERLAPPED: u16 = 0x6A4;
         const INT_IM0_T2: u16 = 0x6A5;
-        const INT_IM1_T2: u16 = 0x6A6;
-        const INT_IM2_T2: u16 = 0x6A7;
+        const INT_IM0_T3: u16 = 0x6A6;
+        const INT_IM0_T4: u16 = 0x6A7;
+        const INT_IM0_T5: u16 = 0x6A8;
+        const INT_IM0_T6: u16 = 0x6A9;
+        const INT_IM1_T2: u16 = 0x6AA;
+        const INT_IM2_T2: u16 = 0x6AB;
         // END CONSTS
 
         // zig fmt: off
@@ -2892,6 +2896,14 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     NMI_T11 => { self.step = NMI_OVERLAPPED; break :next; },
                     // => overlapped: fetch first ISR instruction
                     NMI_OVERLAPPED => { },
+
+                    // INT IM0
+                    INT_IM0_T2 => { self.iff1 = 0; self.iff2 = 0; self.step = INT_IM0_T3; break :next; },
+                    INT_IM0_T3 => { bus |= M1 | IORQ; self.step = INT_IM0_T4; break :next; },
+                    INT_IM0_T4 => { if (wait(bus)) break :next; self.opcode = gd(bus); self.step = INT_IM0_T5; break :next; },
+                    INT_IM0_T5 => { bus = self.refresh(bus); self.step = INT_IM0_T6; break :next; },
+                    INT_IM0_T6 => { self.step = self.opcode; self.addr = self.HL(); break :next; },
+                    // NOTE: no OVERLAPPED cycle for IM0
 
                     else => unreachable,
                 }

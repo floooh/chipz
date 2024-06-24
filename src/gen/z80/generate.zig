@@ -196,6 +196,10 @@ pub fn write(allocator: std.mem.Allocator, path: []const u8) !void {
                     "NMI_T11",
                     "NMI_OVERLAPPED",
                     "INT_IM0_T2",
+                    "INT_IM0_T3",
+                    "INT_IM0_T4",
+                    "INT_IM0_T5",
+                    "INT_IM0_T6",
                     "INT_IM1_T2",
                     "INT_IM2_T2",
                 }, 0..) |str, i| {

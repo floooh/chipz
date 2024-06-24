@@ -53,7 +53,7 @@ fn tick() void {
 }
 
 // special IM0 tick function, puts the RST 38h opcode on the data bus
-fn im0Tick() void {
+fn im0_tick() void {
     bus = cpu.tick(bus);
     const addr = Z80.getAddr(bus);
     if ((bus & MREQ) != 0) {
@@ -533,10 +533,91 @@ fn NMI_prefix() void {
     ok();
 }
 
+// test IM0 interrupt behaviour and timing
+fn INT_IM0() void {
+    start("INT_IM0");
+    const prog = [_]u8{
+        0xFB,               //      EI
+        0xED, 0x46,         //      IM 0
+        0x31, 0x22, 0x11,   //      LD SP, 1122h
+        0x00, 0x00, 0x00,   // l0:  NOPS
+        0x18, 0xFB,         //      JR l0
+    };
+    const isr = [_]u8{
+        0x3E, 0x33,         //      LD A,33h
+        0xED, 0x4D,         //      RETI
+    };
+    init(0x0000, &prog);
+    copy(0x0038, &isr);
+    cpu.setSP(0x0100);
+
+    // EI + IM 0 + LD SP,1122h
+    skip(22);
+    // NOP
+    im0_tick(); T(pins_m1());
+    im0_tick(); T(pins_none());
+    bus |= INT;
+    im0_tick(); T(pins_rfsh());
+    im0_tick(); T(pins_none());
+    // interrupt handling starts here
+    im0_tick(); T(pins_none());
+    im0_tick(); T(pins_none()); T(!iff1()); T(!iff2());
+    im0_tick(); T(pins_m1iorq()); T(Z80.getData(bus) == 0xFF);
+    im0_tick(); T(pins_none());
+    im0_tick(); T(pins_rfsh());
+    im0_tick(); T(pins_none());
+    // RST execution should start here
+    im0_tick(); T(pins_none());
+    // mwrite (push PC)
+    im0_tick(); T(pins_none());
+    im0_tick(); T(pins_mwrite());
+    im0_tick(); T(pins_none());
+    // mwrite (push PC)
+    im0_tick(); T(pins_none());
+    im0_tick(); T(pins_mwrite());
+    im0_tick(); T(pins_none());
+    // interrupt service routine at address 0x0038 (LD A,33)
+    im0_tick(); T(pins_m1()); T(cpu.pc == 0x0039);
+    im0_tick(); T(pins_none());
+    im0_tick(); T(pins_rfsh());
+    im0_tick(); T(pins_none());
+    // mread
+    im0_tick(); T(pins_none());
+    im0_tick(); T(pins_mread());
+    im0_tick(); T(pins_none());
+    // RETI, ED prefix
+    im0_tick(); T(pins_m1());
+    im0_tick(); T(pins_none());
+    im0_tick(); T(pins_rfsh());
+    im0_tick(); T(pins_none());
+    // RETI opcode
+    im0_tick(); T(pins_m1());
+    im0_tick(); T(pins_none());
+    im0_tick(); T(pins_rfsh());
+    im0_tick(); T(pins_none());
+    // RETI mread (pop)
+    im0_tick(); T(pins_none());
+    im0_tick(); T(pins_mread());
+    im0_tick(); T(pins_none()); T(0 != (bus & RETI));
+    // RETI mread (pop)
+    im0_tick(); T(pins_none());
+    im0_tick(); T(pins_mread());
+    im0_tick(); T(pins_none());
+
+    // continue with next NOP, NOTE: iff1 is *NOT* reenabled!
+    im0_tick(); T(pins_m1()); T(!iff1());
+    im0_tick(); T(pins_none()); T(!iff1());
+    im0_tick(); T(pins_rfsh()); T(!iff1());
+    im0_tick(); T(pins_none()); T(!iff1());
+
+    ok();
+}
+
 pub fn main() void {
     NMI_regular();
     NMI_before_after();
     NMI_no_retrigger();
     NMI_during_EI();
     NMI_prefix();
+    INT_IM0();
 }
