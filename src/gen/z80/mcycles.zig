@@ -111,7 +111,7 @@ pub fn imm(dst: []const u8, action: ?[]const u8) MCycle {
         .type = .Read,
         .tcycles = tc(&.{
             .{},
-            .{ .wait = true, .actions = ac(&.{ mrd("self.pc"), "self.incPC()" }) },
+            .{ .wait = true, .actions = ac(&.{ mrd("self.@\"PC++\"()"), null }) },
             .{ .actions = ac(&.{ gd(dst), action }) },
         }),
     };

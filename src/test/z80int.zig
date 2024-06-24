@@ -2,6 +2,8 @@
 //  z80int.zig
 //
 //  Test Z80 interrupt timing.
+//
+// zig fmt: off
 //------------------------------------------------------------------------------
 const std = @import("std");
 const assert = std.debug.assert;
@@ -9,20 +11,30 @@ const chips = @import("chips");
 const bits = chips.bits;
 const z80 = chips.z80;
 
-const Z80 = z80.Z80(Z80.DefaultPins, u64);
+const T = assert;
+const Bus = u64;
+const Z80 = z80.Z80(z80.DefaultPins, Bus);
 
 var cpu: Z80 = undefined;
-var bus: u64 = 0;
+var bus: Bus = 0;
 var mem = [_]u8{0} ** 0x10000;
 
 const CTRL = Z80.CTRL;
 const M1 = Z80.M1;
 const MREQ = Z80.MREQ;
 const IORQ = Z80.IORQ;
+const RFSH = Z80.RFSH;
 const RD = Z80.RD;
 const WR = Z80.WR;
 const INT = Z80.INT;
 const NMI = Z80.NMI;
+const RETI = Z80.RETI;
+
+const A = Z80.A;
+const E = Z80.E;
+const D = Z80.D;
+const WZL = Z80.WZL;
+const WZH = Z80.WZH;
 
 fn tick() void {
     bus = cpu.tick(bus);
@@ -65,6 +77,155 @@ fn init(start_addr: u16, bytes: []const u8) void {
     cpu.prefetch(start_addr);
 }
 
+fn pins_none() bool {
+    return (bus & CTRL) == 0;
+}
+
+fn pins_m1() bool {
+    return (bus & CTRL) == M1 | MREQ | RD;
+}
+
+fn pins_rfsh() bool {
+    return (bus & CTRL) == MREQ | RFSH;
+}
+
+fn pins_mread() bool {
+    return (bus & CTRL) == MREQ | RD;
+}
+
+fn pins_mwrite() bool {
+    return (bus & CTRL) == MREQ | WR;
+}
+
+fn pins_m1iorq() bool {
+    return (bus & CTRL) == M1 | IORQ;
+}
+
+fn skip(num_ticks: usize) void {
+    for (0..num_ticks) |_| {
+        tick();
+    }
+}
+
+fn iff1() bool {
+    return 0 != cpu.iff1;
+}
+
+fn iff2() bool {
+    return 0 != cpu.iff2;
+}
+
+fn int() bool {
+    return 0 != cpu.int;
+}
+
+fn nmi() bool {
+    return 0 != cpu.nmi;
+}
+
+fn start(msg: []const u8) void {
+    std.debug.print("=> {s} ... ", .{msg});
+}
+
+fn ok() void {
+    std.debug.print("ok\n", .{});
+}
+
+fn NMI_regular() void {
+    start("NMI regular");
+    const prog = [_]u8{
+        0xFB, //       EI
+        0x21, 0x11, 0x11, // loop: LD HL, 1111h
+        0x11, 0x22, 0x22, //       LD DE, 2222h
+        0xC3, 0x01, 0x00, //       JP loop
+    };
+    const isr = [_]u8{
+        0x3E, 0x33, //       LD A,33h
+        0xED, 0x45, //       RETN
+    };
+    init(0x0000, &prog);
+    copy(0x0066, &isr);
+    cpu.setSP(0x0100);
+
+    // EI
+    tick(); T(pins_m1());
+    tick(); T(pins_none());
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none()); T(!iff1()); T(!iff2());
+
+    // LD HL,1111h
+    tick(); T(pins_m1()); T(iff1()); T(iff2());
+    tick(); T(pins_none());
+    tick(); T(pins_rfsh()); T(!nmi() and !int());
+    tick(); T(pins_none());
+    tick(); T(pins_none()); bus |= NMI;
+    tick(); T(pins_mread()); bus &= ~NMI;
+    tick(); T(pins_none()); T(nmi());
+    tick(); T(pins_none());
+    tick(); T(pins_mread());
+    tick(); T(pins_none());
+
+    // the NMI should kick in here, starting with a regular refresh cycle
+    tick(); T(pins_m1()); T(cpu.pc == 4);
+    tick(); T(pins_none()); T(cpu.pc == 4); T(!iff1());
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+    // extra tick
+    tick(); T(pins_none());
+    // mwrite
+    tick(); T(pins_none()); T(cpu.pc == 4);
+    tick(); T(pins_mwrite()); T(cpu.SP() == 0x00FF); T(mem[0x00FF] == 0);
+    tick(); T(pins_none());
+    // mwrite
+    tick(); T(pins_none());
+    tick(); T(pins_mwrite()); T(cpu.SP() == 0x00FE); T(mem[0x00FE] == 4);
+    tick(); T(pins_none());
+
+    // first overlapped tick of interrupt service routine
+    tick(); T(pins_m1()); T(cpu.pc == 0x67);
+    tick(); T(pins_none());
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+    // mread
+    tick(); T(pins_none());
+    tick(); T(pins_mread());
+    tick(); T(pins_none());
+
+    // RETN
+    // ED prefix
+    tick(); T(pins_m1()); T(cpu.r[A] == 0x33);
+    tick(); T(pins_none());
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+    // opcode
+    tick(); T(pins_m1());
+    tick(); T(pins_none());
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+    // mread
+    tick(); T(pins_none());
+    tick(); T(pins_mread());  T(cpu.SP() == 0x00FF);
+    tick(); T(pins_none()); T(cpu.r[WZL] == 0x04); T(0 == (bus & RETI));
+    // mread
+    tick(); T(pins_none());
+    tick(); T(pins_mread());  T(cpu.SP() == 0x0100);
+    tick(); T(pins_none()); T(!iff1()); T(cpu.r[WZH] == 0x00); T(cpu.pc == 0x0004);
+
+    // continue at LD DE,2222h
+    tick(); T(pins_m1()); T(iff1());
+    tick(); T(pins_none());
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+    tick(); T(pins_none());
+    tick(); T(pins_mread());
+    tick(); T(pins_none()); T(cpu.r[E] == 0x22);
+    tick(); T(pins_none());
+    tick(); T(pins_mread());
+    tick(); T(pins_none()); T(cpu.r[D] == 0x22);
+
+    ok();
+}
+
 pub fn main() void {
-    std.debug.print("FIXME!\n", .{});
+    NMI_regular();
 }

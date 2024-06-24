@@ -38,9 +38,7 @@ const RD = Z80.RD;
 const WR = Z80.WR;
 const HALT = Z80.HALT;
 
-fn T(cond: bool) void {
-    assert(cond);
-}
+const T = assert;
 
 fn flags(f: u8) bool {
     // don't check undocumented flags

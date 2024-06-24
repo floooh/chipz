@@ -13,6 +13,7 @@ const z80 = chips.z80;
 
 const Bus = u64;
 const Z80 = z80.Z80(z80.DefaultPins, Bus);
+const CTRL = Z80.CTRL;
 const M1 = Z80.M1;
 const ABUS = Z80.ABUS;
 const MREQ = Z80.MREQ;
@@ -63,10 +64,8 @@ fn cpmBDOS() void {
         @panic("Unhandled CP/M system call!");
     }
     // emulate a RET
-    cpu.r[WZL] = mem[cpu.SP()];
-    cpu.incSP();
-    cpu.r[WZH] = mem[cpu.SP()];
-    cpu.incSP();
+    cpu.r[WZL] = mem[cpu.@"SP++"()];
+    cpu.r[WZH] = mem[cpu.@"SP++"()];
     cpu.pc = cpu.WZ();
 }
 
@@ -75,14 +74,13 @@ fn runTest() u64 {
     cpu = Z80{};
     cpu.setSP(0xF000);
     cpu.prefetch(0x0100);
-    const bus_mask: Bus = ABUS | M1 | MREQ | RD;
     const bdos_call: Bus = Z80.setAddr(M1 | MREQ | RD, 0x0005);
     const done: Bus = Z80.setAddr(M1 | MREQ | RD, 0x0000);
     var num_ticks: u64 = 0;
     var bus: Bus = 0;
     while (true) : (num_ticks += 1) {
         bus = tick(bus);
-        switch (bus & bus_mask) {
+        switch (bus & (CTRL | ABUS)) {
             bdos_call => cpmBDOS(),
             done => break,
             else => {},

@@ -171,7 +171,7 @@ pub fn @"LD HL,(nn)"(code: u8) void {
         .mcycles = mc(&.{
             imm("self.r[WZL]", null),
             imm("self.r[WZH]", null),
-            mread("self.WZ()", r(R.L), "self.incWZ()", null),
+            mread("self.@\"WZ++\"()", r(R.L), null, null),
             mread("self.WZ()", r(R.H), null, null),
             endFetch(),
         }),
@@ -184,7 +184,7 @@ pub fn @"LD A,(nn)"(code: u8) void {
         .mcycles = mc(&.{
             imm("self.r[WZL]", null),
             imm("self.r[WZH]", null),
-            mread("self.WZ()", r(R.A), "self.incWZ()", null),
+            mread("self.@\"WZ++\"()", r(R.A), null, null),
             endFetch(),
         }),
     });
@@ -216,7 +216,7 @@ pub fn @"LD (nn),HL"(code: u8) void {
         .mcycles = mc(&.{
             imm("self.r[WZL]", null),
             imm("self.r[WZH]", null),
-            mwrite("self.WZ()", r(R.L), "self.incWZ()"),
+            mwrite("self.@\"WZ++\"()", r(R.L), null),
             mwrite("self.WZ()", r(R.H), null),
             endFetch(),
         }),
@@ -229,7 +229,7 @@ pub fn @"LD (nn),A"(code: u8) void {
         .mcycles = mc(&.{
             imm("self.r[WZL]", null),
             imm("self.r[WZH]", null),
-            mwrite("self.WZ()", r(R.A), "self.incWZ(); self.r[WZH]=self.r[A]"),
+            mwrite("self.@\"WZ++\"()", r(R.A), "self.r[WZH]=self.r[A]"),
             endFetch(),
         }),
     });
@@ -434,9 +434,9 @@ pub fn push(code: u8, p: u2) void {
     op(code, .{
         .dasm = f("PUSH {s}", .{RP2.dasm(p)}),
         .mcycles = mc(&.{
-            tick("self.decSP()"),
-            mwrite("self.SP()", rp2h(p), "self.decSP()"),
-            mwrite("self.SP()", rp2l(p), null),
+            tick(null),
+            mwrite("self.@\"--SP\"()", rp2h(p), null),
+            mwrite("self.@\"--SP\"()", rp2l(p), null),
             endFetch(),
         }),
     });
@@ -446,8 +446,8 @@ pub fn pop(code: u8, p: u2) void {
     op(code, .{
         .dasm = f("POP {s}", .{RP2.dasm(p)}),
         .mcycles = mc(&.{
-            mread("self.SP()", rp2l(p), "self.incSP()", null),
-            mread("self.SP()", rp2h(p), "self.incSP()", null),
+            mread("self.@\"SP++\"()", rp2l(p), null, null),
+            mread("self.@\"SP++\"()", rp2h(p), null, null),
             endFetch(),
         }),
     });
@@ -488,8 +488,8 @@ pub fn ret(code: u8) void {
     op(code, .{
         .dasm = "RET",
         .mcycles = mc(&.{
-            mread("self.SP()", "self.r[WZL]", "self.incSP()", null),
-            mread("self.SP()", "self.r[WZH]", "self.incSP()", "self.pc = self.WZ()"),
+            mread("self.@\"SP++\"()", "self.r[WZL]", null, null),
+            mread("self.@\"SP++\"()", "self.r[WZH]", null, "self.pc = self.WZ()"),
             endFetch(),
         }),
     });
@@ -500,8 +500,8 @@ pub fn @"RET cc"(code: u8, y: u3) void {
         .dasm = f("RET {s}", .{CC.dasm(y)}),
         .mcycles = mc(&.{
             tick(f("if (self.goto{s}($NEXTSTEP + 6)) break :next", .{cc(y)})),
-            mread("self.SP()", "self.r[WZL]", "self.incSP()", null),
-            mread("self.SP()", "self.r[WZH]", "self.incSP()", "self.pc = self.WZ()"),
+            mread("self.@\"SP++\"()", "self.r[WZL]", null, null),
+            mread("self.@\"SP++\"()", "self.r[WZH]", null, "self.pc = self.WZ()"),
             endFetch(),
         }),
     });
@@ -513,9 +513,9 @@ pub fn @"CALL nn"(code: u8) void {
         .mcycles = mc(&.{
             imm("self.r[WZL]", null),
             imm("self.r[WZH]", null),
-            tick("self.decSP()"),
-            mwrite("self.SP()", "self.PCH()", "self.decSP()"),
-            mwrite("self.SP()", "self.PCL()", "self.pc = self.WZ()"),
+            tick(null),
+            mwrite("self.@\"--SP\"()", "self.PCH()", null),
+            mwrite("self.@\"--SP\"()", "self.PCL()", "self.pc = self.WZ()"),
             endFetch(),
         }),
     });
@@ -527,9 +527,9 @@ pub fn @"CALL cc,nn"(code: u8, y: u3) void {
         .mcycles = mc(&.{
             imm("self.r[WZL]", null),
             imm("self.r[WZH]", f("if (self.goto{s}($NEXTSTEP + 7)) break: next", .{cc(y)})),
-            tick("self.decSP()"),
-            mwrite("self.SP()", "self.PCH()", "self.decSP()"),
-            mwrite("self.SP()", "self.PCL()", "self.pc = self.WZ()"),
+            tick(null),
+            mwrite("self.@\"--SP\"()", "self.PCH()", null),
+            mwrite("self.@\"--SP\"()", "self.PCL()", "self.pc = self.WZ()"),
             endFetch(),
         }),
     });
@@ -624,9 +624,9 @@ pub fn @"RST n"(code: u8, y: u3) void {
     op(code, .{
         .dasm = f("RST {X}", .{y8}),
         .mcycles = mc(&.{
-            tick("self.decSP()"),
-            mwrite("self.SP()", "self.PCH()", "self.decSP()"),
-            mwrite("self.SP()", "self.PCL()", f("self.pc = 0x{X}; self.setWZ(self.pc)", .{y8})),
+            tick(null),
+            mwrite("self.@\"--SP\"()", "self.PCH()", null),
+            mwrite("self.@\"--SP\"()", "self.PCL()", f("self.pc = 0x{X}; self.setWZ(self.pc)", .{y8})),
             endFetch(),
         }),
     });
@@ -677,7 +677,7 @@ pub fn @"IN A,(n)"(code: u8) void {
         .dasm = "IN A,(n)",
         .mcycles = mc(&.{
             imm("self.r[WZL]", "self.r[WZH] = self.r[A]"),
-            ioread("self.WZ()", "self.r[A]", "self.incWZ()", null),
+            ioread("self.@\"WZ++\"()", "self.r[A]", null, null),
             endFetch(),
         }),
     });
@@ -729,7 +729,7 @@ pub fn @"LD (nn),dd"(code: u8, p: u2) void {
         .mcycles = mc(&.{
             imm("self.r[WZL]", null),
             imm("self.r[WZH]", null),
-            mwrite("self.WZ()", rrpl(p), "self.incWZ()"),
+            mwrite("self.@\"WZ++\"()", rrpl(p), null),
             mwrite("self.WZ()", rrph(p), null),
             endFetch(),
         }),
@@ -742,7 +742,7 @@ pub fn @"LD dd,(nn)"(code: u8, p: u2) void {
         .mcycles = mc(&.{
             imm("self.r[WZL]", null),
             imm("self.r[WZH]", null),
-            mread("self.WZ()", rrpl(p), "self.incWZ()", null),
+            mread("self.@\"WZ++\"()", rrpl(p), null, null),
             mread("self.WZ()", rrph(p), null, null),
             endFetch(),
         }),
@@ -845,12 +845,11 @@ pub fn @"OUT (C)"(code: u8, y: u3) void {
 }
 
 pub fn retni(code: u8, y: u3) void {
-    // NOTE do we want a virtual RETI pin, or let support chips snoop the data bus?
     oped(code, .{
         .dasm = if (y == 0) "RETN" else "RETI",
         .mcycles = mc(&.{
-            mread("self.SP()", "self.r[WZL]", "self.incSP()", null),
-            mread("self.SP()", "self.r[WZH]", "self.incSP()", "self.pc = self.WZ()"),
+            mread("self.@\"SP++\"()", "self.r[WZL]", null, "bus |= RETI"),
+            mread("self.@\"SP++\"()", "self.r[WZH]", null, "self.pc = self.WZ()"),
             endOverlapped("self.iff1 = self.iff2"),
         }),
     });
@@ -890,8 +889,8 @@ pub fn ldi(code: u8) void {
     oped(code, .{
         .dasm = "LDI",
         .mcycles = mc(&.{
-            mread("self.HL()", "self.dlatch", "self.incHL()", null),
-            mwrite("self.DE()", "self.dlatch", "self.incDE()"),
+            mread("self.@\"HL++\"()", "self.dlatch", null, null),
+            mwrite("self.@\"DE++\"()", "self.dlatch", null),
             tick("_ = self.ldildd()"),
             tick(null),
             endFetch(),
@@ -901,8 +900,8 @@ pub fn ldi(code: u8) void {
 
 pub fn ldd(code: u8) void {
     oped(code, .{ .dasm = "LDD", .mcycles = mc(&.{
-        mread("self.HL()", "self.dlatch", "self.decHL()", null),
-        mwrite("self.DE()", "self.dlatch", "self.decDE()"),
+        mread("self.@\"HL--\"()", "self.dlatch", null, null),
+        mwrite("self.@\"DE--\"()", "self.dlatch", null),
         tick("_ = self.ldildd()"),
         tick(null),
         endFetch(),
@@ -913,11 +912,11 @@ pub fn ldir(code: u8) void {
     oped(code, .{
         .dasm = "LDIR",
         .mcycles = mc(&.{
-            mread("self.HL()", "self.dlatch", "self.incHL()", null),
-            mwrite("self.DE()", "self.dlatch", "self.incDE()"),
+            mread("self.@\"HL++\"()", "self.dlatch", null, null),
+            mwrite("self.@\"DE++\"()", "self.dlatch", null),
             tick("if (self.gotoFalse(self.ldildd(), $NEXTSTEP + 5)) break :next"),
             tick(null),
-            tick("self.decPC(); self.setWZ(self.pc); self.decPC()"),
+            tick("self.setWZ(self.@\"--PC\"()); self.decPC()"),
             tick(null),
             tick(null),
             tick(null),
@@ -931,11 +930,11 @@ pub fn lddr(code: u8) void {
     oped(code, .{
         .dasm = "LDDR",
         .mcycles = mc(&.{
-            mread("self.HL()", "self.dlatch", "self.decHL()", null),
-            mwrite("self.DE()", "self.dlatch", "self.decDE()"),
+            mread("self.@\"HL--\"()", "self.dlatch", null, null),
+            mwrite("self.@\"DE--\"()", "self.dlatch", null),
             tick("if (self.gotoFalse(self.ldildd(), $NEXTSTEP + 5)) break :next"),
             tick(null),
-            tick("self.decPC(); self.setWZ(self.pc); self.decPC()"),
+            tick("self.setWZ(self.@\"--PC\"()); self.decPC()"),
             tick(null),
             tick(null),
             tick(null),
@@ -949,7 +948,7 @@ pub fn cpi(code: u8) void {
     oped(code, .{
         .dasm = "CPI",
         .mcycles = mc(&.{
-            mread("self.HL()", "self.dlatch", "self.incHL()", null),
+            mread("self.@\"HL++\"()", "self.dlatch", null, null),
             tick("self.incWZ(); _ = self.cpicpd()"),
             tick(null),
             tick(null),
@@ -964,7 +963,7 @@ pub fn cpd(code: u8) void {
     oped(code, .{
         .dasm = "CPD",
         .mcycles = mc(&.{
-            mread("self.HL()", "self.dlatch", "self.decHL()", null),
+            mread("self.@\"HL--\"()", "self.dlatch", null, null),
             tick("self.decWZ(); _ = self.cpicpd()"),
             tick(null),
             tick(null),
@@ -979,13 +978,13 @@ pub fn cpir(code: u8) void {
     oped(code, .{
         .dasm = "CPIR",
         .mcycles = mc(&.{
-            mread("self.HL()", "self.dlatch", "self.incHL()", null),
+            mread("self.@\"HL++\"()", "self.dlatch", null, null),
             tick("self.incWZ(); if (self.gotoFalse(self.cpicpd(), $NEXTSTEP + 5)) break :next"),
             tick(null),
             tick(null),
             tick(null),
             tick(null),
-            tick("self.decPC(); self.setWZ(self.pc); self.decPC()"),
+            tick("self.setWZ(self.@\"--PC\"()); self.decPC()"),
             tick(null),
             tick(null),
             tick(null),
@@ -999,13 +998,13 @@ pub fn cpdr(code: u8) void {
     oped(code, .{
         .dasm = "CPDR",
         .mcycles = mc(&.{
-            mread("self.HL()", "self.dlatch", "self.decHL()", null),
+            mread("self.@\"HL--\"()", "self.dlatch", null, null),
             tick("self.decWZ(); if (self.gotoFalse(self.cpicpd(), $NEXTSTEP + 5)) break :next"),
             tick(null),
             tick(null),
             tick(null),
             tick(null),
-            tick("self.decPC(); self.setWZ(self.pc); self.decPC()"),
+            tick("self.setWZ(self.@\"--PC\"()); self.decPC()"),
             tick(null),
             tick(null),
             tick(null),
@@ -1021,7 +1020,7 @@ pub fn ini(code: u8) void {
         .mcycles = mc(&.{
             tick(null),
             ioread("self.BC()", "self.dlatch", null, "self.setWZ(self.BC() +% 1); self.r[B] -%= 1"),
-            mwrite("self.HL()", "self.dlatch", "self.incHL(); _ = self.iniind(self.r[C] +% 1)"),
+            mwrite("self.@\"HL++\"()", "self.dlatch", "_ = self.iniind(self.r[C] +% 1)"),
             endFetch(),
         }),
     });
@@ -1033,7 +1032,7 @@ pub fn ind(code: u8) void {
         .mcycles = mc(&.{
             tick(null),
             ioread("self.BC()", "self.dlatch", null, "self.setWZ(self.BC() -% 1); self.r[B] -%= 1"),
-            mwrite("self.HL()", "self.dlatch", "self.decHL(); _ = self.iniind(self.r[C] -% 1)"),
+            mwrite("self.@\"HL--\"()", "self.dlatch", "_ = self.iniind(self.r[C] -% 1)"),
             endFetch(),
         }),
     });
@@ -1045,8 +1044,8 @@ pub fn inir(code: u8) void {
         .mcycles = mc(&.{
             tick(null),
             ioread("self.BC()", "self.dlatch", null, "self.setWZ(self.BC() +% 1); self.r[B] -%= 1"),
-            mwrite("self.HL()", "self.dlatch", "self.incHL(); if (self.gotoFalse(self.iniind(self.r[C] +% 1), $NEXTSTEP + 5)) break :next"),
-            tick("self.decPC(); self.setWZ(self.pc); self.decPC()"),
+            mwrite("self.@\"HL++\"()", "self.dlatch", "if (self.gotoFalse(self.iniind(self.r[C] +% 1), $NEXTSTEP + 5)) break :next"),
+            tick("self.setWZ(self.@\"--PC\"()); self.decPC()"),
             tick(null),
             tick(null),
             tick(null),
@@ -1062,8 +1061,8 @@ pub fn indr(code: u8) void {
         .mcycles = mc(&.{
             tick(null),
             ioread("self.BC()", "self.dlatch", null, "self.setWZ(self.BC() -% 1); self.r[B] -%= 1"),
-            mwrite("self.HL()", "self.dlatch", "self.decHL(); if (self.gotoFalse(self.iniind(self.r[C] -% 1), $NEXTSTEP + 5)) break :next"),
-            tick("self.decPC(); self.setWZ(self.pc); self.decPC()"),
+            mwrite("self.@\"HL--\"()", "self.dlatch", "if (self.gotoFalse(self.iniind(self.r[C] -% 1), $NEXTSTEP + 5)) break :next"),
+            tick("self.setWZ(self.@\"--PC\"()); self.decPC()"),
             tick(null),
             tick(null),
             tick(null),
@@ -1076,7 +1075,7 @@ pub fn indr(code: u8) void {
 pub fn outi(code: u8) void {
     oped(code, .{ .dasm = "OUTI", .mcycles = mc(&.{
         tick(null),
-        mread("self.HL()", "self.dlatch", "self.incHL()", "self.r[B] -%= 1"),
+        mread("self.@\"HL++\"()", "self.dlatch", null, "self.r[B] -%= 1"),
         iowrite("self.BC()", "self.dlatch", "self.setWZ(self.BC() +% 1); _ = self.outioutd()"),
         endFetch(),
     }) });
@@ -1087,7 +1086,7 @@ pub fn outd(code: u8) void {
         .dasm = "OUTD",
         .mcycles = mc(&.{
             tick(null),
-            mread("self.HL()", "self.dlatch", "self.decHL()", "self.r[B] -%= 1"),
+            mread("self.@\"HL--\"()", "self.dlatch", null, "self.r[B] -%= 1"),
             iowrite("self.BC()", "self.dlatch", "self.setWZ(self.BC() -% 1); _ = self.outioutd()"),
             endFetch(),
         }),
@@ -1099,9 +1098,9 @@ pub fn otir(code: u8) void {
         .dasm = "OTIR",
         .mcycles = mc(&.{
             tick(null),
-            mread("self.HL()", "self.dlatch", "self.incHL()", "self.r[B] -%= 1"),
+            mread("self.@\"HL++\"()", "self.dlatch", null, "self.r[B] -%= 1"),
             iowrite("self.BC()", "self.dlatch", "self.setWZ(self.BC() +% 1); if (self.gotoFalse(self.outioutd(), $NEXTSTEP + 5)) break :next"),
-            tick("self.decPC(); self.setWZ(self.pc); self.decPC()"),
+            tick("self.setWZ(self.@\"--PC\"()); self.decPC()"),
             tick(null),
             tick(null),
             tick(null),
@@ -1116,9 +1115,9 @@ pub fn otdr(code: u8) void {
         .dasm = "OTDR",
         .mcycles = mc(&.{
             tick(null),
-            mread("self.HL()", "self.dlatch", "self.decHL()", "self.r[B] -%= 1"),
+            mread("self.@\"HL--\"()", "self.dlatch", null, "self.r[B] -%= 1"),
             iowrite("self.BC()", "self.dlatch", "self.setWZ(self.BC() -% 1); if (self.gotoFalse(self.outioutd(), $NEXTSTEP + 5)) break :next"),
-            tick("self.decPC(); self.setWZ(self.pc); self.decPC()"),
+            tick("self.setWZ(self.@\"--PC\"()); self.decPC()"),
             tick(null),
             tick(null),
             tick(null),
