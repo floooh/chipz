@@ -613,6 +613,83 @@ fn INT_IM0() void {
     ok();
 }
 
+fn INT_IM1() void {
+    start("INT_IM1");
+    const prog = [_]u8{
+        0xFB,               //      EI
+        0xED, 0x56,         //      IM 1
+        0x00, 0x00, 0x00,   // l0:  NOPs
+        0x18, 0xFB,         //      JR l0
+    };
+    const isr = [_]u8{
+        0x3E, 0x33,         //      LD A,33h
+        0xED, 0x4D,         //      RETI
+    };
+    init(0x0000, &prog);
+    copy(0x0038, &isr);
+    cpu.setSP(0x0100);
+
+    // EI + IM1
+    skip(12);
+
+    // NOP
+    tick(); T(pins_m1()); T(iff1());
+    tick(); T(pins_none());
+    bus |= INT;
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+
+    // interrupt should trigger now
+    tick(); T(pins_none());
+    tick(); T(pins_none()); T(!iff1()); T(!iff2());
+    tick(); T(pins_m1iorq());
+    tick(); T(pins_none());
+    // regular refresh cycle
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+    // one extra tcycle
+    tick(); T(pins_none());
+    // two mwrite cycles (push PC to stack)
+    tick(); T(pins_none());
+    tick(); T(pins_mwrite());
+    tick(); T(pins_none());
+    tick(); T(pins_none());
+    tick(); T(pins_mwrite());
+    tick(); T(pins_none());
+    // ISR starts here (LD A,33h)
+    tick(); T(pins_m1());  T(!iff1()); T(!iff2()); T(cpu.pc == 0x0039);
+    tick(); T(pins_none());
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+    // mread (LD A,33h)
+    tick(); T(pins_none());
+    tick(); T(pins_mread());
+    tick(); T(pins_none());
+    // RETI, ED prefix
+    tick(); T(pins_m1());
+    tick(); T(pins_none());
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+    // RETI opcode
+    tick(); T(pins_m1());
+    tick(); T(pins_none());
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+    // RETI mread (pop)
+    tick(); T(pins_none());
+    tick(); T(pins_mread());
+    tick(); T(pins_none()); T(0 != (bus & RETI));
+    // RETI mread (pop)
+    tick(); T(pins_none());
+    tick(); T(pins_mread());
+    tick(); T(pins_none());
+
+    // next NOP (interrupts still disabled!)
+    tick(); T(pins_m1()); T(!iff1()); T(!iff2()); T(cpu.pc == 5);
+
+    ok();
+}
+
 pub fn main() void {
     NMI_regular();
     NMI_before_after();
@@ -620,4 +697,5 @@ pub fn main() void {
     NMI_during_EI();
     NMI_prefix();
     INT_IM0();
+    INT_IM1();
 }

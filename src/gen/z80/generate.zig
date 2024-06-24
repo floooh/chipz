@@ -201,6 +201,18 @@ pub fn write(allocator: std.mem.Allocator, path: []const u8) !void {
                     "INT_IM0_T5",
                     "INT_IM0_T6",
                     "INT_IM1_T2",
+                    "INT_IM1_T3",
+                    "INT_IM1_T4",
+                    "INT_IM1_T5",
+                    "INT_IM1_T6",
+                    "INT_IM1_T7",
+                    "INT_IM1_T8",
+                    "INT_IM1_T9",
+                    "INT_IM1_T10",
+                    "INT_IM1_T11",
+                    "INT_IM1_T12",
+                    "INT_IM1_T13",
+                    "INT_IM1_OVERLAPPED",
                     "INT_IM2_T2",
                 }, 0..) |str, i| {
                     try addLine(dst, consts_prefix, f("const {s}: u16 = 0x{X};", .{ str, m1_t1 + i }));
