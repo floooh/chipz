@@ -2335,7 +2335,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     0x4BB => { self.step = 0x4BC; break :next; },
                     0x4BC => { },
                     0x4BD => { if (wait(bus)) break :next; bus = mrd(bus, self.@"SP++"()); self.step = 0x4BE; break :next; }, // RETN (cont...)
-                    0x4BE => { self.r[WZL] = gd(bus); bus |= RETI; self.step = 0x4BF; break :next; },
+                    0x4BE => { self.r[WZL] = gd(bus); self.step = 0x4BF; break :next; },
                     0x4BF => { self.step = 0x4C0; break :next; },
                     0x4C0 => { if (wait(bus)) break :next; bus = mrd(bus, self.@"SP++"()); self.step = 0x4C1; break :next; },
                     0x4C1 => { self.r[WZH] = gd(bus); self.pc = self.WZ(); self.step = 0x4C2; break :next; },
@@ -2888,7 +2888,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     // => push PCL
                     NMI_T9 => { self.step = NMI_T10; break :next; },
                     NMI_T10 => { if (wait(bus)) break :next; bus = mwr(bus, self.@"--SP"(), self.PCL()); self.pc = 0x0066; self.setWZ(self.pc); self.step = NMI_T11; break :next; },
-                    NMI_T11 => { self.step = NMI_T11; break :next; },
+                    NMI_T11 => { self.step = NMI_OVERLAPPED; break :next; },
                     // => overlapped: fetch first ISR instruction
                     NMI_OVERLAPPED => { },
 

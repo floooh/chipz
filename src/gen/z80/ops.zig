@@ -844,9 +844,26 @@ pub fn @"OUT (C)"(code: u8, y: u3) void {
     });
 }
 
-pub fn retni(code: u8, y: u3) void {
+// NOTE: On a real Z80, RETI and RETN are identical, in the emulator the only
+// difference is that the RETI instructions sets a virtual RETI pin, this
+// simplifies the "bus snooping" on Z80 family chips to detect execution
+// of the RETI instruction.
+pub fn retn(code: u8, y: u3) void {
+    assert(y == 0);
     oped(code, .{
-        .dasm = if (y == 0) "RETN" else "RETI",
+        .dasm = "RETN",
+        .mcycles = mc(&.{
+            mread("self.@\"SP++\"()", "self.r[WZL]", null),
+            mread("self.@\"SP++\"()", "self.r[WZH]", "self.pc = self.WZ()"),
+            endOverlapped("self.iff1 = self.iff2"),
+        }),
+    });
+}
+
+pub fn reti(code: u8, y: u3) void {
+    assert(y != 0);
+    oped(code, .{
+        .dasm = "RETI",
         .mcycles = mc(&.{
             mread("self.@\"SP++\"()", "self.r[WZL]", "bus |= RETI"),
             mread("self.@\"SP++\"()", "self.r[WZH]", "self.pc = self.WZ()"),
