@@ -167,6 +167,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         // interrupt tracking flags
         iff1: u1 = 0,
         iff2: u1 = 0,
+        last_nmi: u1 = 0,
         nmi: u1 = 0,
         int: u1 = 0,
 
@@ -2898,7 +2899,8 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             }
             // track interrupt state
             const nmi: u1 = @truncate(bus >> P.NMI);
-            self.nmi |= (nmi ^ self.nmi) & nmi;
+            self.nmi |= (nmi ^ self.last_nmi) & nmi;    // keep track of nmi rising edge
+            self.last_nmi = nmi;
             self.int = @truncate(bus >> P.INT);
             return bus;
         }

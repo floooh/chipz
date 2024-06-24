@@ -226,6 +226,102 @@ fn NMI_regular() void {
     ok();
 }
 
+// test whether a 'last minute' NMI is detected
+fn NMI_before_after() void {
+    start("NMI before/after");
+    const prog = [_]u8{
+        0xFB,               //      EI
+        0x00, 0x00, 0x00,   // l0:  NOPS
+        0x18, 0xFB,         //      JR loop
+    };
+    const isr = [_]u8{
+        0x3E, 0x33,         // LD A,33h
+        0xED, 0x45,         // RETN
+    };
+    init(0x0000, &prog);
+    copy(0x0066, &isr);
+    cpu.setSP(0x0100);
+
+    // EI
+    skip(4);
+    // NOP
+    tick(); T(pins_m1()); T(iff1());
+    tick();
+    tick(); T(pins_rfsh());
+    bus |= NMI;
+    tick();
+    bus &= ~NMI;
+    // NOP
+    tick(); T(pins_m1());
+    tick(); T(!iff1()); // OK, interrupt was detected
+
+    // same thing one tick later, interrupt delayed to next opportunity
+    init(0x0000, &prog);
+    copy(0x0066, &isr);
+    cpu.setSP(0x1000);
+    // EI
+    skip(4);
+    // NOP
+    tick(); T(pins_m1()); T(iff1());
+    tick(); T(pins_none());
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+    // NOP
+    bus |= NMI;
+    tick(); T(pins_m1());
+    bus &= ~NMI;
+    tick(); T(pins_none()); T(iff1()); // IFF1 true here means the interrupt didn't trigger
+    tick(); T(pins_rfsh());
+    tick(); T(pins_none());
+
+    // interrupt should trigger here instead
+    tick(); T(pins_m1());
+    tick(); T(!iff1()); // OK, interrupt was detected
+
+    ok();
+}
+
+// test that a raised NMI doesn't retrigger
+fn NMI_no_retrigger() void {
+    start("NMI_no_retrigger");
+    const prog = [_]u8{
+        0xFB,               //      EI
+        0x00, 0x00, 0x00,   // l0:  NOPS
+        0x18, 0xFB,         //      JR loop
+    };
+    const isr = [_]u8{
+        0x3E, 0x33,         // LD A,33h
+        0xED, 0x45,         // RETN
+    };
+    init(0x0000, &prog);
+    copy(0x0066, &isr);
+    cpu.setSP(0x0100);
+
+    // EI
+    skip(4);
+    // NOP
+    tick(); T(pins_m1()); T(iff1());
+    tick();
+    tick(); T(pins_rfsh());
+    bus|= NMI;    // NOTE: NMI pin stays active
+    tick();
+    // NOP
+    tick(); T(pins_m1());
+    tick(); T(!iff1()); // OK, interrupt was detected
+
+    // run until end of interrupt service routine
+    while (!iff1()) {
+        tick();
+    }
+    // now run a few hundred ticks, NMI should not trigger again
+    for (0..300) |_| {
+        tick(); T(iff1());
+    }
+    ok();
+}
+
 pub fn main() void {
     NMI_regular();
+    NMI_before_after();
+    NMI_no_retrigger();
 }
