@@ -54,6 +54,8 @@ fn ok() void {
 }
 
 fn init(start_addr: u16, bytes: []const u8) void {
+    mem = std.mem.zeroes(@TypeOf(mem));
+    bus = 0;
     cpu = Z80{};
     cpu.r[Z80.F] = 0;
     cpu.af2 = 0xFF00;
