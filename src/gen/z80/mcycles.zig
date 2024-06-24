@@ -60,13 +60,13 @@ pub fn tick(actions: ?[]const u8) MCycle {
     };
 }
 
-pub fn mread(abus: []const u8, dst: []const u8, abus_action: ?[]const u8, dst_action: ?[]const u8) MCycle {
+pub fn mread(abus: []const u8, dst: []const u8, action: ?[]const u8) MCycle {
     return .{
         .type = .Read,
         .tcycles = tc(&.{
             .{},
-            .{ .wait = true, .actions = ac(&.{ mrd(abus), abus_action }) },
-            .{ .actions = ac(&.{ gd(dst), dst_action }) },
+            .{ .wait = true, .actions = ac(&.{mrd(abus)}) },
+            .{ .actions = ac(&.{ gd(dst), action }) },
         }),
     };
 }
