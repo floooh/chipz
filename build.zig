@@ -54,6 +54,14 @@ pub fn build(b: *Build) void {
         .optimize = optimize,
         .chips = chips,
     });
+    buildTool(b, .{
+        .name = "z80timing",
+        .run_desc = "Run Z80 instruction timing test",
+        .src = "src/test/z80timing.zig",
+        .target = target,
+        .optimize = optimize,
+        .chips = chips,
+    });
 }
 
 fn buildTool(b: *Build, options: Options) void {
