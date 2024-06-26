@@ -86,6 +86,7 @@ pub fn Memory(comptime page_size: comptime_int) type {
         pub fn unmap(self: *Self, addr: u16, size: u17) void {
             self.map_rw(addr, size, self.unmapped_page, self.junk_page);
         }
+
         /// map address range to separate read- and write areas in host memory (for RAM-under-ROM)
         pub fn map_rw(self: *Self, addr: u16, size: u17, rd_ptr: [*]const u8, wr_ptr: [*]u8) void {
             assert(size <= ADDR_RANGE);
