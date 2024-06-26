@@ -7,9 +7,8 @@
 //------------------------------------------------------------------------------
 const std = @import("std");
 const assert = std.debug.assert;
-const chips = @import("chips");
-const bits = chips.bits;
-const z80 = chips.z80;
+const chipz = @import("chipz");
+const z80 = chipz.chips.z80;
 
 const T = assert;
 const Bus = u64;
