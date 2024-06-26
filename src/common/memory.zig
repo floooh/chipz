@@ -2,7 +2,7 @@
 const std = @import("std");
 const assert = std.debug.assert;
 
-/// a memory page has seperate read and write pointers:
+/// a memory page has separate read and write pointers:
 ///
 /// - for RAM both point to the same host memory area
 /// - for ROM, the read pointer points to a host memory area
