@@ -7,8 +7,9 @@ const assert = std.debug.assert;
 /// - for RAM both point to the same host memory area
 /// - for ROM, the read pointer points to a host memory area
 ///   with the ROM data, and the write pointer points to a junk page
-/// - for RAM-under-ROM, the read and write pointer point to
-///   separate host memory areas
+/// - for RAM-under-ROM, the read pointer points to a host memory area
+///   with the ROM data, and the write pointer points to a separate
+///   host memory area
 /// - for unmapped memory, the read pointer points to a special
 ///   'unmapped page' which is filled with a user-provided 'unmapped value'
 ///   (typically 0xFF), and the write pointer points to the junk page
