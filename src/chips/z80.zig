@@ -1,8 +1,8 @@
 const std = @import("std");
-const bits = @import("bits.zig");
-const mask = bits.mask;
-const maskm = bits.maskm;
-const clr = bits.clr;
+const bitutils = @import("bitutils.zig");
+const mask = bitutils.mask;
+const maskm = bitutils.maskm;
+const clr = bitutils.clr;
 
 /// map chip pin names to bit positions
 /// NOTE: no BUSRQ and BUSAK pins, but a virtual RETI pin

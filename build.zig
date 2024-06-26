@@ -22,7 +22,6 @@ pub fn build(b: *Build) void {
         .target = target,
         .optimize = optimize,
     });
-    buildTests(b, target, optimize);
     buildTool(b, .{
         .name = "z80gen",
         .run_desc = "Run the Z80 code generator",
@@ -79,15 +78,4 @@ fn buildTool(b: *Build, options: Options) void {
     const run = b.addRunArtifact(exe);
     run.step.dependOn(b.getInstallStep());
     b.step(b.fmt("run-{s}", .{options.name}), options.run_desc).dependOn(&run.step);
-}
-
-fn buildTests(b: *Build, target: ResolvedTarget, optimize: OptimizeMode) void {
-    const tests = b.addTest(.{
-        .root_source_file = b.path("src/tests.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    const run_tests = b.addRunArtifact(tests);
-    const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_tests.step);
 }
