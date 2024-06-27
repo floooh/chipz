@@ -18,16 +18,15 @@ const Page = struct {
     write: [*]u8,
 };
 
-const ADDR_RANGE = 0x10000;
+pub const ADDR_RANGE = 0x10000;
+pub const ADDR_MASK = ADDR_RANGE - 1;
 
 /// Memory init options
-const MemoryOptions = struct {
+pub const MemoryOptions = struct {
     /// a user-provided memory area of 'page_size' as junk page, will be filled with zeroes
     junk_page: []u8,
     /// a user-provided memory area of 'page_size' for unmapped memory, will be filled 'unmapped_value'
-    unmapped_page: []u8,
-    /// the value to retun on reads from unmapped memory areas
-    unmapped_value: u8 = 0xFF,
+    unmapped_page: []const u8,
 };
 
 /// implements a paged memory system for emulators with up to 16 bits address range
@@ -37,10 +36,10 @@ pub fn Memory(comptime page_size: comptime_int) type {
     return struct {
         const Self = @This();
 
-        const PAGE_SIZE = page_size;
-        const PAGE_SHIFT = std.math.log2_int(page_size);
-        const NUM_PAGES = ADDR_RANGE / PAGE_SIZE;
-        const PAGE_MASK = PAGE_SIZE - 1;
+        pub const PAGE_SIZE: usize = page_size;
+        pub const PAGE_SHIFT: usize = std.math.log2_int(u16, page_size);
+        pub const NUM_PAGES: usize = ADDR_RANGE / PAGE_SIZE;
+        pub const PAGE_MASK: usize = PAGE_SIZE - 1;
 
         unmapped_page: []const u8,
         junk_page: []u8,
@@ -49,16 +48,12 @@ pub fn Memory(comptime page_size: comptime_int) type {
         pub fn init(options: MemoryOptions) Self {
             assert(options.junk_page.len == PAGE_SIZE);
             assert(options.unmapped_page.len == PAGE_SIZE);
-            for (&options.junk_page, &options.unmapped_page) |*junk, *unmapped| {
-                junk.* = 0;
-                unmapped.* = options.unmapped_value;
-            }
             return .{
                 .unmapped_page = options.unmapped_page,
                 .junk_page = options.junk_page,
-                .page = [_]Page{.{
-                    .read = options.unmapped_page,
-                    .write = options.junk_page,
+                .pages = [_]Page{.{
+                    .read = options.unmapped_page.ptr,
+                    .write = options.junk_page.ptr,
                 }} ** NUM_PAGES,
             };
         }
@@ -74,32 +69,35 @@ pub fn Memory(comptime page_size: comptime_int) type {
         }
 
         /// map address range as RAM to host memory
-        pub fn map_ram(self: *Self, addr: u16, size: u17, ptr: [*]u8) void {
-            self.map_rw(addr, size, ptr, ptr);
+        pub fn mapRAM(self: *Self, addr: u16, size: u17, ram: []u8) void {
+            self.mapRW(addr, size, ram, ram);
         }
 
         /// map address range as ROM to host memory (reads from host, writes to junk page)
-        pub fn map_rom(self: *Self, addr: u16, size: u17, ptr: [*]const u8) void {
-            self.map_rw(addr, size, ptr, self.junk_page);
+        pub fn mapROM(self: *Self, addr: u16, size: u17, rom: []const u8) void {
+            self.mapRW(addr, size, rom, self.junk_page);
         }
 
         /// unmap an address range (reads will yield 0xFF, and writes go to junk page)
         pub fn unmap(self: *Self, addr: u16, size: u17) void {
-            self.map_rw(addr, size, self.unmapped_page, self.junk_page);
+            self.mapRW(addr, size, self.unmapped_page, self.junk_page);
         }
 
         /// map address range to separate read- and write areas in host memory (for RAM-under-ROM)
-        pub fn map_rw(self: *Self, addr: u16, size: u17, rd_ptr: [*]const u8, wr_ptr: [*]u8) void {
+        pub fn mapRW(self: *Self, addr: u16, size: u17, read: []const u8, write: []u8) void {
             assert(size <= ADDR_RANGE);
+            assert(read.len == size);
+            assert(write.len == size);
+            assert(size >= PAGE_SIZE);
             assert((size & PAGE_MASK) == 0);
 
-            const num_pages: u16 = size >> PAGE_SHIFT;
+            const num_pages: usize = size >> PAGE_SHIFT;
             for (0..num_pages) |i| {
-                const offset: u16 = i * PAGE_SIZE;
-                const page_index: usize = ((addr + offset) & PAGE_MASK) >> PAGE_SHIFT;
+                const offset = i * PAGE_SIZE;
+                const page_index: usize = ((addr + offset) & ADDR_MASK) >> PAGE_SHIFT;
                 var page: *Page = &self.pages[page_index];
-                page.read = rd_ptr + offset;
-                page.write = wr_ptr + offset;
+                page.read = @ptrCast(&read[offset]);
+                page.write = @ptrCast(&write[offset]);
             }
         }
     };

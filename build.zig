@@ -83,6 +83,8 @@ pub fn build(b: *Build) void {
         .optimize = optimize,
         .chipz = mod_chipz,
     });
+
+    buildTest(b, target, mod_chipz);
 }
 
 fn buildTool(b: *Build, options: Options) void {
@@ -100,4 +102,22 @@ fn buildTool(b: *Build, options: Options) void {
     const run = b.addRunArtifact(exe);
     run.step.dependOn(b.getInstallStep());
     b.step(b.fmt("run-{s}", .{options.name}), options.run_desc).dependOn(&run.step);
+}
+
+fn buildTest(b: *Build, target: ResolvedTarget, chipz: *Module) void {
+    const tests = .{
+        "memory",
+    };
+    const test_step = b.step("test", "Run unit tests");
+    inline for (tests) |name| {
+        const unit_tests = b.addTest(.{
+            .name = name,
+            .root_source_file = b.path("test/" ++ name ++ ".zig"),
+            .target = target,
+        });
+        b.installArtifact(unit_tests);
+        unit_tests.root_module.addImport("chipz", chipz);
+        const run_unit_tests = b.addRunArtifact(unit_tests);
+        test_step.dependOn(&run_unit_tests.step);
+    }
 }
