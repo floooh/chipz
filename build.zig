@@ -32,6 +32,15 @@ pub fn build(b: *Build) void {
             .{ .name = "common", .module = mod_common },
         },
     });
+    const mod_systems = b.addModule("systems", .{
+        .root_source_file = b.path("src/systems/systems.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "common", .module = mod_common },
+            .{ .name = "chips", .module = mod_chips },
+        },
+    });
 
     // top-level public module
     const mod_chipz = b.addModule("chipz", .{
@@ -41,6 +50,7 @@ pub fn build(b: *Build) void {
         .imports = &.{
             .{ .name = "common", .module = mod_common },
             .{ .name = "chips", .module = mod_chips },
+            .{ .name = "systems", .module = mod_systems },
         },
     });
 

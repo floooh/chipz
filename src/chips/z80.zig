@@ -17,7 +17,6 @@ pub const Pins = struct {
     WAIT: comptime_int,
     INT: comptime_int,
     NMI: comptime_int,
-    RESET: comptime_int,
     // virtual pins
     RETI: comptime_int,
 };
@@ -36,9 +35,8 @@ pub const DefaultPins = Pins{
     .WAIT = 31,
     .INT = 32,
     .NMI = 33,
-    .RESET = 34,
     // virtual pins
-    .RETI = 38,
+    .RETI = 34,
 };
 
 // lookup table for (HL)/(IX+d)/(IY+d) ops
@@ -105,7 +103,6 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         pub const WAIT = mask(Bus, P.WAIT);
         pub const INT = mask(Bus, P.INT);
         pub const NMI = mask(Bus, P.NMI);
-        pub const RESET = mask(Bus, P.RESET);
         pub const BUSRQ = mask(Bus, P.BUSRQ);
         pub const BUSAK = mask(Bus, P.BUSAK);
         pub const RETI = mask(Bus, P.RETI);
