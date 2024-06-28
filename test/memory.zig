@@ -10,7 +10,6 @@ const options = memory.MemoryOptions{
 
 var junk_page = [_]u8{0} ** PAGE_SIZE;
 const unmapped_page = [_]u8{0xFF} ** PAGE_SIZE;
-var mem = [_]u8{0} ** memory.ADDR_RANGE;
 const rom = init: {
     @setEvalBranchQuota(2 * PAGE_SIZE);
     const size = 2 * PAGE_SIZE;
@@ -38,6 +37,7 @@ test "read/write unmapped" {
 }
 
 test "map ram page sized" {
+    var mem = [_]u8{0} ** memory.ADDR_RANGE;
     var m = Memory.init(options);
     m.mapRAM(0x0000, 0x1000, mem[0..0x1000]);
     m.mapRAM(0x2000, 0x1000, mem[0x1000..0x2000]);
@@ -62,6 +62,7 @@ test "map ram page sized" {
 }
 
 test "map ram multi-page sized" {
+    var mem = [_]u8{0} ** memory.ADDR_RANGE;
     var m = Memory.init(options);
     m.mapRAM(0x0000, 0x4000, mem[0..0x4000]);
     m.mapRAM(0x8000, 0x4000, mem[0x4000..0x8000]);
@@ -94,4 +95,32 @@ test "map rom" {
     try expect(m.rd(0xD046) == 0x46);
     try expect(junk_page[0x0023] == 0x11);
     try expect(junk_page[0x0046] == 0x55);
+}
+
+test "map separate" {
+    var mem = [_]u8{0} ** memory.ADDR_RANGE;
+    var m = Memory.init(options);
+    m.mapRW(0xC000, rom.len, &rom, mem[0x1000 .. 0x1000 + rom.len]);
+    try expect(m.rd(0xC023) == 0x23);
+    try expect(m.rd(0xD046) == 0x46);
+    // writes should go to the RAM-under-ROM
+    m.wr(0xC023, 0x11);
+    m.wr(0xD046, 0x55);
+    try expect(m.rd(0xC023) == 0x23);
+    try expect(m.rd(0xD046) == 0x46);
+    try expect(mem[0x1023] == 0x11);
+    try expect(mem[0x2046] == 0x55);
+}
+
+test "map / unmap" {
+    var mem = [_]u8{0} ** memory.ADDR_RANGE;
+    var m = Memory.init(options);
+    m.mapRAM(0x0000, 0x1000, mem[0..0x1000]);
+    m.wr(0x0000, 0x23);
+    m.wr(0x0100, 0x46);
+    try expect(m.rd(0x0000) == 0x23);
+    try expect(m.rd(0x0100) == 0x46);
+    m.unmap(0x0000, 0x1000);
+    try expect(m.rd(0x0000) == 0xFF);
+    try expect(m.rd(0x0100) == 0xFF);
 }
