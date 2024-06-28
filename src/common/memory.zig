@@ -33,7 +33,8 @@ pub const MemoryOptions = struct {
 
 /// implements a paged memory system for emulators with up to 16 bits address range
 ///
-/// NOTE: all slices must reference host memory that outlives the Memory object!
+/// NOTE: all user-provided slices must reference host memory that outlives the Memory object!
+///
 pub fn Memory(comptime page_size: comptime_int) type {
     assert(std.math.isPowerOfTwo(page_size));
 
@@ -74,24 +75,31 @@ pub fn Memory(comptime page_size: comptime_int) type {
 
         /// map address range as RAM to host memory
         pub fn mapRAM(self: *Self, addr: u16, size: u17, ram: []u8) void {
-            self.mapRW(addr, size, ram, ram);
+            assert(ram.len == size);
+            self.map(addr, size, ram, ram);
         }
 
         /// map address range as ROM to host memory (reads from host, writes to junk page)
         pub fn mapROM(self: *Self, addr: u16, size: u17, rom: []const u8) void {
-            self.mapRW(addr, size, rom, self.junk_page);
+            assert(rom.len == size);
+            self.map(addr, size, rom, null);
+        }
+
+        /// map separate read and write address ranges (for RAM-under-ROM)
+        pub fn mapRW(self: *Self, addr: u16, size: u17, read: []const u8, write: []u8) void {
+            assert(read.len == size);
+            assert(write.len == size);
+            self.map(addr, size, read, write);
         }
 
         /// unmap an address range (reads will yield 0xFF, and writes go to junk page)
         pub fn unmap(self: *Self, addr: u16, size: u17) void {
-            self.mapRW(addr, size, self.unmapped_page, self.junk_page);
+            self.map(addr, size, null, null);
         }
 
         /// map address range to separate read- and write areas in host memory (for RAM-under-ROM)
-        pub fn mapRW(self: *Self, addr: u16, size: u17, read: []const u8, write: []u8) void {
+        fn map(self: *Self, addr: u16, size: u17, read: ?[]const u8, write: ?[]u8) void {
             assert(size <= ADDR_RANGE);
-            assert(read.len == size);
-            assert(write.len == size);
             assert(size >= PAGE_SIZE);
             assert((size & PAGE_MASK) == 0);
 
@@ -100,8 +108,16 @@ pub fn Memory(comptime page_size: comptime_int) type {
                 const offset = i * PAGE_SIZE;
                 const page_index: usize = ((addr + offset) & ADDR_MASK) >> PAGE_SHIFT;
                 var page: *Page = &self.pages[page_index];
-                page.read = @ptrCast(&read[offset]);
-                page.write = @ptrCast(&write[offset]);
+                if (read) |p| {
+                    page.read = @ptrCast(&p[offset]);
+                } else {
+                    page.read = @ptrCast(self.unmapped_page);
+                }
+                if (write) |p| {
+                    page.write = @ptrCast(&p[offset]);
+                } else {
+                    page.write = @ptrCast(self.junk_page);
+                }
             }
         }
     };
