@@ -1,7 +1,6 @@
 const bitutils = @import("common").bitutils;
 const mask = bitutils.mask;
 const maskm = bitutils.maskm;
-const clr = bitutils.clr;
 
 /// map chip pin names to bit positions
 /// NOTE: no BUSRQ and BUSAK pins, but a virtual RETI pin
@@ -1151,7 +1150,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         // zig fmt: off
         pub fn tick(self: *Self, in_bus: Bus) Bus {
             @setEvalBranchQuota(4096);
-            var bus = clr(in_bus, CTRL | RETI);
+            var bus = in_bus & ~(CTRL | RETI);
             next: {
                 switch (self.step) {
                     // BEGIN DECODE

@@ -15,7 +15,3 @@ pub inline fn maskm(comptime T: anytype, comptime bits: []const comptime_int) T 
 pub inline fn mask(comptime T: anytype, comptime b: comptime_int) T {
     return 1 << b;
 }
-
-pub inline fn clr(bus: anytype, comptime m: @TypeOf(bus)) @TypeOf(bus) {
-    return bus & ~m;
-}
