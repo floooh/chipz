@@ -45,5 +45,9 @@ test "map ram page sized" {
     try expect(m.rd(0x1FFF) == 0xFF);
     try expect(m.rd(0x2000) == 0x55);
     try expect(m.rd(0x2FFF) == 0x66);
-    try expect(m.rd(0x3000) == 0x77);
+    try expect(m.rd(0x3000) == 0xFF);
+    try expect(mem[0x0000] == 0x11);
+    try expect(mem[0x0FFF] == 0x22);
+    try expect(mem[0x1000] == 0x55);
+    try expect(mem[0x1FFF] == 0x66);
 }
