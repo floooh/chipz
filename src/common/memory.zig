@@ -23,13 +23,17 @@ pub const ADDR_MASK = ADDR_RANGE - 1;
 
 /// Memory init options
 pub const MemoryOptions = struct {
-    /// a user-provided memory area of 'page_size' as junk page, will be filled with zeroes
+    /// a user-provided memory area of 'page_size' as junk page
     junk_page: []u8,
-    /// a user-provided memory area of 'page_size' for unmapped memory, will be filled 'unmapped_value'
+    /// a user-provided memory area of 'page_size' for unmapped memory
+    /// this is expected to be filled with the value the CPU would read
+    /// when accessing unmapped memory (typically 0xFF)
     unmapped_page: []const u8,
 };
 
 /// implements a paged memory system for emulators with up to 16 bits address range
+///
+/// NOTE: all slices must reference host memory that outlives the Memory object!
 pub fn Memory(comptime page_size: comptime_int) type {
     assert(std.math.isPowerOfTwo(page_size));
 
