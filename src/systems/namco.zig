@@ -37,11 +37,15 @@ pub fn Namco(comptime sys: System) type {
 
         /// Namco system init options
         pub const Options = struct {
-            // host audio bindings
             audio: AudioOptions,
-            roms: struct {
-                // common ROMs for Pacman and Pengo
-                common: struct {
+            roms: Roms,
+
+            const Roms = struct {
+                common: Common,
+                pengo: ?Pengo = null,
+                pacman: ?Pacman = null,
+
+                const Common = struct {
                     sys_0000_0FFF: []const u8,
                     sys_1000_1FFF: []const u8,
                     sys_2000_2FFF: []const u8,
@@ -49,24 +53,24 @@ pub fn Namco(comptime sys: System) type {
                     prom_0000_001F: []const u8,
                     sound_0000_00FF: []const u8,
                     sound_0100_01FF: []const u8,
-                },
-                // Pengo specific ROMs
-                pengo: struct {
-                    sys_4000_4FFF: ?[]const u8,
-                    sys_5000_5FFF: ?[]const u8,
-                    sys_6000_6FFF: ?[]const u8,
-                    sys_7000_7FFF: ?[]const u8,
-                    gfx_0000_1FFF: ?[]const u8,
-                    gfx_2000_3FFF: ?[]const u8,
-                    prom_0020_041F: ?[]const u8,
-                },
-                // Pacman specific ROMs
-                pacman: struct {
-                    gfx_0000_0FFF: ?[]const u8,
-                    gfx_1000_1FFF: ?[]const u8,
-                    prom_0020_011F: ?[]const u8,
-                },
-            },
+                };
+
+                const Pengo = struct {
+                    sys_4000_4FFF: []const u8,
+                    sys_5000_5FFF: []const u8,
+                    sys_6000_6FFF: []const u8,
+                    sys_7000_7FFF: []const u8,
+                    gfx_0000_1FFF: []const u8,
+                    gfx_2000_3FFF: []const u8,
+                    prom_0020_041F: []const u8,
+                };
+
+                const Pacman = struct {
+                    gfx_0000_0FFF: []const u8,
+                    gfx_1000_1FFF: []const u8,
+                    prom_0020_011F: []const u8,
+                };
+            };
         };
 
         pub const VIDEO_RAM_SIZE = 0x0400;
@@ -114,8 +118,12 @@ pub fn Namco(comptime sys: System) type {
                 .rom_prom = initPRom(opts),
 
                 // FIXME!
-                .hw_colors = std.mem.zeroes(@TypeOf(self.hw_color)),
+                .hw_colors = std.mem.zeroes(@TypeOf(self.hw_colors)),
                 .pal_map = std.mem.zeroes(@TypeOf(self.pal_map)),
+
+                .fb = std.mem.zeroes(@TypeOf(self.fb)),
+                .junk_page = std.mem.zeroes(@TypeOf(self.junk_page)),
+                .unmapped_page = [_]u8{0xFF} ** Memory.PAGE_SIZE,
             };
         }
 
@@ -125,21 +133,25 @@ pub fn Namco(comptime sys: System) type {
             return self;
         }
 
+        fn cp(src: []const u8, dst: []u8) void {
+            std.mem.copyForwards(u8, dst, src);
+        }
+
         fn initSysRom(opts: Options) [CPU_ROM_SIZE]u8 {
             var rom: [CPU_ROM_SIZE]u8 = undefined;
             if (sys == .Pacman) {
                 assert(rom.len == 0x4000);
             }
-            rom[0x0000..0x0FFF].* = opts.roms.common.sys_0000_0FFF;
-            rom[0x1000..0x1FFF].* = opts.roms.common.sys_1000_1FFF;
-            rom[0x2000..0x2FFF].* = opts.roms.common.sys_2000_2FFF;
-            rom[0x3000..0x3FFF].* = opts.roms.common.sys_3000_3FFF;
+            cp(opts.roms.common.sys_0000_0FFF, rom[0x0000..0x1000]);
+            cp(opts.roms.common.sys_1000_1FFF, rom[0x1000..0x2000]);
+            cp(opts.roms.common.sys_2000_2FFF, rom[0x2000..0x3000]);
+            cp(opts.roms.common.sys_3000_3FFF, rom[0x3000..0x4000]);
             if (sys == .Pengo) {
                 assert((sys == .Pengo) and (rom.len == 0x8000));
-                rom[0x4000..0x4FFF].* = opts.roms.pengo.sys_4000_4FFF;
-                rom[0x5000..0x5FFF].* = opts.roms.pengo.sys_5000_5FFF;
-                rom[0x6000..0x6FFF].* = opts.roms.pengo.sys_6000_6FFF;
-                rom[0x7000..0x7FFF].* = opts.roms.pengo.sys_7000_7FFF;
+                cp(opts.roms.pengo.?.sys_4000_4FFF, rom[0x4000..0x5000]);
+                cp(opts.roms.pengo.?.sys_5000_5FFF, rom[0x5000..0x6000]);
+                cp(opts.roms.pengo.?.sys_6000_6FFF, rom[0x6000..0x7000]);
+                cp(opts.roms.pengo.?.sys_7000_7FFF, rom[0x7000..0x8000]);
             }
             return rom;
         }
@@ -148,25 +160,25 @@ pub fn Namco(comptime sys: System) type {
             var rom: [GFX_ROM_SIZE]u8 = undefined;
             if (sys == .Pacman) {
                 assert(rom.len == 0x2000);
-                rom[0x0000..0x0FFF].* = opts.roms.pacman.gfx_0000_0FFF;
-                rom[0x1000..0x1FFF].* = opts.roms.pacman.gfx_1000_1FFF;
+                cp(opts.roms.pacman.?.gfx_0000_0FFF, rom[0x0000..0x1000]);
+                cp(opts.roms.pacman.?.gfx_1000_1FFF, rom[0x1000..0x2000]);
             } else {
                 assert((sys == .Pengo) and (rom.len == 0x4000));
-                rom[0x0000..0x1FFF].* = opts.roms.pengo.gfx_0000_1FFF;
-                rom[0x2000..0x3FFF].* = opts.roms.pengo.gfx_2000_3FFF;
+                cp(opts.roms.pengo.?.gfx_0000_1FFFF, rom[0x0000..0x2000]);
+                cp(opts.roms.pengo.?.gfx_2000_3FFFF, rom[0x2000..0x4000]);
             }
             return rom;
         }
 
         fn initPRom(opts: Options) [PROM_SIZE]u8 {
             var rom: [PROM_SIZE]u8 = undefined;
-            rom[0x0000..0x0020].* = opts.roms.common.prom_0000_001F;
+            cp(opts.roms.common.prom_0000_001F, rom[0x0000..0x0020]);
             if (sys == .Pacman) {
                 assert(rom.len == 0x120);
-                rom[0x0020..0x011F].* = opts.roms.pacman.prom_0020_011F;
+                cp(opts.roms.pacman.?.prom_0020_011F, rom[0x0020..0x0120]);
             } else {
                 assert((sys == .Pengo) and (rom.len == 0x420));
-                rom[0x0020..0x041F].* = opts.roms.pengo.prom_0020_041F;
+                cp(opts.roms.pengo.?.prom_0020_041F, rom[0x0020..0x420]);
             }
             return rom;
         }
