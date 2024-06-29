@@ -3,7 +3,7 @@ const memory = @import("chipz").common.memory;
 
 const PAGE_SIZE = 4096;
 const Memory = memory.Memory(PAGE_SIZE);
-const options = memory.MemoryOptions{
+const options = Memory.Options{
     .junk_page = &junk_page,
     .unmapped_page = &unmapped_page,
 };

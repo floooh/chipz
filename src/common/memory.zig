@@ -21,16 +21,6 @@ const Page = struct {
 pub const ADDR_RANGE = 0x10000;
 pub const ADDR_MASK = ADDR_RANGE - 1;
 
-/// Memory init options
-pub const MemoryOptions = struct {
-    /// a user-provided memory area of 'page_size' as junk page
-    junk_page: []u8,
-    /// a user-provided memory area of 'page_size' for unmapped memory
-    /// this is expected to be filled with the value the CPU would read
-    /// when accessing unmapped memory (typically 0xFF)
-    unmapped_page: []const u8,
-};
-
 /// implements a paged memory system for emulators with up to 16 bits address range
 ///
 /// NOTE: all user-provided slices must reference host memory that outlives the Memory object!
@@ -41,6 +31,16 @@ pub fn Memory(comptime page_size: comptime_int) type {
     return struct {
         const Self = @This();
 
+        /// Memory init options
+        pub const Options = struct {
+            /// a user-provided memory area of 'page_size' as junk page
+            junk_page: []u8,
+            /// a user-provided memory area of 'page_size' for unmapped memory
+            /// this is expected to be filled with the value the CPU would read
+            /// when accessing unmapped memory (typically 0xFF)
+            unmapped_page: []const u8,
+        };
+
         pub const PAGE_SIZE: usize = page_size;
         pub const PAGE_SHIFT: usize = std.math.log2_int(u16, page_size);
         pub const NUM_PAGES: usize = ADDR_RANGE / PAGE_SIZE;
@@ -50,7 +50,7 @@ pub fn Memory(comptime page_size: comptime_int) type {
         junk_page: []u8,
         pages: [NUM_PAGES]Page,
 
-        pub fn init(options: MemoryOptions) Self {
+        pub fn init(options: Options) Self {
             assert(options.junk_page.len == PAGE_SIZE);
             assert(options.unmapped_page.len == PAGE_SIZE);
             return .{
