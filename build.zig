@@ -1,18 +1,8 @@
 const std = @import("std");
+const tests = @import("tests/build.zig");
+const tools = @import("tools/build.zig");
+const emus = @import("emus/build.zig");
 const Build = std.Build;
-const ResolvedTarget = Build.ResolvedTarget;
-const OptimizeMode = std.builtin.OptimizeMode;
-const Step = Build.Step;
-const Module = Build.Module;
-
-const Options = struct {
-    name: []const u8,
-    run_desc: []const u8,
-    src: []const u8,
-    target: ResolvedTarget,
-    optimize: OptimizeMode,
-    chipz: ?*Module = null,
-};
 
 pub fn build(b: *Build) void {
     const target = b.standardTargetOptions(.{});
@@ -42,7 +32,7 @@ pub fn build(b: *Build) void {
         },
     });
 
-    // top-level public module
+    // top-level module
     const mod_chipz = b.addModule("chipz", .{
         .root_source_file = b.path("src/chipz.zig"),
         .target = target,
@@ -54,80 +44,7 @@ pub fn build(b: *Build) void {
         },
     });
 
-    buildTool(b, .{
-        .name = "z80gen",
-        .run_desc = "Run the Z80 code generator",
-        .src = "gen/z80/main.zig",
-        .target = target,
-        .optimize = optimize,
-    });
-    buildTool(b, .{
-        .name = "z80test",
-        .run_desc = "Run Z80 instruction test",
-        .src = "test/z80test.zig",
-        .target = target,
-        .optimize = optimize,
-        .chipz = mod_chipz,
-    });
-    buildTool(b, .{
-        .name = "z80zex",
-        .run_desc = "Run Z80 ZEXALL test",
-        .src = "test/z80zex.zig",
-        .target = target,
-        .optimize = optimize,
-        .chipz = mod_chipz,
-    });
-    buildTool(b, .{
-        .name = "z80int",
-        .run_desc = "Run Z80 interrupt timing test",
-        .src = "test/z80int.zig",
-        .target = target,
-        .optimize = optimize,
-        .chipz = mod_chipz,
-    });
-    buildTool(b, .{
-        .name = "z80timing",
-        .run_desc = "Run Z80 instruction timing test",
-        .src = "test/z80timing.zig",
-        .target = target,
-        .optimize = optimize,
-        .chipz = mod_chipz,
-    });
-
-    buildTest(b, target, mod_chipz);
-}
-
-fn buildTool(b: *Build, options: Options) void {
-    const exe = b.addExecutable(.{
-        .name = options.name,
-        .root_source_file = b.path(options.src),
-        .target = options.target,
-        .optimize = options.optimize,
-    });
-    if (options.chipz) |chipz| {
-        exe.root_module.addImport("chipz", chipz);
-    }
-    b.installArtifact(exe);
-
-    const run = b.addRunArtifact(exe);
-    run.step.dependOn(b.getInstallStep());
-    b.step(b.fmt("run-{s}", .{options.name}), options.run_desc).dependOn(&run.step);
-}
-
-fn buildTest(b: *Build, target: ResolvedTarget, chipz: *Module) void {
-    const tests = .{
-        "memory",
-    };
-    const test_step = b.step("test", "Run unit tests");
-    inline for (tests) |name| {
-        const unit_tests = b.addTest(.{
-            .name = name,
-            .root_source_file = b.path("test/" ++ name ++ ".zig"),
-            .target = target,
-        });
-        b.installArtifact(unit_tests);
-        unit_tests.root_module.addImport("chipz", chipz);
-        const run_unit_tests = b.addRunArtifact(unit_tests);
-        test_step.dependOn(&run_unit_tests.step);
-    }
+    tools.build(b, .{ .src_dir = "tools", .target = target, .optimize = optimize });
+    tests.build(b, .{ .src_dir = "tests", .target = target, .optimize = optimize, .mod_chipz = mod_chipz });
+    emus.build(b, .{ .src_dir = "emus", .target = target, .optimize = optimize, .mod_chipz = mod_chipz });
 }
