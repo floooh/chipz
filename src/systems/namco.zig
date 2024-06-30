@@ -1,3 +1,37 @@
+//
+//  Memory map info:
+//
+//  Pacman: only 15 address bits used, mirroring will happen in tick callback
+//
+//  0000..3FFF:     16KB ROM
+//  4000..43FF:     1KB video RAM
+//  4400..47FF:     1KB color RAM
+//  4800..4C00:     unmapped?
+//  4C00..4FEF:     <1KB main RAM
+//  4FF0..4FFF:     sprite attributes (write only?)
+//
+//  5000            write:  interrupt enable/disable
+//                  read:   IN0 (joystick + coin slot)
+//  5001            write:  sound enable
+//  5002            ???
+//  5003            write:  flip screen
+//  5004            write:  player 1 start light (ignored)
+//  5005            write:  player 2 start light (ignored)
+//  5006            write:  coin lockout (ignored)
+//  5007            write:  coin counter (ignored)
+//  5040..505F      write:  sound registers
+//  5040            read:   IN1 (joystick + coin slot)
+//  5060..506F      write:  sprite coordinates
+//  5080            read:   DIP switched
+//
+//  Pengo: full 64KB address space
+//
+//  0000..7FFF:     32KB ROM
+//  8000..83FF:     1KB video RAM
+//  8400..87FF:     1KB color RAM
+//  8800..8FEF:     2KB main RAM
+//  9000+           memory mapped registers
+
 const std = @import("std");
 const assert = std.debug.assert;
 const z80 = @import("chips").z80;
@@ -83,6 +117,45 @@ pub fn Namco(comptime sys: System) type {
         const MASTER_CLOCK = 18432000;
         const CPU_CLOCK = MASTER_CLOCK / 6;
         const VSYNC_PERIOD = CPU_CLOCK / 60;
+
+        // memory-mapped IO addresses
+        const MEMIO = switch (sys) {
+            .Pacman => struct {
+                const BASE: u16 = 0x5000;
+                const RD = struct {
+                    const IN0: u16 = BASE;
+                    const IN1: u16 = BASE + 0x40;
+                    const DSW1: u16 = BASE + 0x80;
+                };
+                const WR = struct {
+                    const INT_ENABLE: u16 = BASE;
+                    const SOUND_ENABLE: u16 = BASE + 1;
+                    const FLIP_SCREEN: u16 = BASE + 3; // FIXME: is this correct?
+                    const SOUND_BASE: u16 = BASE + 0x40;
+                    const SPRITES_BASE: u16 = BASE + 0x60;
+                };
+            },
+            .Pengo => struct {
+                const BASE: u16 = 0x9000;
+                const RD = struct {
+                    const IN0: u16 = BASE + 0xC0;
+                    const IN1: u16 = BASE + 0x80;
+                    const DSW1: u16 = BASE + 0x40;
+                    const DSW2: u16 = BASE;
+                };
+                const WR = struct {
+                    const SOUND_BASE: u16 = BASE;
+                    const SPRITES_BASE: u16 = BASE + 0x20;
+                    const INT_ENABLE: u16 = BASE + 0x40;
+                    const SOUND_ENABLE: u16 = BASE + 0x41;
+                    const PAL_SELECT: u16 = BASE + 0x42;
+                    const FLIP_SCREEN: u16 = BASE + 0x43;
+                    const CLUT_SELECT: u16 = BASE + 0x46;
+                    const TILE_SELECT: u16 = BASE + 0x47;
+                    const WATCHDOG: u16 = BASE + 0x80;
+                };
+            },
+        };
 
         // IN0 bits (active-low)
         pub const IN0 = switch (sys) {
@@ -205,14 +278,14 @@ pub fn Namco(comptime sys: System) type {
         dsw1: u8 = DSW1.DEFAULT, // dip-switches as-is (active-high)
         dsw2: u8 = DSW2.DEFAULT, // Pengo only
         int_vector: u8 = 0, // IM2 interrupt vector set with OUT on port 0
-        int_enable: u8 = 0,
-        sound_enable: u8 = 0,
-        flip_screen: u8 = 0, // screen-flip for cocktail cabinet (not implemented)
-        pal_select: u8 = 0, // Pengo only
-        clut_select: u8 = 0, // Pengo only
-        tile_select: u8 = 0, // Pengo only
+        int_enable: bool = false,
+        sound_enable: bool = false,
+        flip_screen: bool = false, // screen-flip for cocktail cabinet (not implemented)
+        pal_select: u1 = 0, // Pengo only
+        clut_select: u1 = 0, // Pengo only
+        tile_select: u1 = 0, // Pengo only
         sprite_coords: [16]u8, // 8 sprites x/y pairs
-        vsync_count: i32 = VSYNC_PERIOD,
+        vsync_count: u32 = VSYNC_PERIOD,
 
         ram: struct {
             video: [VIDEO_RAM_SIZE]u8,
@@ -226,7 +299,7 @@ pub fn Namco(comptime sys: System) type {
         },
 
         hw_colors: [32]u32, // 8-bit colors from pal_rom[0..32] decoded to RGBA8
-        pal_map: [PALETTE_MAP_SIZE]u5, // color decoded into indices into hw_colors
+        pal_map: [PALETTE_MAP_SIZE]u4, // indirect indices into hw_colors (u4 is not a but, Pengo has an additon pal_select bit)
         fb: [FRAMEBUFFER_SIZE]u8 align(128), // framebuffer bytes are indices into hw_colors
 
         junk_page: [Memory.PAGE_SIZE]u8,
@@ -252,8 +325,8 @@ pub fn Namco(comptime sys: System) type {
                 },
 
                 // FIXME!
-                .hw_colors = std.mem.zeroes(@TypeOf(self.hw_colors)),
-                .pal_map = std.mem.zeroes(@TypeOf(self.pal_map)),
+                .hw_colors = decodeHwColors(&self.rom.prom),
+                .pal_map = decodePaletteMap(&self.rom.prom),
 
                 .fb = std.mem.zeroes(@TypeOf(self.fb)),
                 .junk_page = std.mem.zeroes(@TypeOf(self.junk_page)),
@@ -268,37 +341,117 @@ pub fn Namco(comptime sys: System) type {
             return self;
         }
 
+        inline fn pin(bus: u64, p: comptime_int) bool {
+            return (bus & p) != 0;
+        }
+
+        pub fn tick(self: *Self, in_bus: u64) u64 {
+            var bus = in_bus;
+
+            // update vscync counter and trigger interrupt
+            self.vsync_count -= 1;
+            if (self.vsync_count == 0) {
+                self.vsync_count = VSYNC_PERIOD;
+                if (self.int_enable) {
+                    bus |= Z80.INT;
+                }
+            }
+
+            // FIXME: tick sound
+
+            // tick the CPU
+            bus = self.cpu.tick(bus);
+            const addr = Z80.getAddr(bus) & ADDR_MASK;
+            if (pin(bus, Z80.MREQ)) {
+                if (pin(bus, Z80.WR)) {
+                    const data = Z80.getData(bus);
+                    if (addr < MEMIO.BASE) {
+                        // a regular memory write
+                        self.mem.wr(addr, data);
+                    } else {
+                        // a memory-mapped IO write
+                        if (addr == MEMIO.WR.INT_ENABLE) {
+                            self.int_enable = (data & 1) != 0;
+                        } else if (addr == MEMIO.WR.SOUND_ENABLE) {
+                            self.sound_enable = (data & 1) != 0;
+                        } else if (addr == MEMIO.WR.FLIP_SCREEN) {
+                            self.flip_screen = (data & 1) != 0;
+                        } else if (sys == .Pengo and addr == MEMIO.WR.PAL_SELECT) {
+                            self.pal_select = data & 1;
+                        } else if (sys == .Pengo and addr == MEMIO.WR.CLUT_SELECT) {
+                            self.clut_select = data & 1;
+                        } else if (sys == .Pengo and addr == MEMIO.WR.TILE_SELECT) {
+                            self.tile_select = data & 1;
+                        } else if (addr >= MEMIO.WR.SOUND_BASE and addr < (MEMIO.WR.SOUND_BASE + 0x20)) {
+                            // FIXME: self.soundWrite(addr, data);
+                        } else if (addr >= MEMIO.WR.SPRITES_BASE and addr < (MEMIO.WR.SPRITES_BASE + 0x10)) {
+                            self.sprite_coords[addr & 0x000F] = data;
+                        }
+                    }
+                } else if (pin(bus, Z80.RD)) {
+                    if (addr < MEMIO.BASE) {
+                        // a regular memory read
+                        bus = Z80.setData(bus, self.mem.rd(addr));
+                    } else {
+                        // FIXME: IN0, IN1, DSW1 are mirrored for 0x40 bytes
+                        const data: u8 = switch (addr) {
+                            MEMIO.RD.IN0 => ~self.in0,
+                            MEMIO.RD.IN1 => ~self.in1,
+                            MEMIO.RD.DSW1 => self.dsw1,
+                            MEMIO.RD.DSW2 => if (sys == .Pengo) self.dsw2 else 0xFF,
+                            else => 0xFF,
+                        };
+                        bus = Z80.setData(bus, data);
+                    }
+                }
+            } else if (pin(bus, Z80.IORQ)) {
+                if (pin(bus, Z80.WR)) {
+                    if ((addr & 0x00FF) == 0) {
+                        // OUT to port 0: set interrupt vector latch
+                        self.int_vector = Z80.getData(bus);
+                    }
+                } else if (pin(bus, Z80.M1)) {
+                    // an interrupt machine cycle, set interrupt vector on data bus
+                    // and clear the interrupt pin
+                    bus = Z80.setData(bus, self.int_vector) & ~Z80.INT;
+                }
+            }
+            return bus;
+        }
+
+        /// decode 8-bit ROM colors into 32-bit RGBA8
+        fn decodeHwColors(prom: []const u8) [32]u32 {
+            // Each color ROM entry describes an RGB color in 1 byte:
+            //
+            // | 7| 6| 5| 4| 3| 2| 1| 0|
+            // |B1|B0|G2|G1|G0|R2|R1|R0|
+            //
+            // Intensities are: 0x97 + 0x47 + 0x21
+            var rgba8: [32]u32 = undefined;
+            for (0..0x20) |i| {
+                const rgb: u8 = prom[i];
+                const r: u32 = ((rgb >> 0) & 1) * 0x21 + ((rgb >> 1) & 1) * 0x47 + ((rgb >> 2) & 1) * 0x97;
+                const g: u32 = ((rgb >> 3) & 1) * 0x21 + ((rgb >> 4) & 1) * 0x47 + ((rgb >> 5) & 1) & 0x97;
+                const b: u32 = ((rgb >> 6) & 1) * 0x47 + ((rgb >> 7) & 1) * 0x97;
+                rgba8[i] = 0xFF000000 | (b << 16) | (g << 8) | r;
+            }
+            return rgba8;
+        }
+
+        // decode PROM palette map
+        fn decodePaletteMap(prom: []const u8) [PALETTE_MAP_SIZE]u4 {
+            var map: [PALETTE_MAP_SIZE]u4 = undefined;
+            for (0..256) |i| {
+                const pal_index: u4 = @truncate(prom[i + 0x20] & 0x0F);
+                map[i] = pal_index;
+                if (sys == .Pengo) {
+                    map[0x100 + i] = 0x10 | pal_index;
+                }
+            }
+            return map;
+        }
+
         fn initMemoryMap(self: *Self) void {
-            //  Pacman: only 15 address bits used, mirroring will happen in tick callback
-            //
-            //  0000..3FFF:     16KB ROM
-            //  4000..43FF:     1KB video RAM
-            //  4400..47FF:     1KB color RAM
-            //  4800..4C00:     unmapped?
-            //  4C00..4FEF:     <1KB main RAM
-            //  4FF0..4FFF:     sprite attributes (write only?)
-            //
-            //  5000            write:  interrupt enable/disable
-            //                  read:   IN0 (joystick + coin slot)
-            //  5001            write:  sound enable
-            //  5002            ???
-            //  5003            write:  flip screen
-            //  5004            write:  player 1 start light (ignored)
-            //  5005            write:  player 2 start light (ignored)
-            //  5006            write:  coin lockout (ignored)
-            //  5007            write:  coin counter (ignored)
-            //  5040..505F      write:  sound registers
-            //  5040            read:   IN1 (joystick + coin slot)
-            //  5060..506F      write:  sprite coordinates
-            //  5080            read:   DIP switched
-            //
-            //  Pengo: full 64KB address space
-            //
-            //  0000..7FFF:     32KB ROM
-            //  8000..83FF:     1KB video RAM
-            //  8400..87FF:     1KB color RAM
-            //  8800..8FEF:     2KB main RAM
-            //  9000+           memory mapped registers
             self.mem.mapROM(0x0000, 0x1000, self.rom.cpu[0x0000..0x1000]);
             self.mem.mapROM(0x1000, 0x1000, self.rom.cpu[0x1000..0x2000]);
             self.mem.mapROM(0x2000, 0x1000, self.rom.cpu[0x2000..0x3000]);
