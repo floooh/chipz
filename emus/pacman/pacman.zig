@@ -9,6 +9,8 @@ const Pacman = chipz.systems.namco.Namco(.Pacman);
 
 const state = struct {
     var sys: Pacman = undefined;
+    var frame_time_us: u32 = 0;
+    var ticks_per_frame: u32 = 0;
 };
 
 export fn init() void {
@@ -41,6 +43,8 @@ export fn init() void {
 }
 
 export fn frame() void {
+    state.frame_time_us = host.time.frameTime();
+    state.ticks_per_frame = state.sys.exec(state.frame_time_us);
     host.gfx.draw();
 }
 

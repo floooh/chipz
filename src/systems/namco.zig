@@ -35,8 +35,10 @@
 const std = @import("std");
 const assert = std.debug.assert;
 const z80 = @import("chips").z80;
-const memory = @import("common").memory;
-const AudioOptions = @import("common").host.AudioOptions;
+const common = @import("common");
+const memory = common.memory;
+const clock = common.clock;
+const AudioOptions = common.host.AudioOptions;
 
 /// the emulated arcade machine type
 pub const System = enum {
@@ -114,9 +116,9 @@ pub fn Namco(comptime sys: System) type {
         const DISPLAY_WIDTH = 288;
         const DISPLAY_HEIGHT = 224;
         const PALETTE_MAP_SIZE = if (sys == .Pacman) 256 else 512;
-        const MASTER_CLOCK = 18432000;
-        const CPU_CLOCK = MASTER_CLOCK / 6;
-        const VSYNC_PERIOD = CPU_CLOCK / 60;
+        const MASTER_FREQUENCY = 18432000;
+        const CPU_FREQUENCY = MASTER_FREQUENCY / 6;
+        const VSYNC_PERIOD = CPU_FREQUENCY / 60;
 
         // memory-mapped IO addresses
         const MEMIO = switch (sys) {
@@ -271,6 +273,7 @@ pub fn Namco(comptime sys: System) type {
             },
         };
 
+        bus: u64 = 0,
         cpu: Z80,
         mem: Memory,
         in0: u8 = 0, // inverted bits (active-low)
@@ -307,7 +310,7 @@ pub fn Namco(comptime sys: System) type {
 
         pub fn initInPlace(self: *Self, opts: Options) void {
             self.* = .{
-                .cpu = .{ .pc = 0xF000 }, // execution starts at 0xF000
+                .cpu = .{},
                 .mem = Memory.init(.{
                     .junk_page = &self.junk_page,
                     .unmapped_page = &self.unmapped_page,
@@ -343,6 +346,16 @@ pub fn Namco(comptime sys: System) type {
 
         inline fn pin(bus: u64, p: comptime_int) bool {
             return (bus & p) != 0;
+        }
+
+        pub fn exec(self: *Self, micro_seconds: u32) u32 {
+            const num_ticks = clock.microSecondsToTicks(CPU_FREQUENCY, micro_seconds);
+            var bus = self.bus;
+            for (0..num_ticks) |_| {
+                bus = self.tick(bus);
+            }
+            self.bus = bus;
+            return num_ticks;
         }
 
         pub fn tick(self: *Self, in_bus: u64) u64 {
