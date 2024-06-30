@@ -38,14 +38,8 @@ pub fn Namco(comptime sys: System) type {
         /// Namco system init options
         pub const Options = struct {
             audio: AudioOptions,
-            roms: Roms,
-
-            const Roms = struct {
-                common: Common,
-                pengo: ?Pengo = null,
-                pacman: ?Pacman = null,
-
-                const Common = struct {
+            roms: struct {
+                common: struct {
                     sys_0000_0FFF: []const u8,
                     sys_1000_1FFF: []const u8,
                     sys_2000_2FFF: []const u8,
@@ -53,9 +47,8 @@ pub fn Namco(comptime sys: System) type {
                     prom_0000_001F: []const u8,
                     sound_0000_00FF: []const u8,
                     sound_0100_01FF: []const u8,
-                };
-
-                const Pengo = struct {
+                },
+                pengo: ?struct {
                     sys_4000_4FFF: []const u8,
                     sys_5000_5FFF: []const u8,
                     sys_6000_6FFF: []const u8,
@@ -63,14 +56,13 @@ pub fn Namco(comptime sys: System) type {
                     gfx_0000_1FFF: []const u8,
                     gfx_2000_3FFF: []const u8,
                     prom_0020_041F: []const u8,
-                };
-
-                const Pacman = struct {
+                } = null,
+                pacman: ?struct {
                     gfx_0000_0FFF: []const u8,
                     gfx_1000_1FFF: []const u8,
                     prom_0020_011F: []const u8,
-                };
-            };
+                } = null,
+            },
         };
 
         pub const VIDEO_RAM_SIZE = 0x0400;
