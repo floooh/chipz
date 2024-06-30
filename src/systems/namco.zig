@@ -398,8 +398,7 @@ pub fn Namco(comptime sys: System) type {
                             MEMIO.RD.IN0 => ~self.in0,
                             MEMIO.RD.IN1 => ~self.in1,
                             MEMIO.RD.DSW1 => self.dsw1,
-                            MEMIO.RD.DSW2 => if (sys == .Pengo) self.dsw2 else 0xFF,
-                            else => 0xFF,
+                            else => if (sys == .Pengo and addr == MEMIO.RD.DSW2) self.dsw2 else 0xFF,
                         };
                         bus = Z80.setData(bus, data);
                     }
