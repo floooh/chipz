@@ -65,28 +65,165 @@ pub fn Namco(comptime sys: System) type {
             },
         };
 
-        pub const VIDEO_RAM_SIZE = 0x0400;
-        pub const COLOR_RAM_SIZE = 0x0400;
-        pub const MAIN_RAM_SIZE = if (sys == .Pacman) 0x0400 else 0x0800;
-        pub const CPU_ROM_SIZE = if (sys == .Pacman) 0x4000 else 0x8000;
-        pub const GFX_ROM_SIZE = if (sys == .Pacman) 0x2000 else 0x4000;
-        pub const PROM_SIZE = if (sys == .Pacman) 0x120 else 0x0420; // palette and color ROM
-        pub const FRAMEBUFFER_WIDTH = 512;
-        pub const FRAMEBUFFER_HEIGHT = 224;
-        pub const FRAMEBUFFER_SIZE = FRAMEBUFFER_WIDTH * FRAMEBUFFER_HEIGHT;
-        pub const DISPLAY_WIDTH = 288;
-        pub const DISPLAY_HEIGHT = 224;
-        pub const PALETTE_MAP_SIZE = if (sys == .Pacman) 256 else 512;
+        const VIDEO_RAM_SIZE = 0x0400;
+        const COLOR_RAM_SIZE = 0x0400;
+        const MAIN_RAM_SIZE = if (sys == .Pacman) 0x0400 else 0x0800;
+        const ADDR_MASK = if (sys == .Pacman) 0x7FFF else 0xFFFF; // Pacman address bus only has 15 wires
+        const IOMAP_BASE = 0x5000;
+        const ADDR_SPRITES_ATTR = 0x03F0; // offset of sprite attributes in main RAM
+        const CPU_ROM_SIZE = if (sys == .Pacman) 0x4000 else 0x8000;
+        const GFX_ROM_SIZE = if (sys == .Pacman) 0x2000 else 0x4000;
+        const PROM_SIZE = if (sys == .Pacman) 0x120 else 0x0420; // palette and color ROM
+        const FRAMEBUFFER_WIDTH = 512;
+        const FRAMEBUFFER_HEIGHT = 224;
+        const FRAMEBUFFER_SIZE = FRAMEBUFFER_WIDTH * FRAMEBUFFER_HEIGHT;
+        const DISPLAY_WIDTH = 288;
+        const DISPLAY_HEIGHT = 224;
+        const PALETTE_MAP_SIZE = if (sys == .Pacman) 256 else 512;
+        const MASTER_CLOCK = 18432000;
+        const CPU_CLOCK = MASTER_CLOCK / 6;
+        const VSYNC_PERIOD = CPU_CLOCK / 60;
+
+        // IN0 bits (active-low)
+        pub const IN0 = switch (sys) {
+            .Pacman => struct {
+                pub const UP: u8 = 1 << 0;
+                pub const LEFT: u8 = 1 << 1;
+                pub const RIGHT: u8 = 1 << 2;
+                pub const DOWN: u8 = 1 << 3;
+                pub const RACK_ADVANCE: u8 = 1 << 4;
+                pub const COIN1: u8 = 1 << 5;
+                pub const COIN2: u8 = 1 << 6;
+                pub const CREDIT: u8 = 1 << 7;
+            },
+            .Pengo => struct {
+                pub const UP: u8 = 1 << 0;
+                pub const DOWN: u8 = 1 << 1;
+                pub const LEFT: u8 = 1 << 2;
+                pub const RIGHT: u8 = 1 << 3;
+                pub const COIN1: u8 = 1 << 4;
+                pub const COIN2: u8 = 1 << 5;
+                pub const COIN3: u8 = 1 << 6; // aka coin-aux, not supported
+                pub const BUTTON: u8 = 1 << 7;
+            },
+        };
+
+        // IN1 bits (active-low)
+        pub const IN1 = switch (sys) {
+            .Pacman => struct {
+                pub const UP: u8 = 1 << 0;
+                pub const LEFT: u8 = 1 << 1;
+                pub const RIGHT: u8 = 1 << 2;
+                pub const DOWN: u8 = 1 << 3;
+                pub const BOARD_TEST: u8 = 1 << 4;
+                pub const P1_START: u8 = 1 << 5;
+                pub const P2_START: u8 = 1 << 6;
+            },
+            .Pengo => struct {
+                pub const UP: u8 = 1 << 0;
+                pub const DOWN: u8 = 1 << 1;
+                pub const LEFT: u8 = 1 << 2;
+                pub const RIGHT: u8 = 1 << 3;
+                pub const BOARD_TEST: u8 = 1 << 4;
+                pub const P1_START: u8 = 1 << 5;
+                pub const P2_START: u8 = 1 << 6;
+                pub const BUTTON: u8 = 1 << 7;
+            },
+        };
+
+        // DSW1 bits (active-high)
+        pub const DSW1 = switch (sys) {
+            .Pacman => struct {
+                pub const COINS_MASK: u8 = 3 << 0;
+                pub const COINS_FREE: u8 = 0; // free play
+                pub const COINS_1C1G: u8 = 1 << 0; // 1 coin 1 game
+                pub const COINS_1C2G: u8 = 2 << 0; // 1 coin 2 games
+                pub const COINS_2C1G: u8 = 3 << 0; // 2 coins 1 game
+                pub const LIVES_MASK: u8 = 3 << 2;
+                pub const LIVES_1: u8 = 0 << 2;
+                pub const LIVES_2: u8 = 1 << 2;
+                pub const LIVES_3: u8 = 2 << 2;
+                pub const LIVES_5: u8 = 3 << 2;
+                pub const EXTRALIFE_MASK: u8 = 3 << 4;
+                pub const EXTRALIFE_10K: u8 = 0 << 4;
+                pub const EXTRALIFE_15K: u8 = 1 << 4;
+                pub const EXTRALIFE_20K: u8 = 2 << 4;
+                pub const EXTRALIFE_NONE: u8 = 3 << 4;
+                pub const DIFFICULTY_MASK: u8 = 1 << 6;
+                pub const DIFFICULTY_HARD: u8 = 0 << 6;
+                pub const DIFFICULTY_NORM: u8 = 1 << 6;
+                pub const GHOSTNAMES_MASK: u8 = 1 << 7;
+                pub const GHOSTNAMES_ALT: u8 = 0 << 7;
+                pub const GHOSTNAMES_NORM: u8 = 1 << 7;
+                pub const DEFAULT: u8 = COINS_1C1G | LIVES_3 | EXTRALIFE_15K | DIFFICULTY_NORM | GHOSTNAMES_NORM;
+            },
+            .Pengo => struct {
+                pub const EXTRALIFE_MASK: u8 = 1 << 0;
+                pub const EXTRALIFE_30K: u8 = 0 << 0;
+                pub const EXTRALIFE_50K: u8 = 1 << 0;
+                pub const DEMOSOUND_MASK: u8 = 1 << 1;
+                pub const DEMOSOUND_ON: u8 = 0 << 1;
+                pub const DEMOSOUND_OFF: u8 = 1 << 1;
+                pub const CABINET_MASK: u8 = 1 << 2;
+                pub const CABINET_UPRIGHT: u8 = 0 << 2;
+                pub const CABINET_COCKTAIL: u8 = 1 << 2;
+                pub const LIVES_MASK: u8 = 3 << 3;
+                pub const LIVES_2: u8 = 0 << 3;
+                pub const LIVES_3: u8 = 1 << 3;
+                pub const LIVES_4: u8 = 2 << 3;
+                pub const LIVES_5: u8 = 3 << 3;
+                pub const RACKTEST_MASK: u8 = 1 << 5;
+                pub const RACKTEST_ON: u8 = 0 << 5;
+                pub const RACKTEST_OFF: u8 = 1 << 5;
+                pub const DIFFICULTY_MASK: u8 = 3 << 6;
+                pub const DIFFICULTY_EASY: u8 = 0 << 6;
+                pub const DIFFICULTY_MEDIUM: u8 = 1 << 6;
+                pub const DIFFICULTY_HARD: u8 = 2 << 6;
+                pub const DIFFICULTY_HARDEST: u8 = 3 << 6;
+                pub const DEFAULT: u8 = EXTRALIFE_30K | DEMOSOUND_ON | CABINET_UPRIGHT | LIVES_3 | RACKTEST_OFF | DIFFICULTY_MEDIUM;
+            },
+        };
+
+        // DSW2 bits (active-high)
+        pub const DSW2 = switch (sys) {
+            .Pacman => struct {
+                pub const DEFAULT: u8 = 0;
+            },
+            .Pengo => struct {
+                pub const COINA_MASK: u8 = 0xF << 0; // 16 combinations of N coins -> M games
+                pub const COINA_1C1G: u8 = 0xC << 0;
+                pub const COINB_MASK: u8 = 0xF << 4;
+                pub const COINB_1C1G: u8 = 0xC << 4;
+                pub const DEFAULT: u8 = COINA_1C1G | COINB_1C1G;
+            },
+        };
 
         cpu: Z80,
         mem: Memory,
+        in0: u8 = 0, // inverted bits (active-low)
+        in1: u8 = 0, // inverted bits (active-low)
+        dsw1: u8 = DSW1.DEFAULT, // dip-switches as-is (active-high)
+        dsw2: u8 = DSW2.DEFAULT, // Pengo only
+        int_vector: u8 = 0, // IM2 interrupt vector set with OUT on port 0
+        int_enable: u8 = 0,
+        sound_enable: u8 = 0,
+        flip_screen: u8 = 0, // screen-flip for cocktail cabinet (not implemented)
+        pal_select: u8 = 0, // Pengo only
+        clut_select: u8 = 0, // Pengo only
+        tile_select: u8 = 0, // Pengo only
+        sprite_coords: [16]u8, // 8 sprites x/y pairs
+        vsync_count: i32 = VSYNC_PERIOD,
 
-        ram_video: [VIDEO_RAM_SIZE]u8,
-        ram_color: [COLOR_RAM_SIZE]u8,
-        ram_sys: [MAIN_RAM_SIZE]u8,
-        rom_sys: [CPU_ROM_SIZE]u8,
-        rom_gfx: [GFX_ROM_SIZE]u8,
-        rom_prom: [PROM_SIZE]u8,
+        ram: struct {
+            video: [VIDEO_RAM_SIZE]u8,
+            color: [COLOR_RAM_SIZE]u8,
+            main: [MAIN_RAM_SIZE]u8,
+        },
+        rom: struct {
+            cpu: [CPU_ROM_SIZE]u8,
+            gfx: [GFX_ROM_SIZE]u8,
+            prom: [PROM_SIZE]u8,
+        },
 
         hw_colors: [32]u32, // 8-bit colors from pal_rom[0..32] decoded to RGBA8
         pal_map: [PALETTE_MAP_SIZE]u5, // color decoded into indices into hw_colors
@@ -97,17 +234,22 @@ pub fn Namco(comptime sys: System) type {
 
         pub fn initInPlace(self: *Self, opts: Options) void {
             self.* = .{
-                .cpu = .{ .pc = 0xF000 }, // execution starts at
+                .cpu = .{ .pc = 0xF000 }, // execution starts at 0xF000
                 .mem = Memory.init(.{
                     .junk_page = &self.junk_page,
                     .unmapped_page = &self.unmapped_page,
                 }),
-                .ram_video = std.mem.zeroes(@TypeOf(self.ram_video)),
-                .ram_color = std.mem.zeroes(@TypeOf(self.ram_color)),
-                .ram_sys = std.mem.zeroes(@TypeOf(self.ram_sys)),
-                .rom_sys = initSysRom(opts),
-                .rom_gfx = initGfxRom(opts),
-                .rom_prom = initPRom(opts),
+                .sprite_coords = std.mem.zeroes(@TypeOf(self.sprite_coords)),
+                .ram = .{
+                    .video = std.mem.zeroes(@TypeOf(self.ram.video)),
+                    .color = std.mem.zeroes(@TypeOf(self.ram.color)),
+                    .main = std.mem.zeroes(@TypeOf(self.ram.main)),
+                },
+                .rom = .{
+                    .cpu = initSysRom(opts),
+                    .gfx = initGfxRom(opts),
+                    .prom = initPRom(opts),
+                },
 
                 // FIXME!
                 .hw_colors = std.mem.zeroes(@TypeOf(self.hw_colors)),
@@ -117,12 +259,63 @@ pub fn Namco(comptime sys: System) type {
                 .junk_page = std.mem.zeroes(@TypeOf(self.junk_page)),
                 .unmapped_page = [_]u8{0xFF} ** Memory.PAGE_SIZE,
             };
+            self.initMemoryMap();
         }
 
         pub fn init(opts: Options) Self {
             var self: Self = undefined;
             self.initInPlace(opts);
             return self;
+        }
+
+        fn initMemoryMap(self: *Self) void {
+            //  Pacman: only 15 address bits used, mirroring will happen in tick callback
+            //
+            //  0000..3FFF:     16KB ROM
+            //  4000..43FF:     1KB video RAM
+            //  4400..47FF:     1KB color RAM
+            //  4800..4C00:     unmapped?
+            //  4C00..4FEF:     <1KB main RAM
+            //  4FF0..4FFF:     sprite attributes (write only?)
+            //
+            //  5000            write:  interrupt enable/disable
+            //                  read:   IN0 (joystick + coin slot)
+            //  5001            write:  sound enable
+            //  5002            ???
+            //  5003            write:  flip screen
+            //  5004            write:  player 1 start light (ignored)
+            //  5005            write:  player 2 start light (ignored)
+            //  5006            write:  coin lockout (ignored)
+            //  5007            write:  coin counter (ignored)
+            //  5040..505F      write:  sound registers
+            //  5040            read:   IN1 (joystick + coin slot)
+            //  5060..506F      write:  sprite coordinates
+            //  5080            read:   DIP switched
+            //
+            //  Pengo: full 64KB address space
+            //
+            //  0000..7FFF:     32KB ROM
+            //  8000..83FF:     1KB video RAM
+            //  8400..87FF:     1KB color RAM
+            //  8800..8FEF:     2KB main RAM
+            //  9000+           memory mapped registers
+            self.mem.mapROM(0x0000, 0x1000, self.rom.cpu[0x0000..0x1000]);
+            self.mem.mapROM(0x1000, 0x1000, self.rom.cpu[0x1000..0x2000]);
+            self.mem.mapROM(0x2000, 0x1000, self.rom.cpu[0x2000..0x3000]);
+            self.mem.mapROM(0x3000, 0x1000, self.rom.cpu[0x3000..0x4000]);
+            if (sys == .Pacman) {
+                self.mem.mapRAM(0x4000, 0x0400, self.ram.video[0..]);
+                self.mem.mapRAM(0x4400, 0x0400, self.ram.color[0..]);
+                self.mem.mapRAM(0x4C00, 0x0400, self.ram.main[0..]);
+            } else {
+                self.mem.mapROM(0x4000, 0x1000, self.rom.cpu[0x4000..0x5000]);
+                self.mem.mapROM(0x5000, 0x1000, self.rom.cpu[0x5000..0x6000]);
+                self.mem.mapROM(0x6000, 0x1000, self.rom.cpu[0x6000..0x7000]);
+                self.mem.mapROM(0x7000, 0x1000, self.rom.cpu[0x7000..0x8000]);
+                self.mem.mapRAM(0x8000, 0x0400, self.ram.video[0..]);
+                self.mem.mapRAM(0x8400, 0x0400, self.ram.color[0..]);
+                self.mem.mapRAM(0x8800, 0x0800, self.ram.main[0..]);
+            }
         }
 
         fn cp(src: []const u8, dst: []u8) void {
