@@ -39,6 +39,7 @@ const common = @import("common");
 const memory = common.memory;
 const clock = common.clock;
 const AudioOptions = common.host.AudioOptions;
+const DisplayInfo = common.host.DisplayInfo;
 
 /// the emulated arcade machine type
 pub const System = enum {
@@ -307,9 +308,9 @@ pub fn Namco(comptime sys: System) type {
         int_enable: bool = false,
         sound_enable: bool = false,
         flip_screen: bool = false, // screen-flip for cocktail cabinet (not implemented)
-        pal_select: u1 = 0, // Pengo only
-        clut_select: u1 = 0, // Pengo only
-        tile_select: u1 = 0, // Pengo only
+        pal_select: u8 = 0, // Pengo only
+        clut_select: u8 = 0, // Pengo only
+        tile_select: u8 = 0, // Pengo only
         sprite_coords: [16]u8, // 8 sprites x/y pairs
         vsync_count: u32 = VSYNC_PERIOD,
 
@@ -325,7 +326,7 @@ pub fn Namco(comptime sys: System) type {
         },
 
         hw_colors: [32]u32, // 8-bit colors from pal_rom[0..32] decoded to RGBA8
-        pal_map: [PALETTE_MAP_SIZE]u4, // indirect indices into hw_colors (u4 is not a but, Pengo has an additon pal_select bit)
+        pal_map: [PALETTE_MAP_SIZE]u5, // indirect indices into hw_colors
         fb: [DISPLAY.FB_SIZE]u8 align(128), // framebuffer bytes are indices into hw_colors
 
         junk_page: [Memory.PAGE_SIZE]u8,
@@ -365,6 +366,29 @@ pub fn Namco(comptime sys: System) type {
             var self: Self = undefined;
             self.initInPlace(opts);
             return self;
+        }
+
+        // FIXME: initAlloc()
+
+        pub fn displayInfo(selfOrNull: ?*Self) DisplayInfo {
+            return .{
+                .fb = .{
+                    .dim = .{
+                        .width = DISPLAY.FB_WIDTH,
+                        .height = DISPLAY.FB_HEIGHT,
+                    },
+                    .format = .Palette8,
+                    .buffer = if (selfOrNull) |self| &self.fb else null,
+                },
+                .view = .{
+                    .x = 0,
+                    .y = 0,
+                    .width = DISPLAY.WIDTH,
+                    .height = DISPLAY.HEIGHT,
+                },
+                .palette = if (selfOrNull) |self| &self.hw_colors else null,
+                .orientation = .Portrait,
+            };
         }
 
         inline fn pin(bus: u64, p: comptime_int) bool {
@@ -474,10 +498,10 @@ pub fn Namco(comptime sys: System) type {
         }
 
         // decode PROM palette map
-        fn decodePaletteMap(prom: []const u8) [PALETTE_MAP_SIZE]u4 {
-            var map: [PALETTE_MAP_SIZE]u4 = undefined;
+        fn decodePaletteMap(prom: []const u8) [PALETTE_MAP_SIZE]u5 {
+            var map: [PALETTE_MAP_SIZE]u5 = undefined;
             for (0..256) |i| {
-                const pal_index: u4 = @truncate(prom[i + 0x20] & 0x0F);
+                const pal_index: u5 = @truncate(prom[i + 0x20] & 0x0F);
                 map[i] = pal_index;
                 if (sys == .Pengo) {
                     map[0x100 + i] = 0x10 | pal_index;
@@ -537,8 +561,8 @@ pub fn Namco(comptime sys: System) type {
                 cp(opts.roms.gfx_1000_1FFF, rom[0x1000..0x2000]);
             } else {
                 assert((sys == .Pengo) and (rom.len == 0x4000));
-                cp(opts.roms.gfx_0000_1FFFF, rom[0x0000..0x2000]);
-                cp(opts.roms.gfx_2000_3FFFF, rom[0x2000..0x4000]);
+                cp(opts.roms.gfx_0000_1FFF, rom[0x0000..0x2000]);
+                cp(opts.roms.gfx_2000_3FFF, rom[0x2000..0x4000]);
             }
             return rom;
         }

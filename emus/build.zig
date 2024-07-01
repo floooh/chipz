@@ -28,6 +28,7 @@ pub fn build(b: *Build, opts: Options) void {
         .optimize = opts.optimize,
         .imports = &.{
             .{ .name = "sokol", .module = dep_sokol.module("sokol") },
+            .{ .name = "chipz", .module = opts.mod_chipz },
         },
     });
 

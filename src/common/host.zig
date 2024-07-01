@@ -15,13 +15,13 @@ pub const AudioOptions = struct {
 pub const Rect = struct {
     x: u32 = 0,
     y: u32 = 0,
-    width: u32,
-    height: u32,
+    width: u32 = 0,
+    height: u32 = 0,
 };
 
 pub const Dim = struct {
-    width: u32,
-    height: u32,
+    width: u32 = 0,
+    height: u32 = 0,
 };
 
 /// emulator framebuffer pixel formats
@@ -47,7 +47,7 @@ pub const DisplayInfo = struct {
         /// framebuffer pixel format
         format: PixelFormat,
         /// slice to the actual framebuffer pixels
-        buffer: []const u8,
+        buffer: ?[]const u8,
     },
     /// the visible area of the framebuffer
     view: Rect,

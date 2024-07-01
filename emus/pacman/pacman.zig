@@ -14,9 +14,6 @@ const state = struct {
 };
 
 export fn init() void {
-    // setup host bindings
-    host.init();
-
     // setup system emulator
     state.sys = Pacman.init(.{
         .audio = .{
@@ -34,6 +31,13 @@ export fn init() void {
             .prom_0020_011F = @embedFile("roms/82s126.4a"),
             .sound_0000_00FF = @embedFile("roms/82s126.1m"),
             .sound_0100_01FF = @embedFile("roms/82s126.3m"),
+        },
+    });
+    // setup host bindings
+    host.init(.{
+        .gfx = .{
+            .display_info = state.sys.displayInfo(),
+            .pixel_aspect = .{ .width = 2, .height = 3 },
         },
     });
 }
