@@ -74,51 +74,74 @@ pub fn Namco(comptime sys: System) type {
         /// Namco system init options
         pub const Options = struct {
             audio: AudioOptions,
-            roms: struct {
-                common: struct {
+            roms: switch (sys) {
+                .Pacman => struct {
                     sys_0000_0FFF: []const u8,
                     sys_1000_1FFF: []const u8,
                     sys_2000_2FFF: []const u8,
                     sys_3000_3FFF: []const u8,
                     prom_0000_001F: []const u8,
+                    prom_0020_011F: []const u8,
+                    gfx_0000_0FFF: []const u8,
+                    gfx_1000_1FFF: []const u8,
                     sound_0000_00FF: []const u8,
                     sound_0100_01FF: []const u8,
                 },
-                pengo: ?struct {
+                .Pengo => struct {
+                    sys_0000_0FFF: []const u8,
+                    sys_1000_1FFF: []const u8,
+                    sys_2000_2FFF: []const u8,
+                    sys_3000_3FFF: []const u8,
                     sys_4000_4FFF: []const u8,
                     sys_5000_5FFF: []const u8,
                     sys_6000_6FFF: []const u8,
                     sys_7000_7FFF: []const u8,
+                    prom_0000_001F: []const u8,
+                    prom_0020_041F: []const u8,
                     gfx_0000_1FFF: []const u8,
                     gfx_2000_3FFF: []const u8,
-                    prom_0020_041F: []const u8,
-                } = null,
-                pacman: ?struct {
-                    gfx_0000_0FFF: []const u8,
-                    gfx_1000_1FFF: []const u8,
-                    prom_0020_011F: []const u8,
-                } = null,
+                    sound_0000_00FF: []const u8,
+                    sound_0100_01FF: []const u8,
+                },
             },
         };
 
-        const VIDEO_RAM_SIZE = 0x0400;
-        const COLOR_RAM_SIZE = 0x0400;
-        const MAIN_RAM_SIZE = if (sys == .Pacman) 0x0400 else 0x0800;
-        const ADDR_MASK = if (sys == .Pacman) 0x7FFF else 0xFFFF; // Pacman address bus only has 15 wires
-        const IOMAP_BASE = 0x5000;
         const ADDR_SPRITES_ATTR = 0x03F0; // offset of sprite attributes in main RAM
-        const CPU_ROM_SIZE = if (sys == .Pacman) 0x4000 else 0x8000;
-        const GFX_ROM_SIZE = if (sys == .Pacman) 0x2000 else 0x4000;
-        const PROM_SIZE = if (sys == .Pacman) 0x120 else 0x0420; // palette and color ROM
-        const FRAMEBUFFER_WIDTH = 512;
-        const FRAMEBUFFER_HEIGHT = 224;
-        const FRAMEBUFFER_SIZE = FRAMEBUFFER_WIDTH * FRAMEBUFFER_HEIGHT;
-        const DISPLAY_WIDTH = 288;
-        const DISPLAY_HEIGHT = 224;
         const PALETTE_MAP_SIZE = if (sys == .Pacman) 256 else 512;
         const MASTER_FREQUENCY = 18432000;
         const CPU_FREQUENCY = MASTER_FREQUENCY / 6;
         const VSYNC_PERIOD = CPU_FREQUENCY / 60;
+
+        // display related constants
+        const DISPLAY = struct {
+            const WIDTH = 288;
+            const HEIGHT = 224;
+            const FB_WIDTH = 512; // 2^N for faster address computation
+            const FB_HEIGHT = 224;
+            const FB_SIZE = FB_WIDTH * FB_HEIGHT;
+        };
+
+        // memory mapping related constants
+        const MEMMAP = switch (sys) {
+            .Pacman => struct {
+                const ADDR_MASK = 0x7FFF; // Pacman only has 15 address wires
+                const VIDEO_RAM_SIZE = 0x0400;
+                const COLOR_RAM_SIZE = 0x0400;
+                const MAIN_RAM_SIZE = 0x0400;
+                const CPU_ROM_SIZE = 0x4000;
+                const GFX_ROM_SIZE = 0x2000;
+                const PROM_SIZE = 0x120;
+            },
+            .Pengo => struct {
+                const ADDR_MASK = 0xFFFF;
+                const VIDEO_RAM_SIZE = 0x0400;
+                const COLOR_RAM_SIZE = 0x0400;
+                const MAIN_RAM_SIZE = 0x0800;
+                const CPU_ROM_SIZE = 0x8000;
+                const GFX_ROM_SIZE = 0x4000;
+                const PROM_SIZE = 0x0420;
+            },
+        };
 
         // memory-mapped IO addresses
         const MEMIO = switch (sys) {
@@ -160,116 +183,116 @@ pub fn Namco(comptime sys: System) type {
         };
 
         // IN0 bits (active-low)
-        pub const IN0 = switch (sys) {
+        const IN0 = switch (sys) {
             .Pacman => struct {
-                pub const UP: u8 = 1 << 0;
-                pub const LEFT: u8 = 1 << 1;
-                pub const RIGHT: u8 = 1 << 2;
-                pub const DOWN: u8 = 1 << 3;
-                pub const RACK_ADVANCE: u8 = 1 << 4;
-                pub const COIN1: u8 = 1 << 5;
-                pub const COIN2: u8 = 1 << 6;
-                pub const CREDIT: u8 = 1 << 7;
+                const UP: u8 = 1 << 0;
+                const LEFT: u8 = 1 << 1;
+                const RIGHT: u8 = 1 << 2;
+                const DOWN: u8 = 1 << 3;
+                const RACK_ADVANCE: u8 = 1 << 4;
+                const COIN1: u8 = 1 << 5;
+                const COIN2: u8 = 1 << 6;
+                const CREDIT: u8 = 1 << 7;
             },
             .Pengo => struct {
-                pub const UP: u8 = 1 << 0;
-                pub const DOWN: u8 = 1 << 1;
-                pub const LEFT: u8 = 1 << 2;
-                pub const RIGHT: u8 = 1 << 3;
-                pub const COIN1: u8 = 1 << 4;
-                pub const COIN2: u8 = 1 << 5;
-                pub const COIN3: u8 = 1 << 6; // aka coin-aux, not supported
-                pub const BUTTON: u8 = 1 << 7;
+                const UP: u8 = 1 << 0;
+                const DOWN: u8 = 1 << 1;
+                const LEFT: u8 = 1 << 2;
+                const RIGHT: u8 = 1 << 3;
+                const COIN1: u8 = 1 << 4;
+                const COIN2: u8 = 1 << 5;
+                const COIN3: u8 = 1 << 6; // aka coin-aux, not supported
+                const BUTTON: u8 = 1 << 7;
             },
         };
 
         // IN1 bits (active-low)
-        pub const IN1 = switch (sys) {
+        const IN1 = switch (sys) {
             .Pacman => struct {
-                pub const UP: u8 = 1 << 0;
-                pub const LEFT: u8 = 1 << 1;
-                pub const RIGHT: u8 = 1 << 2;
-                pub const DOWN: u8 = 1 << 3;
-                pub const BOARD_TEST: u8 = 1 << 4;
-                pub const P1_START: u8 = 1 << 5;
-                pub const P2_START: u8 = 1 << 6;
+                const UP: u8 = 1 << 0;
+                const LEFT: u8 = 1 << 1;
+                const RIGHT: u8 = 1 << 2;
+                const DOWN: u8 = 1 << 3;
+                const BOARD_TEST: u8 = 1 << 4;
+                const P1_START: u8 = 1 << 5;
+                const P2_START: u8 = 1 << 6;
             },
             .Pengo => struct {
-                pub const UP: u8 = 1 << 0;
-                pub const DOWN: u8 = 1 << 1;
-                pub const LEFT: u8 = 1 << 2;
-                pub const RIGHT: u8 = 1 << 3;
-                pub const BOARD_TEST: u8 = 1 << 4;
-                pub const P1_START: u8 = 1 << 5;
-                pub const P2_START: u8 = 1 << 6;
-                pub const BUTTON: u8 = 1 << 7;
+                const UP: u8 = 1 << 0;
+                const DOWN: u8 = 1 << 1;
+                const LEFT: u8 = 1 << 2;
+                const RIGHT: u8 = 1 << 3;
+                const BOARD_TEST: u8 = 1 << 4;
+                const P1_START: u8 = 1 << 5;
+                const P2_START: u8 = 1 << 6;
+                const BUTTON: u8 = 1 << 7;
             },
         };
 
         // DSW1 bits (active-high)
-        pub const DSW1 = switch (sys) {
+        const DSW1 = switch (sys) {
             .Pacman => struct {
-                pub const COINS_MASK: u8 = 3 << 0;
-                pub const COINS_FREE: u8 = 0; // free play
-                pub const COINS_1C1G: u8 = 1 << 0; // 1 coin 1 game
-                pub const COINS_1C2G: u8 = 2 << 0; // 1 coin 2 games
-                pub const COINS_2C1G: u8 = 3 << 0; // 2 coins 1 game
-                pub const LIVES_MASK: u8 = 3 << 2;
-                pub const LIVES_1: u8 = 0 << 2;
-                pub const LIVES_2: u8 = 1 << 2;
-                pub const LIVES_3: u8 = 2 << 2;
-                pub const LIVES_5: u8 = 3 << 2;
-                pub const EXTRALIFE_MASK: u8 = 3 << 4;
-                pub const EXTRALIFE_10K: u8 = 0 << 4;
-                pub const EXTRALIFE_15K: u8 = 1 << 4;
-                pub const EXTRALIFE_20K: u8 = 2 << 4;
-                pub const EXTRALIFE_NONE: u8 = 3 << 4;
-                pub const DIFFICULTY_MASK: u8 = 1 << 6;
-                pub const DIFFICULTY_HARD: u8 = 0 << 6;
-                pub const DIFFICULTY_NORM: u8 = 1 << 6;
-                pub const GHOSTNAMES_MASK: u8 = 1 << 7;
-                pub const GHOSTNAMES_ALT: u8 = 0 << 7;
-                pub const GHOSTNAMES_NORM: u8 = 1 << 7;
-                pub const DEFAULT: u8 = COINS_1C1G | LIVES_3 | EXTRALIFE_15K | DIFFICULTY_NORM | GHOSTNAMES_NORM;
+                const COINS_MASK: u8 = 3 << 0;
+                const COINS_FREE: u8 = 0; // free play
+                const COINS_1C1G: u8 = 1 << 0; // 1 coin 1 game
+                const COINS_1C2G: u8 = 2 << 0; // 1 coin 2 games
+                const COINS_2C1G: u8 = 3 << 0; // 2 coins 1 game
+                const LIVES_MASK: u8 = 3 << 2;
+                const LIVES_1: u8 = 0 << 2;
+                const LIVES_2: u8 = 1 << 2;
+                const LIVES_3: u8 = 2 << 2;
+                const LIVES_5: u8 = 3 << 2;
+                const EXTRALIFE_MASK: u8 = 3 << 4;
+                const EXTRALIFE_10K: u8 = 0 << 4;
+                const EXTRALIFE_15K: u8 = 1 << 4;
+                const EXTRALIFE_20K: u8 = 2 << 4;
+                const EXTRALIFE_NONE: u8 = 3 << 4;
+                const DIFFICULTY_MASK: u8 = 1 << 6;
+                const DIFFICULTY_HARD: u8 = 0 << 6;
+                const DIFFICULTY_NORM: u8 = 1 << 6;
+                const GHOSTNAMES_MASK: u8 = 1 << 7;
+                const GHOSTNAMES_ALT: u8 = 0 << 7;
+                const GHOSTNAMES_NORM: u8 = 1 << 7;
+                const DEFAULT: u8 = COINS_1C1G | LIVES_3 | EXTRALIFE_15K | DIFFICULTY_NORM | GHOSTNAMES_NORM;
             },
             .Pengo => struct {
-                pub const EXTRALIFE_MASK: u8 = 1 << 0;
-                pub const EXTRALIFE_30K: u8 = 0 << 0;
-                pub const EXTRALIFE_50K: u8 = 1 << 0;
-                pub const DEMOSOUND_MASK: u8 = 1 << 1;
-                pub const DEMOSOUND_ON: u8 = 0 << 1;
-                pub const DEMOSOUND_OFF: u8 = 1 << 1;
-                pub const CABINET_MASK: u8 = 1 << 2;
-                pub const CABINET_UPRIGHT: u8 = 0 << 2;
-                pub const CABINET_COCKTAIL: u8 = 1 << 2;
-                pub const LIVES_MASK: u8 = 3 << 3;
-                pub const LIVES_2: u8 = 0 << 3;
-                pub const LIVES_3: u8 = 1 << 3;
-                pub const LIVES_4: u8 = 2 << 3;
-                pub const LIVES_5: u8 = 3 << 3;
-                pub const RACKTEST_MASK: u8 = 1 << 5;
-                pub const RACKTEST_ON: u8 = 0 << 5;
-                pub const RACKTEST_OFF: u8 = 1 << 5;
-                pub const DIFFICULTY_MASK: u8 = 3 << 6;
-                pub const DIFFICULTY_EASY: u8 = 0 << 6;
-                pub const DIFFICULTY_MEDIUM: u8 = 1 << 6;
-                pub const DIFFICULTY_HARD: u8 = 2 << 6;
-                pub const DIFFICULTY_HARDEST: u8 = 3 << 6;
-                pub const DEFAULT: u8 = EXTRALIFE_30K | DEMOSOUND_ON | CABINET_UPRIGHT | LIVES_3 | RACKTEST_OFF | DIFFICULTY_MEDIUM;
+                const EXTRALIFE_MASK: u8 = 1 << 0;
+                const EXTRALIFE_30K: u8 = 0 << 0;
+                const EXTRALIFE_50K: u8 = 1 << 0;
+                const DEMOSOUND_MASK: u8 = 1 << 1;
+                const DEMOSOUND_ON: u8 = 0 << 1;
+                const DEMOSOUND_OFF: u8 = 1 << 1;
+                const CABINET_MASK: u8 = 1 << 2;
+                const CABINET_UPRIGHT: u8 = 0 << 2;
+                const CABINET_COCKTAIL: u8 = 1 << 2;
+                const LIVES_MASK: u8 = 3 << 3;
+                const LIVES_2: u8 = 0 << 3;
+                const LIVES_3: u8 = 1 << 3;
+                const LIVES_4: u8 = 2 << 3;
+                const LIVES_5: u8 = 3 << 3;
+                const RACKTEST_MASK: u8 = 1 << 5;
+                const RACKTEST_ON: u8 = 0 << 5;
+                const RACKTEST_OFF: u8 = 1 << 5;
+                const DIFFICULTY_MASK: u8 = 3 << 6;
+                const DIFFICULTY_EASY: u8 = 0 << 6;
+                const DIFFICULTY_MEDIUM: u8 = 1 << 6;
+                const DIFFICULTY_HARD: u8 = 2 << 6;
+                const DIFFICULTY_HARDEST: u8 = 3 << 6;
+                const DEFAULT: u8 = EXTRALIFE_30K | DEMOSOUND_ON | CABINET_UPRIGHT | LIVES_3 | RACKTEST_OFF | DIFFICULTY_MEDIUM;
             },
         };
 
         // DSW2 bits (active-high)
-        pub const DSW2 = switch (sys) {
+        const DSW2 = switch (sys) {
             .Pacman => struct {
-                pub const DEFAULT: u8 = 0;
+                const DEFAULT: u8 = 0;
             },
             .Pengo => struct {
-                pub const COINA_MASK: u8 = 0xF << 0; // 16 combinations of N coins -> M games
-                pub const COINA_1C1G: u8 = 0xC << 0;
-                pub const COINB_MASK: u8 = 0xF << 4;
-                pub const COINB_1C1G: u8 = 0xC << 4;
-                pub const DEFAULT: u8 = COINA_1C1G | COINB_1C1G;
+                const COINA_MASK: u8 = 0xF << 0; // 16 combinations of N coins -> M games
+                const COINA_1C1G: u8 = 0xC << 0;
+                const COINB_MASK: u8 = 0xF << 4;
+                const COINB_1C1G: u8 = 0xC << 4;
+                const DEFAULT: u8 = COINA_1C1G | COINB_1C1G;
             },
         };
 
@@ -291,19 +314,19 @@ pub fn Namco(comptime sys: System) type {
         vsync_count: u32 = VSYNC_PERIOD,
 
         ram: struct {
-            video: [VIDEO_RAM_SIZE]u8,
-            color: [COLOR_RAM_SIZE]u8,
-            main: [MAIN_RAM_SIZE]u8,
+            video: [MEMMAP.VIDEO_RAM_SIZE]u8,
+            color: [MEMMAP.COLOR_RAM_SIZE]u8,
+            main: [MEMMAP.MAIN_RAM_SIZE]u8,
         },
         rom: struct {
-            cpu: [CPU_ROM_SIZE]u8,
-            gfx: [GFX_ROM_SIZE]u8,
-            prom: [PROM_SIZE]u8,
+            cpu: [MEMMAP.CPU_ROM_SIZE]u8,
+            gfx: [MEMMAP.GFX_ROM_SIZE]u8,
+            prom: [MEMMAP.PROM_SIZE]u8,
         },
 
         hw_colors: [32]u32, // 8-bit colors from pal_rom[0..32] decoded to RGBA8
         pal_map: [PALETTE_MAP_SIZE]u4, // indirect indices into hw_colors (u4 is not a but, Pengo has an additon pal_select bit)
-        fb: [FRAMEBUFFER_SIZE]u8 align(128), // framebuffer bytes are indices into hw_colors
+        fb: [DISPLAY.FB_SIZE]u8 align(128), // framebuffer bytes are indices into hw_colors
 
         junk_page: [Memory.PAGE_SIZE]u8,
         unmapped_page: [Memory.PAGE_SIZE]u8,
@@ -374,7 +397,7 @@ pub fn Namco(comptime sys: System) type {
 
             // tick the CPU
             bus = self.cpu.tick(bus);
-            const addr = Z80.getAddr(bus) & ADDR_MASK;
+            const addr = Z80.getAddr(bus) & MEMMAP.ADDR_MASK;
             if (pin(bus, Z80.MREQ)) {
                 if (pin(bus, Z80.WR)) {
                     const data = Z80.getData(bus);
@@ -487,48 +510,48 @@ pub fn Namco(comptime sys: System) type {
             std.mem.copyForwards(u8, dst, src);
         }
 
-        fn initSysRom(opts: Options) [CPU_ROM_SIZE]u8 {
-            var rom: [CPU_ROM_SIZE]u8 = undefined;
+        fn initSysRom(opts: Options) [MEMMAP.CPU_ROM_SIZE]u8 {
+            var rom: [MEMMAP.CPU_ROM_SIZE]u8 = undefined;
             if (sys == .Pacman) {
                 assert(rom.len == 0x4000);
             }
-            cp(opts.roms.common.sys_0000_0FFF, rom[0x0000..0x1000]);
-            cp(opts.roms.common.sys_1000_1FFF, rom[0x1000..0x2000]);
-            cp(opts.roms.common.sys_2000_2FFF, rom[0x2000..0x3000]);
-            cp(opts.roms.common.sys_3000_3FFF, rom[0x3000..0x4000]);
+            cp(opts.roms.sys_0000_0FFF, rom[0x0000..0x1000]);
+            cp(opts.roms.sys_1000_1FFF, rom[0x1000..0x2000]);
+            cp(opts.roms.sys_2000_2FFF, rom[0x2000..0x3000]);
+            cp(opts.roms.sys_3000_3FFF, rom[0x3000..0x4000]);
             if (sys == .Pengo) {
                 assert((sys == .Pengo) and (rom.len == 0x8000));
-                cp(opts.roms.pengo.?.sys_4000_4FFF, rom[0x4000..0x5000]);
-                cp(opts.roms.pengo.?.sys_5000_5FFF, rom[0x5000..0x6000]);
-                cp(opts.roms.pengo.?.sys_6000_6FFF, rom[0x6000..0x7000]);
-                cp(opts.roms.pengo.?.sys_7000_7FFF, rom[0x7000..0x8000]);
+                cp(opts.roms.sys_4000_4FFF, rom[0x4000..0x5000]);
+                cp(opts.roms.sys_5000_5FFF, rom[0x5000..0x6000]);
+                cp(opts.roms.sys_6000_6FFF, rom[0x6000..0x7000]);
+                cp(opts.roms.sys_7000_7FFF, rom[0x7000..0x8000]);
             }
             return rom;
         }
 
-        fn initGfxRom(opts: Options) [GFX_ROM_SIZE]u8 {
-            var rom: [GFX_ROM_SIZE]u8 = undefined;
+        fn initGfxRom(opts: Options) [MEMMAP.GFX_ROM_SIZE]u8 {
+            var rom: [MEMMAP.GFX_ROM_SIZE]u8 = undefined;
             if (sys == .Pacman) {
                 assert(rom.len == 0x2000);
-                cp(opts.roms.pacman.?.gfx_0000_0FFF, rom[0x0000..0x1000]);
-                cp(opts.roms.pacman.?.gfx_1000_1FFF, rom[0x1000..0x2000]);
+                cp(opts.roms.gfx_0000_0FFF, rom[0x0000..0x1000]);
+                cp(opts.roms.gfx_1000_1FFF, rom[0x1000..0x2000]);
             } else {
                 assert((sys == .Pengo) and (rom.len == 0x4000));
-                cp(opts.roms.pengo.?.gfx_0000_1FFFF, rom[0x0000..0x2000]);
-                cp(opts.roms.pengo.?.gfx_2000_3FFFF, rom[0x2000..0x4000]);
+                cp(opts.roms.gfx_0000_1FFFF, rom[0x0000..0x2000]);
+                cp(opts.roms.gfx_2000_3FFFF, rom[0x2000..0x4000]);
             }
             return rom;
         }
 
-        fn initPRom(opts: Options) [PROM_SIZE]u8 {
-            var rom: [PROM_SIZE]u8 = undefined;
-            cp(opts.roms.common.prom_0000_001F, rom[0x0000..0x0020]);
+        fn initPRom(opts: Options) [MEMMAP.PROM_SIZE]u8 {
+            var rom: [MEMMAP.PROM_SIZE]u8 = undefined;
+            cp(opts.roms.prom_0000_001F, rom[0x0000..0x0020]);
             if (sys == .Pacman) {
                 assert(rom.len == 0x120);
-                cp(opts.roms.pacman.?.prom_0020_011F, rom[0x0020..0x0120]);
+                cp(opts.roms.prom_0020_011F, rom[0x0020..0x0120]);
             } else {
                 assert((sys == .Pengo) and (rom.len == 0x420));
-                cp(opts.roms.pengo.?.prom_0020_041F, rom[0x0020..0x420]);
+                cp(opts.roms.prom_0020_041F, rom[0x0020..0x420]);
             }
             return rom;
         }
