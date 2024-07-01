@@ -7,6 +7,13 @@ const chipz = @import("chipz");
 
 const Pacman = chipz.systems.namco.Namco(.Pacman);
 
+const BORDER = struct {
+    const TOP = 8;
+    const BOTTOM = 8;
+    const LEFT = 8;
+    const RIGHT = 8;
+};
+
 const state = struct {
     var sys: Pacman = undefined;
     var frame_time_us: u32 = 0;
@@ -36,6 +43,7 @@ export fn init() void {
     // setup host bindings
     host.init(.{
         .gfx = .{
+            .border = host.gfx.DEFAULT_BORDER,
             .display_info = state.sys.displayInfo(),
             .pixel_aspect = .{ .width = 2, .height = 3 },
         },
@@ -45,7 +53,7 @@ export fn init() void {
 export fn frame() void {
     state.frame_time_us = host.time.frameTime();
     state.ticks_per_frame = state.sys.exec(state.frame_time_us);
-    host.gfx.draw();
+    host.gfx.draw(state.sys.displayInfo());
 }
 
 export fn cleanup() void {
@@ -57,14 +65,18 @@ export fn input(ev: [*c]const sapp.Event) void {
 }
 
 pub fn main() void {
+    const display_info = Pacman.displayInfo(null);
+    const border = host.gfx.DEFAULT_BORDER;
+    const width = 2 * display_info.view.width + border.left + border.right;
+    const height = 3 * display_info.view.height + border.top + border.bottom;
     sapp.run(.{
         .init_cb = init,
         .frame_cb = frame,
         .cleanup_cb = cleanup,
         .event_cb = input,
         .window_title = "Pacman (chipz)",
-        .width = 640,
-        .height = 480,
+        .width = width,
+        .height = height,
         .icon = .{ .sokol_default = true },
         .logger = .{ .func = slog.func },
     });

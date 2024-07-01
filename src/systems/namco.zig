@@ -351,7 +351,6 @@ pub fn Namco(comptime sys: System) type {
                     .prom = initPRom(opts),
                 },
 
-                // FIXME!
                 .hw_colors = decodeHwColors(&self.rom.prom),
                 .pal_map = decodePaletteMap(&self.rom.prom),
 

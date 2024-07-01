@@ -49,7 +49,7 @@ export fn init() void {
 export fn frame() void {
     state.frame_time_us = host.time.frameTime();
     state.ticks_per_frame = state.sys.exec(state.frame_time_us);
-    host.gfx.draw();
+    host.gfx.draw(state.sys.displayInfo());
 }
 
 export fn cleanup() void {

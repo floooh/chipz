@@ -13,15 +13,15 @@ pub const AudioOptions = struct {
 };
 
 pub const Rect = struct {
-    x: u32 = 0,
-    y: u32 = 0,
-    width: u32 = 0,
-    height: u32 = 0,
+    x: i32 = 0,
+    y: i32 = 0,
+    width: i32 = 0,
+    height: i32 = 0,
 };
 
 pub const Dim = struct {
-    width: u32 = 0,
-    height: u32 = 0,
+    width: i32 = 0,
+    height: i32 = 0,
 };
 
 /// emulator framebuffer pixel formats
