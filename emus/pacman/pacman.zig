@@ -22,7 +22,7 @@ const state = struct {
 
 export fn init() void {
     // setup system emulator
-    state.sys = Pacman.init(.{
+    state.sys.initInPlace(.{
         .audio = .{
             .sample_rate = host.audio.sampleRate(),
             .callback = host.audio.push,
@@ -40,6 +40,7 @@ export fn init() void {
             .sound_0100_01FF = @embedFile("roms/82s126.3m"),
         },
     });
+
     // setup host bindings
     host.init(.{
         .gfx = .{
@@ -47,10 +48,14 @@ export fn init() void {
             .display_info = state.sys.displayInfo(),
             .pixel_aspect = .{ .width = 2, .height = 3 },
         },
+        .audio = .{
+            .disable_audio = true,
+        },
     });
 }
 
 export fn frame() void {
+    std.debug.assert(&state.sys.mem.pages[16].write[0] == &state.sys.ram.video[0]);
     state.frame_time_us = host.time.frameTime();
     state.ticks_per_frame = state.sys.exec(state.frame_time_us);
     host.gfx.draw(state.sys.displayInfo());

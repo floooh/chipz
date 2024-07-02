@@ -351,8 +351,8 @@ pub fn Namco(comptime sys: System) type {
                     .prom = initPRom(opts),
                 },
 
-                .hw_colors = decodeHwColors(&self.rom.prom),
-                .pal_map = decodePaletteMap(&self.rom.prom),
+                .hw_colors = initHwColors(&self.rom.prom),
+                .pal_map = initPaletteMap(&self.rom.prom),
 
                 .fb = std.mem.zeroes(@TypeOf(self.fb)),
                 .junk_page = std.mem.zeroes(@TypeOf(self.junk_page)),
@@ -361,34 +361,7 @@ pub fn Namco(comptime sys: System) type {
             self.initMemoryMap();
         }
 
-        pub fn init(opts: Options) Self {
-            var self: Self = undefined;
-            self.initInPlace(opts);
-            return self;
-        }
-
-        // FIXME: initAlloc()
-
-        pub fn displayInfo(selfOrNull: ?*Self) DisplayInfo {
-            return .{
-                .fb = .{
-                    .dim = .{
-                        .width = DISPLAY.FB_WIDTH,
-                        .height = DISPLAY.FB_HEIGHT,
-                    },
-                    .format = .Palette8,
-                    .buffer = if (selfOrNull) |self| &self.fb else null,
-                },
-                .view = .{
-                    .x = 0,
-                    .y = 0,
-                    .width = DISPLAY.WIDTH,
-                    .height = DISPLAY.HEIGHT,
-                },
-                .palette = if (selfOrNull) |self| &self.hw_colors else null,
-                .orientation = .Portrait,
-            };
-        }
+        // FIXME: initAlloc()?
 
         inline fn pin(bus: u64, p: comptime_int) bool {
             return (bus & p) != 0;
@@ -401,6 +374,7 @@ pub fn Namco(comptime sys: System) type {
                 bus = self.tick(bus);
             }
             self.bus = bus;
+            self.decodeVideo();
             return num_ticks;
         }
 
@@ -477,8 +451,82 @@ pub fn Namco(comptime sys: System) type {
             return bus;
         }
 
+        fn decodeVideo(self: *Self) void {
+            self.decodeChars();
+            self.decodeSprites();
+        }
+
+        // compute offset into video and color ram from x and y tile position,
+        // see https://www.walkofmind.com/programming/pie/video_memory.htm
+        fn video_offset(in_x: usize, in_y: usize) usize {
+            const x = in_x -% 2;
+            const y = in_y +% 2;
+            return if ((x & 0x20) != 0) y + ((x & 0x1F) << 5) else x + (y << 5);
+        }
+
+        // decode an 8x4 pixel tile
+        inline fn decode8x4(
+            self: *Self,
+            tile_base: usize,
+            pal_base: usize,
+            comptime tile_stride: usize,
+            comptime tile_offset: usize,
+            px: usize,
+            py: usize,
+            char_code: u8,
+            color_code: u8,
+            comptime opaq: bool,
+            comptime flip_x: bool,
+            comptime flip_y: bool,
+        ) void {
+            const xor_x = if (flip_x) 3 else 0;
+            const xor_y = if (flip_y) 7 else 0;
+            for (0..8) |yy| {
+                const y = py + (yy ^ xor_y);
+                if (y > DISPLAY.HEIGHT) {
+                    continue;
+                }
+                const tile_index: usize = char_code * tile_stride + tile_offset + yy;
+                for (0..4) |xx| {
+                    const x = px + (xx ^ xor_x);
+                    if (x >= DISPLAY.WIDTH) {
+                        continue;
+                    }
+                    const shr_hi: u3 = @truncate(7 - xx);
+                    const shr_lo: u3 = @truncate(3 - xx);
+                    const p2_hi: u8 = (self.rom.gfx[tile_base + tile_index] >> shr_hi) & 1;
+                    const p2_lo: u8 = (self.rom.gfx[tile_base + tile_index] >> shr_lo) & 1;
+                    const p2: u8 = (p2_hi << 1) | p2_lo;
+                    const hw_color: u8 = self.pal_map[pal_base + ((@as(usize, color_code) << 2) | p2)];
+                    if (opaq or (self.rom.prom[hw_color] != 0)) {
+                        self.fb[y * DISPLAY.FB_WIDTH + x] = hw_color;
+                    }
+                }
+            }
+        }
+
+        // decode background tile pixels
+        fn decodeChars(self: *Self) void {
+            const pal_base: usize = (@as(usize, self.pal_select) << 8) | (@as(usize, self.clut_select) << 7);
+            const tile_base: usize = @as(usize, self.tile_select) * 0x2000;
+            for (0..28) |y| {
+                for (0..36) |x| {
+                    const offset = video_offset(x, y);
+                    const char_code = self.ram.video[offset];
+                    const color_code = self.ram.color[offset] & 0x1F;
+                    self.decode8x4(tile_base, pal_base, 16, 8, x * 8, y * 8, char_code, color_code, true, false, false);
+                    self.decode8x4(tile_base, pal_base, 16, 0, x * 8 + 4, y * 8, char_code, color_code, true, false, false);
+                }
+            }
+        }
+
+        // decode hardware sprite pixels
+        fn decodeSprites(self: *Self) void {
+            _ = self;
+        }
+
         /// decode 8-bit ROM colors into 32-bit RGBA8
-        fn decodeHwColors(prom: []const u8) [32]u32 {
+        fn initHwColors(prom: []const u8) [32]u32 {
             // Each color ROM entry describes an RGB color in 1 byte:
             //
             // | 7| 6| 5| 4| 3| 2| 1| 0|
@@ -486,10 +534,10 @@ pub fn Namco(comptime sys: System) type {
             //
             // Intensities are: 0x97 + 0x47 + 0x21
             var rgba8: [32]u32 = undefined;
-            for (0..0x20) |i| {
+            for (0..32) |i| {
                 const rgb: u8 = prom[i];
                 const r: u32 = ((rgb >> 0) & 1) * 0x21 + ((rgb >> 1) & 1) * 0x47 + ((rgb >> 2) & 1) * 0x97;
-                const g: u32 = ((rgb >> 3) & 1) * 0x21 + ((rgb >> 4) & 1) * 0x47 + ((rgb >> 5) & 1) & 0x97;
+                const g: u32 = ((rgb >> 3) & 1) * 0x21 + ((rgb >> 4) & 1) * 0x47 + ((rgb >> 5) & 1) * 0x97;
                 const b: u32 = ((rgb >> 6) & 1) * 0x47 + ((rgb >> 7) & 1) * 0x97;
                 rgba8[i] = 0xFF000000 | (b << 16) | (g << 8) | r;
             }
@@ -497,7 +545,7 @@ pub fn Namco(comptime sys: System) type {
         }
 
         // decode PROM palette map
-        fn decodePaletteMap(prom: []const u8) [PALETTE_MAP_SIZE]u5 {
+        fn initPaletteMap(prom: []const u8) [PALETTE_MAP_SIZE]u5 {
             var map: [PALETTE_MAP_SIZE]u5 = undefined;
             for (0..256) |i| {
                 const pal_index: u5 = @truncate(prom[i + 0x20] & 0x0F);
@@ -577,6 +625,27 @@ pub fn Namco(comptime sys: System) type {
                 cp(opts.roms.prom_0020_041F, rom[0x0020..0x420]);
             }
             return rom;
+        }
+
+        pub fn displayInfo(selfOrNull: ?*Self) DisplayInfo {
+            return .{
+                .fb = .{
+                    .dim = .{
+                        .width = DISPLAY.FB_WIDTH,
+                        .height = DISPLAY.FB_HEIGHT,
+                    },
+                    .format = .Palette8,
+                    .buffer = if (selfOrNull) |self| &self.fb else null,
+                },
+                .view = .{
+                    .x = 0,
+                    .y = 0,
+                    .width = DISPLAY.WIDTH,
+                    .height = DISPLAY.HEIGHT,
+                },
+                .palette = if (selfOrNull) |self| &self.hw_colors else null,
+                .orientation = .Portrait,
+            };
         }
     };
 }

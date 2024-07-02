@@ -15,7 +15,7 @@ const state = struct {
 
 export fn init() void {
     // setup system emulator
-    state.sys = Pengo.init(.{
+    state.sys.initInPlace(.{
         .audio = .{
             .sample_rate = host.audio.sampleRate(),
             .callback = host.audio.push,
@@ -42,6 +42,9 @@ export fn init() void {
         .gfx = .{
             .display_info = state.sys.displayInfo(),
             .pixel_aspect = .{ .width = 2, .height = 3 },
+        },
+        .audio = .{
+            .disable_audio = true,
         },
     });
 }
