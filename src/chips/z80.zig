@@ -303,7 +303,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             if (self.testM()) {
                 return false;
             } else {
-                self.step += next_step;
+                self.step = next_step;
                 return true;
             }
         }
@@ -2975,7 +2975,11 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     // => overlapped: fetch first ISR instruction
                     INT_IM2_OVERLAPPED => { },
 
-                    else => unreachable,
+                    else => {
+                        // FIXME FIXME FIXME
+                        @import("std").debug.print("Z80 in else with step = 0x{x}\n", .{self.step});
+                        unreachable();
+                    },
                 }
                 bus = self.fetch(bus);
             }
