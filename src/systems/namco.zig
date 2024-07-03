@@ -107,7 +107,23 @@ pub fn Namco(comptime sys: System) type {
             },
         };
 
-        const ADDR_SPRITES_ATTR = 0x03F0; // offset of sprite attributes in main RAM
+        pub const Input = enum {
+            P1_UP,
+            P1_LEFT,
+            P1_RIGHT,
+            P1_DOWN,
+            P1_BUTTON,
+            P1_COIN,
+            P1_START,
+            P2_UP,
+            P2_LEFT,
+            P2_RIGHT,
+            P2_DOWN,
+            P2_BUTTON,
+            P2_COIN,
+            P2_START,
+        };
+
         const PALETTE_MAP_SIZE = if (sys == .Pacman) 256 else 512;
         const MASTER_FREQUENCY = 18432000;
         const CPU_FREQUENCY = MASTER_FREQUENCY / 6;
@@ -451,6 +467,47 @@ pub fn Namco(comptime sys: System) type {
                 }
             }
             return bus;
+        }
+
+        fn setClear(val: u8, comptime mask: u8, comptime set: bool) u8 {
+            if (set) {
+                return val | mask;
+            } else {
+                return val & ~mask;
+            }
+        }
+
+        fn setClearInput(self: *Self, inp: Input, comptime set: bool) void {
+            switch (inp) {
+                .P1_UP => self.in0 = setClear(self.in0, IN0.UP, set),
+                .P1_LEFT => self.in0 = setClear(self.in0, IN0.LEFT, set),
+                .P1_RIGHT => self.in0 = setClear(self.in0, IN0.RIGHT, set),
+                .P1_DOWN => self.in0 = setClear(self.in0, IN0.DOWN, set),
+                .P1_BUTTON => if (sys == .Pengo) {
+                    self.in0 = setClear(self.in0, IN0.BUTTON, set);
+                },
+                .P1_COIN => self.in0 = setClear(self.in0, IN0.COIN1, set),
+                .P1_START => self.in1 = setClear(self.in1, IN1.P1_START, set),
+                .P2_UP => self.in1 = setClear(self.in1, IN1.UP, set),
+                .P2_LEFT => self.in1 = setClear(self.in1, IN1.LEFT, set),
+                .P2_RIGHT => self.in1 = setClear(self.in1, IN1.RIGHT, set),
+                .P2_DOWN => self.in1 = setClear(self.in1, IN1.DOWN, set),
+                .P2_BUTTON => if (sys == .Pengo) {
+                    self.in1 = setClear(self.in1, IN1.BUTTON, set);
+                },
+                .P2_COIN => self.in0 = setClear(self.in1, IN0.COIN2, set),
+                .P2_START => self.in1 = setClear(self.in1, IN1.P2_START, set),
+            }
+        }
+
+        /// set input bits to 'active' state
+        pub fn setInput(self: *Self, inp: Input) void {
+            self.setClearInput(inp, true);
+        }
+
+        /// set input bits to 'inactive' state
+        pub fn clearInput(self: *Self, inp: Input) void {
+            self.setClearInput(inp, false);
         }
 
         fn decodeVideo(self: *Self) void {

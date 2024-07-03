@@ -7,13 +7,6 @@ const chipz = @import("chipz");
 
 const Pacman = chipz.systems.namco.Namco(.Pacman);
 
-const BORDER = struct {
-    const TOP = 8;
-    const BOTTOM = 8;
-    const LEFT = 8;
-    const RIGHT = 8;
-};
-
 const state = struct {
     var sys: Pacman = undefined;
     var frame_time_us: u32 = 0;
@@ -65,8 +58,24 @@ export fn cleanup() void {
     host.shutdown();
 }
 
+fn keyToInput(key: sapp.Keycode) Pacman.Input {
+    return switch (key) {
+        .RIGHT => .P1_RIGHT,
+        .LEFT => .P1_LEFT,
+        .UP => .P1_UP,
+        .DOWN => .P1_DOWN,
+        ._1 => .P1_COIN,
+        ._2 => .P2_COIN,
+        else => .P1_START,
+    };
+}
+
 export fn input(ev: [*c]const sapp.Event) void {
-    _ = ev;
+    switch (ev.*.type) {
+        .KEY_DOWN => state.sys.setInput(keyToInput(ev.*.key_code)),
+        .KEY_UP => state.sys.clearInput(keyToInput(ev.*.key_code)),
+        else => {},
+    }
 }
 
 pub fn main() void {
