@@ -484,13 +484,13 @@ pub fn Namco(comptime sys: System) type {
             const xor_x: usize = if (flip_x) 3 else 0;
             const xor_y: usize = if (flip_y) 7 else 0;
             for (0..8) |yy| {
-                const y = py + (yy ^ xor_y);
+                const y: usize = py + (yy ^ xor_y);
                 if (y >= DISPLAY.HEIGHT) {
                     continue;
                 }
                 const tile_index: usize = char_code * tile_stride + tile_offset + yy;
                 for (0..4) |xx| {
-                    const x = px + (xx ^ xor_x);
+                    const x: usize = px + (xx ^ xor_x);
                     if (x >= DISPLAY.WIDTH) {
                         continue;
                     }
@@ -543,14 +543,14 @@ pub fn Namco(comptime sys: System) type {
                 const fx1: usize = if (flip_x) 8 else 4;
                 const fx2: usize = if (flip_x) 4 else 8;
                 const fx3: usize = if (flip_x) 0 else 12;
-                self.decode8x4(tile_base, pal_base, 64, 8, px + fx0, py + fy0, char_code, color_code, false, flip_x, flip_y);
-                self.decode8x4(tile_base, pal_base, 64, 16, px + fx1, py + fy0, char_code, color_code, false, flip_x, flip_y);
-                self.decode8x4(tile_base, pal_base, 64, 24, px + fx2, py + fy0, char_code, color_code, false, flip_x, flip_y);
-                self.decode8x4(tile_base, pal_base, 64, 0, px + fx3, py + fy0, char_code, color_code, false, flip_x, flip_y);
-                self.decode8x4(tile_base, pal_base, 64, 40, px + fx0, py + fy1, char_code, color_code, false, flip_x, flip_y);
-                self.decode8x4(tile_base, pal_base, 64, 48, px + fx1, py + fy1, char_code, color_code, false, flip_x, flip_y);
-                self.decode8x4(tile_base, pal_base, 64, 56, px + fx2, py + fy1, char_code, color_code, false, flip_x, flip_y);
-                self.decode8x4(tile_base, pal_base, 64, 32, px + fx3, py + fy1, char_code, color_code, false, flip_x, flip_y);
+                self.decode8x4(tile_base, pal_base, 64, 8, px +% fx0, py +% fy0, char_code, color_code, false, flip_x, flip_y);
+                self.decode8x4(tile_base, pal_base, 64, 16, px +% fx1, py +% fy0, char_code, color_code, false, flip_x, flip_y);
+                self.decode8x4(tile_base, pal_base, 64, 24, px +% fx2, py +% fy0, char_code, color_code, false, flip_x, flip_y);
+                self.decode8x4(tile_base, pal_base, 64, 0, px +% fx3, py +% fy0, char_code, color_code, false, flip_x, flip_y);
+                self.decode8x4(tile_base, pal_base, 64, 40, px +% fx0, py +% fy1, char_code, color_code, false, flip_x, flip_y);
+                self.decode8x4(tile_base, pal_base, 64, 48, px +% fx1, py +% fy1, char_code, color_code, false, flip_x, flip_y);
+                self.decode8x4(tile_base, pal_base, 64, 56, px +% fx2, py +% fy1, char_code, color_code, false, flip_x, flip_y);
+                self.decode8x4(tile_base, pal_base, 64, 32, px +% fx3, py +% fy1, char_code, color_code, false, flip_x, flip_y);
             }
         }
 
