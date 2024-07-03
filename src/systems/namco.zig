@@ -126,6 +126,7 @@ pub fn Namco(comptime sys: System) type {
         const MEMMAP = switch (sys) {
             .Pacman => struct {
                 const ADDR_MASK = 0x7FFF; // Pacman only has 15 address wires
+                const SPRITES_ATTRS = 0x03F0; // index into Namco.ram.main[]
                 const VIDEO_RAM_SIZE = 0x0400;
                 const COLOR_RAM_SIZE = 0x0400;
                 const MAIN_RAM_SIZE = 0x0400;
@@ -135,6 +136,7 @@ pub fn Namco(comptime sys: System) type {
             },
             .Pengo => struct {
                 const ADDR_MASK = 0xFFFF;
+                const SPRITES_ATTRS = 0x07F0; // index into Namco.ram.main[]
                 const VIDEO_RAM_SIZE = 0x0400;
                 const COLOR_RAM_SIZE = 0x0400;
                 const MAIN_RAM_SIZE = 0x0800;
@@ -476,14 +478,14 @@ pub fn Namco(comptime sys: System) type {
             char_code: u8,
             color_code: u8,
             comptime opaq: bool,
-            comptime flip_x: bool,
-            comptime flip_y: bool,
+            flip_x: bool,
+            flip_y: bool,
         ) void {
-            const xor_x = if (flip_x) 3 else 0;
-            const xor_y = if (flip_y) 7 else 0;
+            const xor_x: usize = if (flip_x) 3 else 0;
+            const xor_y: usize = if (flip_y) 7 else 0;
             for (0..8) |yy| {
                 const y = py + (yy ^ xor_y);
-                if (y > DISPLAY.HEIGHT) {
+                if (y >= DISPLAY.HEIGHT) {
                     continue;
                 }
                 const tile_index: usize = char_code * tile_stride + tile_offset + yy;
@@ -522,7 +524,34 @@ pub fn Namco(comptime sys: System) type {
 
         // decode hardware sprite pixels
         fn decodeSprites(self: *Self) void {
-            _ = self;
+            const pal_base: usize = (@as(usize, self.pal_select) << 8) | (@as(usize, self.clut_select) << 7);
+            const tile_base: usize = 0x1000 + @as(usize, self.tile_select) * 0x2000;
+            const max_sprite: usize = if (sys == .Pacman) 6 else 7;
+            const min_sprite: usize = if (sys == .Pacman) 1 else 0;
+            var sprite_index: usize = max_sprite;
+            while (sprite_index >= min_sprite) : (sprite_index -= 1) {
+                const py: usize = self.sprite_coords[sprite_index * 2 + 0] -% 31;
+                const px: usize = 272 - @as(usize, self.sprite_coords[sprite_index * 2 + 1]);
+                const shape: u8 = self.ram.main[MEMMAP.SPRITES_ATTRS + sprite_index * 2 + 0];
+                const char_code: u8 = shape >> 2;
+                const color_code: u8 = self.ram.main[MEMMAP.SPRITES_ATTRS + sprite_index * 2 + 1];
+                const flip_x: bool = (shape & 1) != 0;
+                const flip_y: bool = (shape & 2) != 0;
+                const fy0: usize = if (flip_y) 8 else 0;
+                const fy1: usize = if (flip_y) 0 else 8;
+                const fx0: usize = if (flip_x) 12 else 0;
+                const fx1: usize = if (flip_x) 8 else 4;
+                const fx2: usize = if (flip_x) 4 else 8;
+                const fx3: usize = if (flip_x) 0 else 12;
+                self.decode8x4(tile_base, pal_base, 64, 8, px + fx0, py + fy0, char_code, color_code, false, flip_x, flip_y);
+                self.decode8x4(tile_base, pal_base, 64, 16, px + fx1, py + fy0, char_code, color_code, false, flip_x, flip_y);
+                self.decode8x4(tile_base, pal_base, 64, 24, px + fx2, py + fy0, char_code, color_code, false, flip_x, flip_y);
+                self.decode8x4(tile_base, pal_base, 64, 0, px + fx3, py + fy0, char_code, color_code, false, flip_x, flip_y);
+                self.decode8x4(tile_base, pal_base, 64, 40, px + fx0, py + fy1, char_code, color_code, false, flip_x, flip_y);
+                self.decode8x4(tile_base, pal_base, 64, 48, px + fx1, py + fy1, char_code, color_code, false, flip_x, flip_y);
+                self.decode8x4(tile_base, pal_base, 64, 56, px + fx2, py + fy1, char_code, color_code, false, flip_x, flip_y);
+                self.decode8x4(tile_base, pal_base, 64, 32, px + fx3, py + fy1, char_code, color_code, false, flip_x, flip_y);
+            }
         }
 
         /// decode 8-bit ROM colors into 32-bit RGBA8
