@@ -21,10 +21,10 @@ pub const Border = struct {
 };
 
 pub const DEFAULT_BORDER = Border{
-    .top = 8,
-    .bottom = 8,
-    .left = 8,
-    .right = 8,
+    .top = 16,
+    .bottom = 24,
+    .left = 16,
+    .right = 16,
 };
 
 pub const Options = struct {
