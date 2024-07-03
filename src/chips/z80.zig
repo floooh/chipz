@@ -157,14 +157,14 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         // merged I and R register
         ir: u16 = 0,
         // interrupt mode (0, 1 or 2)
-        im: u2 = 0,
+        im: u8 = 0,
 
         // interrupt tracking flags
-        iff1: u1 = 0,
-        iff2: u1 = 0,
-        last_nmi: u1 = 0,
-        nmi: u1 = 0,
-        int: u1 = 0,
+        iff1: u8 = 0,
+        iff2: u8 = 0,
+        last_nmi: u8 = 0,
+        nmi: u8 = 0,
+        int: u8 = 0,
 
         // true when one of the prefixes is active
         prefix_active: bool = false,
@@ -2975,11 +2975,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                     // => overlapped: fetch first ISR instruction
                     INT_IM2_OVERLAPPED => { },
 
-                    else => {
-                        // FIXME FIXME FIXME
-                        @import("std").debug.print("Z80 in else with step = 0x{x}\n", .{self.step});
-                        unreachable();
-                    },
+                    else => unreachable(),
                 }
                 bus = self.fetch(bus);
             }
