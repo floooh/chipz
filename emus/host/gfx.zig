@@ -171,7 +171,7 @@ pub fn init(opts: Options) void {
 }
 
 fn asF32(val: anytype) f32 {
-    return @as(f32, @floatFromInt(val));
+    return @floatFromInt(val);
 }
 
 fn applyViewport(canvas: Dim, view: Rect, aspect: Dim, border: Border) void {
