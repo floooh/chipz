@@ -44,7 +44,21 @@ pub fn build(b: *Build) void {
         },
     });
 
-    tools.build(b, .{ .src_dir = "tools", .target = target, .optimize = optimize });
-    tests.build(b, .{ .src_dir = "tests", .target = target, .optimize = optimize, .mod_chipz = mod_chipz });
-    emus.build(b, .{ .src_dir = "emus", .target = target, .optimize = optimize, .mod_chipz = mod_chipz });
+    tools.build(b, .{
+        .src_dir = "tools",
+        .target = target,
+        .optimize = optimize,
+    });
+    tests.build(b, .{
+        .src_dir = "tests",
+        .target = target,
+        .optimize = optimize,
+        .mod_chipz = mod_chipz,
+    });
+    emus.build(b, .{
+        .src_dir = "emus",
+        .target = target,
+        .optimize = optimize,
+        .mod_chipz = mod_chipz,
+    });
 }
