@@ -68,6 +68,16 @@ const Z80_PINS = z80.Pins{
 const Z80 = z80.Z80(Z80_PINS, u64);
 const Memory = memory.Memory(0x400);
 
+const getAddr = Z80.getAddr;
+const getData = Z80.getData;
+const setData = Z80.setData;
+const M1 = Z80.M1;
+const MREQ = Z80.MREQ;
+const IORQ = Z80.IORQ;
+const WR = Z80.WR;
+const RD = Z80.RD;
+const INT = Z80.INT;
+
 pub fn Namco(comptime sys: System) type {
     return struct {
         const Self = @This();
@@ -385,6 +395,8 @@ pub fn Namco(comptime sys: System) type {
             return (bus & p) != 0;
         }
 
+        /// run emulation for a number of microseconds and decode a video frame
+        /// return number of clock cycles executed
         pub fn exec(self: *Self, micro_seconds: u32) u32 {
             const num_ticks = clock.microSecondsToTicks(CPU_FREQUENCY, micro_seconds);
             var bus = self.bus;
@@ -396,6 +408,7 @@ pub fn Namco(comptime sys: System) type {
             return num_ticks;
         }
 
+        /// execute a single clock cycle
         pub fn tick(self: *Self, in_bus: u64) u64 {
             var bus = in_bus;
 
@@ -404,7 +417,7 @@ pub fn Namco(comptime sys: System) type {
             if (self.vsync_count == 0) {
                 self.vsync_count = VSYNC_PERIOD;
                 if (self.int_enable) {
-                    bus |= Z80.INT;
+                    bus |= INT;
                 }
             }
 
@@ -412,37 +425,35 @@ pub fn Namco(comptime sys: System) type {
 
             // tick the CPU
             bus = self.cpu.tick(bus);
-            const addr = Z80.getAddr(bus) & MEMMAP.ADDR_MASK;
-            if (pin(bus, Z80.MREQ)) {
-                if (pin(bus, Z80.WR)) {
-                    const data = Z80.getData(bus);
+            const addr = getAddr(bus) & MEMMAP.ADDR_MASK;
+            if (pin(bus, MREQ)) {
+                if (pin(bus, WR)) {
+                    const data = getData(bus);
                     if (addr < MEMIO.BASE) {
                         // a regular memory write
                         self.mem.wr(addr, data);
                     } else {
                         // a memory-mapped IO write
-                        if (addr == MEMIO.WR.INT_ENABLE) {
-                            self.int_enable = (data & 1) != 0;
-                        } else if (addr == MEMIO.WR.SOUND_ENABLE) {
-                            self.sound_enable = (data & 1) != 0;
-                        } else if (addr == MEMIO.WR.FLIP_SCREEN) {
-                            self.flip_screen = (data & 1) != 0;
-                        } else if (sys == .Pengo and addr == MEMIO.WR.PAL_SELECT) {
-                            self.pal_select = data & 1;
-                        } else if (sys == .Pengo and addr == MEMIO.WR.CLUT_SELECT) {
-                            self.clut_select = data & 1;
-                        } else if (sys == .Pengo and addr == MEMIO.WR.TILE_SELECT) {
-                            self.tile_select = data & 1;
-                        } else if (addr >= MEMIO.WR.SOUND_BASE and addr < (MEMIO.WR.SOUND_BASE + 0x20)) {
-                            // FIXME: self.soundWrite(addr, data);
-                        } else if (addr >= MEMIO.WR.SPRITES_BASE and addr < (MEMIO.WR.SPRITES_BASE + 0x10)) {
-                            self.sprite_coords[addr & 0x000F] = data;
+                        switch (addr) {
+                            MEMIO.WR.INT_ENABLE => self.int_enable = (data & 1) != 0,
+                            MEMIO.WR.SOUND_ENABLE => self.sound_enable = (data & 1) != 0,
+                            MEMIO.WR.FLIP_SCREEN => self.flip_screen = (data & 1) != 0,
+                            MEMIO.WR.SOUND_BASE...MEMIO.WR.SOUND_BASE + 0x1F => {}, // FIXME
+                            MEMIO.WR.SPRITES_BASE...MEMIO.WR.SPRITES_BASE + 0xF => {
+                                self.sprite_coords[addr & 0x000F] = data;
+                            },
+                            else => if (sys == .Pengo) switch (addr) {
+                                MEMIO.WR.PAL_SELECT => self.pal_select = data & 1,
+                                MEMIO.WR.CLUT_SELECT => self.clut_select = data & 1,
+                                MEMIO.WR.TILE_SELECT => self.tile_select = data & 1,
+                                else => {},
+                            },
                         }
                     }
-                } else if (pin(bus, Z80.RD)) {
+                } else if (pin(bus, RD)) {
                     if (addr < MEMIO.BASE) {
                         // a regular memory read
-                        bus = Z80.setData(bus, self.mem.rd(addr));
+                        bus = setData(bus, self.mem.rd(addr));
                     } else {
                         // FIXME: IN0, IN1, DSW1 are mirrored for 0x40 bytes
                         const data: u8 = switch (addr) {
@@ -451,25 +462,25 @@ pub fn Namco(comptime sys: System) type {
                             MEMIO.RD.DSW1 => self.dsw1,
                             else => if (sys == .Pengo and addr == MEMIO.RD.DSW2) self.dsw2 else 0xFF,
                         };
-                        bus = Z80.setData(bus, data);
+                        bus = setData(bus, data);
                     }
                 }
-            } else if (pin(bus, Z80.IORQ)) {
-                if (pin(bus, Z80.WR)) {
+            } else if (pin(bus, IORQ)) {
+                if (pin(bus, WR)) {
                     if ((addr & 0x00FF) == 0) {
                         // OUT to port 0: set interrupt vector latch
-                        self.int_vector = Z80.getData(bus);
+                        self.int_vector = getData(bus);
                     }
-                } else if (pin(bus, Z80.M1)) {
+                } else if (pin(bus, M1)) {
                     // an interrupt machine cycle, set interrupt vector on data bus
                     // and clear the interrupt pin
-                    bus = Z80.setData(bus, self.int_vector) & ~Z80.INT;
+                    bus = setData(bus, self.int_vector) & ~INT;
                 }
             }
             return bus;
         }
 
-        fn setClear(val: u8, comptime mask: u8, comptime set: bool) u8 {
+        fn setClearBits(val: u8, comptime mask: u8, comptime set: bool) u8 {
             if (set) {
                 return val | mask;
             } else {
@@ -479,24 +490,24 @@ pub fn Namco(comptime sys: System) type {
 
         fn setClearInput(self: *Self, inp: Input, comptime set: bool) void {
             switch (inp) {
-                .P1_UP => self.in0 = setClear(self.in0, IN0.UP, set),
-                .P1_LEFT => self.in0 = setClear(self.in0, IN0.LEFT, set),
-                .P1_RIGHT => self.in0 = setClear(self.in0, IN0.RIGHT, set),
-                .P1_DOWN => self.in0 = setClear(self.in0, IN0.DOWN, set),
+                .P1_UP => self.in0 = setClearBits(self.in0, IN0.UP, set),
+                .P1_LEFT => self.in0 = setClearBits(self.in0, IN0.LEFT, set),
+                .P1_RIGHT => self.in0 = setClearBits(self.in0, IN0.RIGHT, set),
+                .P1_DOWN => self.in0 = setClearBits(self.in0, IN0.DOWN, set),
                 .P1_BUTTON => if (sys == .Pengo) {
-                    self.in0 = setClear(self.in0, IN0.BUTTON, set);
+                    self.in0 = setClearBits(self.in0, IN0.BUTTON, set);
                 },
-                .P1_COIN => self.in0 = setClear(self.in0, IN0.COIN1, set),
-                .P1_START => self.in1 = setClear(self.in1, IN1.P1_START, set),
-                .P2_UP => self.in1 = setClear(self.in1, IN1.UP, set),
-                .P2_LEFT => self.in1 = setClear(self.in1, IN1.LEFT, set),
-                .P2_RIGHT => self.in1 = setClear(self.in1, IN1.RIGHT, set),
-                .P2_DOWN => self.in1 = setClear(self.in1, IN1.DOWN, set),
+                .P1_COIN => self.in0 = setClearBits(self.in0, IN0.COIN1, set),
+                .P1_START => self.in1 = setClearBits(self.in1, IN1.P1_START, set),
+                .P2_UP => self.in1 = setClearBits(self.in1, IN1.UP, set),
+                .P2_LEFT => self.in1 = setClearBits(self.in1, IN1.LEFT, set),
+                .P2_RIGHT => self.in1 = setClearBits(self.in1, IN1.RIGHT, set),
+                .P2_DOWN => self.in1 = setClearBits(self.in1, IN1.DOWN, set),
                 .P2_BUTTON => if (sys == .Pengo) {
-                    self.in1 = setClear(self.in1, IN1.BUTTON, set);
+                    self.in1 = setClearBits(self.in1, IN1.BUTTON, set);
                 },
-                .P2_COIN => self.in0 = setClear(self.in1, IN0.COIN2, set),
-                .P2_START => self.in1 = setClear(self.in1, IN1.P2_START, set),
+                .P2_COIN => self.in0 = setClearBits(self.in1, IN0.COIN2, set),
+                .P2_START => self.in1 = setClearBits(self.in1, IN1.P2_START, set),
             }
         }
 
@@ -523,7 +534,7 @@ pub fn Namco(comptime sys: System) type {
             return if ((x & 0x20) != 0) y + ((x & 0x1F) << 5) else x + (y << 5);
         }
 
-        // decode an 8x4 pixel tile
+        // decode an 8x4 pixel tile, used both for background tiles and sprites
         inline fn decode8x4(
             self: *Self,
             tile_base: usize,
