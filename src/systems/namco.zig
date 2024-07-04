@@ -38,6 +38,7 @@ const z80 = @import("chips").z80;
 const common = @import("common");
 const memory = common.memory;
 const clock = common.clock;
+const AudioCallback = common.host.AudioCallback;
 const AudioOptions = common.host.AudioOptions;
 const DisplayInfo = common.host.DisplayInfo;
 
@@ -148,6 +149,47 @@ pub fn Namco(comptime sys: System) type {
             const FB_SIZE = FB_WIDTH * FB_HEIGHT;
         };
 
+        // audio system related constants
+        const AUDIO = struct {
+            const MAX_SAMPLES = 256;
+            const PERIOD = 32; // sound is ticked every 32 CPU ticks
+            const OVERSAMPLE = 2;
+            const SAMPLE_SCALE = 16;
+
+            const ADDR_V1_FC0 = MEMIO.WR.AUDIO_BASE + 0x00; // voice1 frequency counter nibble 0
+            const ADDR_V1_FC1 = MEMIO.WR.AUDIO_BASE + 0x01; //                          nibble 1
+            const ADDR_V1_FC2 = MEMIO.WR.AUDIO_BASE + 0x02; //                          nibble 2
+            const ADDR_V1_FC3 = MEMIO.WR.AUDIO_BASE + 0x03; //                          nibble 3
+            const ADDR_V1_FC4 = MEMIO.WR.AUDIO_BASE + 0x04; //                          nibble 4
+            const ADDR_V1_WAVE = MEMIO.WR.AUDIO_BASE + 0x05; // voice1 wave form
+            const ADDR_V2_FC1 = MEMIO.WR.AUDIO_BASE + 0x06; // voice2 frequency counter nibble 1
+            const ADDR_V2_FC2 = MEMIO.WR.AUDIO_BASE + 0x07; //                          nibble 2
+            const ADDR_V2_FC3 = MEMIO.WR.AUDIO_BASE + 0x08; //                          nibble 3
+            const ADDR_V2_FC4 = MEMIO.WR.AUDIO_BASE + 0x09; //                          nibble 4
+            const ADDR_V2_WAVE = MEMIO.WR.AUDIO_BASE + 0x0A; // voice2 wave form
+            const ADDR_V3_FC1 = MEMIO.WR.AUDIO_BASE + 0x0B; // voice3 frequency counter nibble 1
+            const ADDR_V3_FC2 = MEMIO.WR.AUDIO_BASE + 0x0C; //                          nibble 2
+            const ADDR_V3_FC3 = MEMIO.WR.AUDIO_BASE + 0x0D; //                          nibble 3
+            const ADDR_V3_FC4 = MEMIO.WR.AUDIO_BASE + 0x0E; //                          nibble 4
+            const ADDR_V3_WAVE = MEMIO.WR.AUDIO_BASE + 0x0F; // voice3 wave form
+            const ADDR_V1_FQ0 = MEMIO.WR.AUDIO_BASE + 0x10; // voice1 frequency nibble 0
+            const ADDR_V1_FQ1 = MEMIO.WR.AUDIO_BASE + 0x11; //                  nibble 1
+            const ADDR_V1_FQ2 = MEMIO.WR.AUDIO_BASE + 0x12; //                  nibble 2
+            const ADDR_V1_FQ3 = MEMIO.WR.AUDIO_BASE + 0x13; //                  nibble 3
+            const ADDR_V1_FQ4 = MEMIO.WR.AUDIO_BASE + 0x14; //                  nibble 4
+            const ADDR_V1_VOLUME = MEMIO.WR.AUDIO_BASE + 0x15; // voice1 volume
+            const ADDR_V2_FQ1 = MEMIO.WR.AUDIO_BASE + 0x16; // voice2 frequency nibble 1
+            const ADDR_V2_FQ2 = MEMIO.WR.AUDIO_BASE + 0x17; //                  nibble 2
+            const ADDR_V2_FQ3 = MEMIO.WR.AUDIO_BASE + 0x18; //                  nibble 3
+            const ADDR_V2_FQ4 = MEMIO.WR.AUDIO_BASE + 0x19; //                  nibble 4
+            const ADDR_V2_VOLUME = MEMIO.WR.AUDIO_BASE + 0x1A; // voice2 volume
+            const ADDR_V3_FQ1 = MEMIO.WR.AUDIO_BASE + 0x1B; // voice3 frequency nibble 1
+            const ADDR_V3_FQ2 = MEMIO.WR.AUDIO_BASE + 0x1C; //                  nibble 2
+            const ADDR_V3_FQ3 = MEMIO.WR.AUDIO_BASE + 0x1D; //                  nibble 3
+            const ADDR_V3_FQ4 = MEMIO.WR.AUDIO_BASE + 0x1E; //                  nibble 4
+            const ADDR_V3_VOLUME = MEMIO.WR.AUDIO_BASE + 0x1F; // voice3 volume
+        };
+
         // memory mapping related constants
         const MEMMAP = switch (sys) {
             .Pacman => struct {
@@ -159,6 +201,7 @@ pub fn Namco(comptime sys: System) type {
                 const CPU_ROM_SIZE = 0x4000;
                 const GFX_ROM_SIZE = 0x2000;
                 const PROM_SIZE = 0x120;
+                const SOUND_ROM_SIZE = 0x0200;
             },
             .Pengo => struct {
                 const ADDR_MASK = 0xFFFF;
@@ -169,6 +212,7 @@ pub fn Namco(comptime sys: System) type {
                 const CPU_ROM_SIZE = 0x8000;
                 const GFX_ROM_SIZE = 0x4000;
                 const PROM_SIZE = 0x0420;
+                const SOUND_ROM_SIZE = 0x0200;
             },
         };
 
@@ -185,7 +229,7 @@ pub fn Namco(comptime sys: System) type {
                     const INT_ENABLE: u16 = BASE;
                     const SOUND_ENABLE: u16 = BASE + 1;
                     const FLIP_SCREEN: u16 = BASE + 3; // FIXME: is this correct?
-                    const SOUND_BASE: u16 = BASE + 0x40;
+                    const AUDIO_BASE: u16 = BASE + 0x40;
                     const SPRITES_BASE: u16 = BASE + 0x60;
                 };
             },
@@ -198,7 +242,7 @@ pub fn Namco(comptime sys: System) type {
                     const DSW2: u16 = BASE;
                 };
                 const WR = struct {
-                    const SOUND_BASE: u16 = BASE;
+                    const AUDIO_BASE: u16 = BASE;
                     const SPRITES_BASE: u16 = BASE + 0x20;
                     const INT_ENABLE: u16 = BASE + 0x40;
                     const SOUND_ENABLE: u16 = BASE + 0x41;
@@ -325,6 +369,28 @@ pub fn Namco(comptime sys: System) type {
             },
         };
 
+        const AudioVoice = struct {
+            frequency: u20 = 0, // frequency
+            counter: u20 = 0, // counter, top 5 bits are index into 32-byte wave table
+            waveform: u3 = 0, // waveform select
+            volume: u4 = 0, // 16 volume levels
+            sample: f32 = 0.0, // accumulated sample value
+            sample_div: f32 = 0.0, // oversampling divider
+        };
+
+        const Audio = struct {
+            tick_counter: u32,
+            sample_period: i32,
+            sample_counter: i32,
+            volume: f32,
+            voices: [3]AudioVoice = [_]AudioVoice{.{}} ** 3,
+            num_samples: u32,
+            sample_pos: u32,
+            callback: AudioCallback,
+            rom: [0x0200]u8,
+            sample_buffer: [AUDIO.MAX_SAMPLES]f32,
+        };
+
         bus: u64 = 0,
         cpu: Z80,
         mem: Memory,
@@ -353,6 +419,7 @@ pub fn Namco(comptime sys: System) type {
             prom: [MEMMAP.PROM_SIZE]u8,
         },
 
+        audio: Audio, // audio emulation state
         hw_colors: [32]u32, // 8-bit colors from pal_rom[0..32] decoded to RGBA8
         pal_map: [PALETTE_MAP_SIZE]u5, // indirect indices into hw_colors
         fb: [DISPLAY.FB_SIZE]u8 align(128), // framebuffer bytes are indices into hw_colors
@@ -381,6 +448,8 @@ pub fn Namco(comptime sys: System) type {
 
                 .hw_colors = initHwColors(&self.rom.prom),
                 .pal_map = initPaletteMap(&self.rom.prom),
+
+                .audio = initAudio(opts),
 
                 .fb = std.mem.zeroes(@TypeOf(self.fb)),
                 .junk_page = std.mem.zeroes(@TypeOf(self.junk_page)),
@@ -421,7 +490,8 @@ pub fn Namco(comptime sys: System) type {
                 }
             }
 
-            // FIXME: tick sound
+            // tick sound
+            self.tickAudio();
 
             // tick the CPU
             bus = self.cpu.tick(bus);
@@ -438,7 +508,9 @@ pub fn Namco(comptime sys: System) type {
                             MEMIO.WR.INT_ENABLE => self.int_enable = (data & 1) != 0,
                             MEMIO.WR.SOUND_ENABLE => self.sound_enable = (data & 1) != 0,
                             MEMIO.WR.FLIP_SCREEN => self.flip_screen = (data & 1) != 0,
-                            MEMIO.WR.SOUND_BASE...MEMIO.WR.SOUND_BASE + 0x1F => {}, // FIXME
+                            MEMIO.WR.AUDIO_BASE...MEMIO.WR.AUDIO_BASE + 0x1F => {
+                                self.audioWrite(addr, data);
+                            },
                             MEMIO.WR.SPRITES_BASE...MEMIO.WR.SPRITES_BASE + 0xF => {
                                 self.sprite_coords[addr & 0x000F] = data;
                             },
@@ -519,6 +591,27 @@ pub fn Namco(comptime sys: System) type {
         /// set input bits to 'inactive' state
         pub fn clearInput(self: *Self, inp: Input) void {
             self.setClearInput(inp, false);
+        }
+
+        pub fn displayInfo(selfOrNull: ?*Self) DisplayInfo {
+            return .{
+                .fb = .{
+                    .dim = .{
+                        .width = DISPLAY.FB_WIDTH,
+                        .height = DISPLAY.FB_HEIGHT,
+                    },
+                    .format = .Palette8,
+                    .buffer = if (selfOrNull) |self| &self.fb else null,
+                },
+                .view = .{
+                    .x = 0,
+                    .y = 0,
+                    .width = DISPLAY.WIDTH,
+                    .height = DISPLAY.HEIGHT,
+                },
+                .palette = if (selfOrNull) |self| &self.hw_colors else null,
+                .orientation = .Portrait,
+            };
         }
 
         fn decodeVideo(self: *Self) void {
@@ -724,25 +817,121 @@ pub fn Namco(comptime sys: System) type {
             return rom;
         }
 
-        pub fn displayInfo(selfOrNull: ?*Self) DisplayInfo {
+        fn initSoundRom(opts: Options) [MEMMAP.SOUND_ROM_SIZE]u8 {
+            var rom: [MEMMAP.SOUND_ROM_SIZE]u8 = undefined;
+            cp(opts.roms.sound_0000_00FF, rom[0x0000..0x0100]);
+            cp(opts.roms.sound_0100_01FF, rom[0x0100..0x0200]);
+            return rom;
+        }
+
+        fn initAudio(opts: Options) Audio {
+            assert(opts.audio.num_samples <= AUDIO.MAX_SAMPLES);
+            assert(opts.audio.sample_rate > 0);
+            const period: i32 = @divFloor(CPU_FREQUENCY * AUDIO.SAMPLE_SCALE, opts.audio.sample_rate);
             return .{
-                .fb = .{
-                    .dim = .{
-                        .width = DISPLAY.FB_WIDTH,
-                        .height = DISPLAY.FB_HEIGHT,
-                    },
-                    .format = .Palette8,
-                    .buffer = if (selfOrNull) |self| &self.fb else null,
-                },
-                .view = .{
-                    .x = 0,
-                    .y = 0,
-                    .width = DISPLAY.WIDTH,
-                    .height = DISPLAY.HEIGHT,
-                },
-                .palette = if (selfOrNull) |self| &self.hw_colors else null,
-                .orientation = .Portrait,
+                .tick_counter = AUDIO.PERIOD,
+                .sample_period = period,
+                .sample_counter = period,
+                .volume = opts.audio.volume,
+                .num_samples = opts.audio.num_samples,
+                .sample_pos = 0,
+                .callback = opts.audio.callback,
+                .rom = initSoundRom(opts),
+                .sample_buffer = std.mem.zeroes([AUDIO.MAX_SAMPLES]f32),
             };
+        }
+
+        inline fn setNibble(val: u20, data: u8, comptime nibble: u5) u20 {
+            const shl = nibble * 4;
+            return (val & (0x0000F << shl)) | ((@as(u20, data) & 0x0F) << shl);
+        }
+
+        fn audioWrite(self: *Self, addr: u16, data: u8) void {
+            const snd = &self.audio;
+            switch (addr) {
+                // zig fmt: off
+                AUDIO.ADDR_V1_FC0 => { snd.voices[0].counter = setNibble(snd.voices[0].counter, data, 0); },
+                AUDIO.ADDR_V1_FC1 => { snd.voices[0].counter = setNibble(snd.voices[0].counter, data, 1); },
+                AUDIO.ADDR_V1_FC2 => { snd.voices[0].counter = setNibble(snd.voices[0].counter, data, 2); },
+                AUDIO.ADDR_V1_FC3 => { snd.voices[0].counter = setNibble(snd.voices[0].counter, data, 3); },
+                AUDIO.ADDR_V1_FC4 => { snd.voices[0].counter = setNibble(snd.voices[0].counter, data, 4); },
+                AUDIO.ADDR_V1_WAVE => { snd.voices[0].waveform = @truncate(data); },
+                AUDIO.ADDR_V2_FC1 => { snd.voices[1].counter = setNibble(snd.voices[1].counter, data, 1); },
+                AUDIO.ADDR_V2_FC2 => { snd.voices[1].counter = setNibble(snd.voices[1].counter, data, 2); },
+                AUDIO.ADDR_V2_FC3 => { snd.voices[1].counter = setNibble(snd.voices[1].counter, data, 3); },
+                AUDIO.ADDR_V2_FC4 => { snd.voices[1].counter = setNibble(snd.voices[1].counter, data, 4); },
+                AUDIO.ADDR_V2_WAVE => { snd.voices[1].waveform = @truncate(data); },
+                AUDIO.ADDR_V3_FC1 => { snd.voices[2].counter = setNibble(snd.voices[2].counter, data, 1); },
+                AUDIO.ADDR_V3_FC2 => { snd.voices[2].counter = setNibble(snd.voices[2].counter, data, 2); },
+                AUDIO.ADDR_V3_FC3 => { snd.voices[2].counter = setNibble(snd.voices[2].counter, data, 3); },
+                AUDIO.ADDR_V3_FC4 => { snd.voices[2].counter = setNibble(snd.voices[2].counter, data, 4); },
+                AUDIO.ADDR_V3_WAVE => { snd.voices[2].waveform = @truncate(data); },
+                AUDIO.ADDR_V1_FQ0 => { snd.voices[0].frequency = setNibble(snd.voices[0].frequency, data, 0); },
+                AUDIO.ADDR_V1_FQ1 => { snd.voices[0].frequency = setNibble(snd.voices[0].frequency, data, 1); },
+                AUDIO.ADDR_V1_FQ2 => { snd.voices[0].frequency = setNibble(snd.voices[0].frequency, data, 2); },
+                AUDIO.ADDR_V1_FQ3 => { snd.voices[0].frequency = setNibble(snd.voices[0].frequency, data, 3); },
+                AUDIO.ADDR_V1_FQ4 => { snd.voices[0].frequency = setNibble(snd.voices[0].frequency, data, 4); },
+                AUDIO.ADDR_V1_VOLUME => { snd.voices[0].volume = @truncate(data); },
+                AUDIO.ADDR_V2_FQ1 => { snd.voices[1].frequency = setNibble(snd.voices[1].frequency, data, 1); },
+                AUDIO.ADDR_V2_FQ2 => { snd.voices[1].frequency = setNibble(snd.voices[1].frequency, data, 2); },
+                AUDIO.ADDR_V2_FQ3 => { snd.voices[1].frequency = setNibble(snd.voices[1].frequency, data, 3); },
+                AUDIO.ADDR_V2_FQ4 => { snd.voices[1].frequency = setNibble(snd.voices[1].frequency, data, 4); },
+                AUDIO.ADDR_V2_VOLUME => { snd.voices[2].volume = @truncate(data); },
+                AUDIO.ADDR_V3_FQ1 => { snd.voices[2].frequency = setNibble(snd.voices[2].frequency, data, 1); },
+                AUDIO.ADDR_V3_FQ2 => { snd.voices[2].frequency = setNibble(snd.voices[2].frequency, data, 2); },
+                AUDIO.ADDR_V3_FQ3 => { snd.voices[2].frequency = setNibble(snd.voices[2].frequency, data, 3); },
+                AUDIO.ADDR_V3_FQ4 => { snd.voices[2].frequency = setNibble(snd.voices[2].frequency, data, 4); },
+                AUDIO.ADDR_V3_VOLUME => { snd.voices[2].volume = @truncate(data); },
+                else => unreachable,
+                // zig fmt: on
+            }
+        }
+
+        fn tickAudio(self: *Self) void {
+            var snd = &self.audio;
+            // tick sound system?
+            snd.tick_counter -= 1;
+            if (snd.tick_counter == 0) {
+                // handle a 96Hz tick
+                snd.tick_counter = AUDIO.PERIOD;
+                for (&snd.voices) |*voice| {
+                    if (self.sound_enable and (voice.frequency > 0)) {
+                        voice.counter +%= voice.frequency;
+                        // lookup current 4-bit sample from waveform number and the
+                        // topmost 5 bits of the 20-bit sample counter, multiply with 4-bit volume
+                        const smp_index: u32 = ((@as(u32, voice.waveform) << 5) | ((voice.counter >> 15) & 0x1F)) & 0xFF;
+                        // integer sample value now 7-bits and sign bit
+                        const val: i8 = (@as(i8, @intCast(snd.rom[smp_index] & 0xF)) - 8) * voice.volume;
+                        voice.sample += @floatFromInt(val);
+                        voice.sample_div += 128.0;
+                    } else {
+                        voice.sample = 0.0;
+                        voice.sample_div = 0.0;
+                    }
+                }
+            }
+            // generate a new sample?
+            snd.sample_counter -= AUDIO.SAMPLE_SCALE;
+            if (snd.sample_counter < 0) {
+                snd.sample_counter += snd.sample_period;
+                var sm: f32 = 0.0;
+                for (&snd.voices) |*voice| {
+                    if (voice.sample_div > 0.0) {
+                        sm += voice.sample / voice.sample_div;
+                        voice.sample = 0.0;
+                        voice.sample_div = 0.0;
+                    }
+                }
+                sm *= snd.volume * 0.333333;
+                snd.sample_buffer[snd.sample_pos] = sm;
+                snd.sample_pos += 1;
+                if (snd.sample_pos == snd.num_samples) {
+                    if (snd.callback) |cb| {
+                        cb(snd.sample_buffer[0..snd.num_samples]);
+                    }
+                    snd.sample_pos = 0;
+                }
+            }
         }
     };
 }

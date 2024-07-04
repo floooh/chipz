@@ -14,7 +14,8 @@ const state = struct {
 };
 
 export fn init() void {
-    // setup system emulator
+    host.audio.init(.{});
+    host.time.init();
     state.sys.initInPlace(.{
         .audio = .{
             .sample_rate = host.audio.sampleRate(),
@@ -37,15 +38,10 @@ export fn init() void {
             .sound_0100_01FF = @embedFile("roms/pr1636.70"),
         },
     });
-    // setup host bindings
-    host.init(.{
-        .gfx = .{
-            .display_info = state.sys.displayInfo(),
-            .pixel_aspect = .{ .width = 2, .height = 3 },
-        },
-        .audio = .{
-            .disable_audio = true,
-        },
+    host.gfx.init(.{
+        .border = host.gfx.DEFAULT_BORDER,
+        .display_info = state.sys.displayInfo(),
+        .pixel_aspect = .{ .width = 2, .height = 3 },
     });
 }
 
@@ -56,7 +52,8 @@ export fn frame() void {
 }
 
 export fn cleanup() void {
-    host.shutdown();
+    host.gfx.shutdown();
+    host.audio.shutdown();
 }
 
 export fn input(ev: [*c]const sapp.Event) void {

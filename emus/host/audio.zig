@@ -23,11 +23,11 @@ pub fn shutdown() void {
     }
 }
 
-pub fn sampleRate() u32 {
+pub fn sampleRate() i32 {
     if (state.disable_audio) {
         return 44100;
     } else {
-        return @intCast(saudio.sampleRate());
+        return saudio.sampleRate();
     }
 }
 

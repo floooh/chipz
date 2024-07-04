@@ -107,14 +107,14 @@ pub fn init(opts: Options) void {
     state.border = opts.border;
     state.display.orientation = opts.display_info.orientation;
     state.fb.dim = opts.display_info.fb.dim;
-    state.fb.paletted = opts.display_info.palette != null;
+    state.fb.paletted = opts.display_info.fb.format == .Palette8;
     state.offscreen.pixel_aspect = opts.pixel_aspect;
     state.offscreen.view = opts.display_info.view;
 
     // create optional palette texture
-    if (opts.display_info.palette) |palette| {
+    if (state.fb.paletted) {
         var pal_buf = [_]u32{0} ** 256;
-        std.mem.copyForwards(u32, &pal_buf, palette);
+        std.mem.copyForwards(u32, &pal_buf, opts.display_info.palette.?);
         state.fb.pal_img = sg.makeImage(.{
             .width = 256,
             .height = 1,

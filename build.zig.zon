@@ -4,8 +4,8 @@
     .dependencies = .{
         // sokol only needed for the actual emulators
         .sokol = .{
-            .url = "git+https://github.com/floooh/sokol-zig.git#ca76d1e66b2539a6614535aaad39d0168985a2e9",
-            .hash = "122055d69396139fc4b51ba859a2af304608e336572084ed44c5c79504be9ae2aba8",
+            .url = "git+https://github.com/floooh/sokol-zig.git#f48d2bd051a282e01dbf463d0f9a59daefd09201",
+            .hash = "1220f044556b4cbe92f797dece26d1418bbf67f8d7311e1b0040049690d1044b66e8",
         },
     },
     .paths = .{

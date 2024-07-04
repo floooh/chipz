@@ -29,3 +29,16 @@ int: u8 = 0,
 
 ^^^ those were originally 'odd-width' integers u2 and u1 and that had quite
 a negative perf impact (z80zex 172s vs 159s)
+
+```zig
+const blub: u32 = 0xFFFFFFFF;
+const bla: u3 = blub & 7;
+```
+
+^^^ this should work without requiring to truncate blub
+
+```zig
+const smp_index: u32 = ((voice.waveform << 5) | ((voice.counter >> 15) & 0x1F)) & 0xFF;
+```
+
+^^^ error: type 'u2' cannot represent integer value '5'
