@@ -6,8 +6,8 @@
 On Mac, Linux or Windows:
 
 ```
-zig build --release-fast pacman
-zig build --release-fast pengo
+zig build --release=fast run-pacman
+zig build --release=fast run-pengo
 ```
 
 Input:
