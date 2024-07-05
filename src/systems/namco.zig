@@ -843,7 +843,8 @@ pub fn Namco(comptime sys: System) type {
 
         inline fn setNibble(val: u20, data: u8, comptime nibble: u5) u20 {
             const shl = nibble * 4;
-            return (val & (0x0000F << shl)) | ((@as(u20, data) & 0x0F) << shl);
+            const mask: u20 = 0x0000F << shl;
+            return (val & ~mask) | ((@as(u20, data) & 0xF) << shl);
         }
 
         fn audioWrite(self: *Self, addr: u16, data: u8) void {
@@ -856,27 +857,32 @@ pub fn Namco(comptime sys: System) type {
                 AUDIO.ADDR_V1_FC3 => { snd.voices[0].counter = setNibble(snd.voices[0].counter, data, 3); },
                 AUDIO.ADDR_V1_FC4 => { snd.voices[0].counter = setNibble(snd.voices[0].counter, data, 4); },
                 AUDIO.ADDR_V1_WAVE => { snd.voices[0].waveform = @truncate(data); },
+
                 AUDIO.ADDR_V2_FC1 => { snd.voices[1].counter = setNibble(snd.voices[1].counter, data, 1); },
                 AUDIO.ADDR_V2_FC2 => { snd.voices[1].counter = setNibble(snd.voices[1].counter, data, 2); },
                 AUDIO.ADDR_V2_FC3 => { snd.voices[1].counter = setNibble(snd.voices[1].counter, data, 3); },
                 AUDIO.ADDR_V2_FC4 => { snd.voices[1].counter = setNibble(snd.voices[1].counter, data, 4); },
                 AUDIO.ADDR_V2_WAVE => { snd.voices[1].waveform = @truncate(data); },
+
                 AUDIO.ADDR_V3_FC1 => { snd.voices[2].counter = setNibble(snd.voices[2].counter, data, 1); },
                 AUDIO.ADDR_V3_FC2 => { snd.voices[2].counter = setNibble(snd.voices[2].counter, data, 2); },
                 AUDIO.ADDR_V3_FC3 => { snd.voices[2].counter = setNibble(snd.voices[2].counter, data, 3); },
                 AUDIO.ADDR_V3_FC4 => { snd.voices[2].counter = setNibble(snd.voices[2].counter, data, 4); },
                 AUDIO.ADDR_V3_WAVE => { snd.voices[2].waveform = @truncate(data); },
+
                 AUDIO.ADDR_V1_FQ0 => { snd.voices[0].frequency = setNibble(snd.voices[0].frequency, data, 0); },
                 AUDIO.ADDR_V1_FQ1 => { snd.voices[0].frequency = setNibble(snd.voices[0].frequency, data, 1); },
                 AUDIO.ADDR_V1_FQ2 => { snd.voices[0].frequency = setNibble(snd.voices[0].frequency, data, 2); },
                 AUDIO.ADDR_V1_FQ3 => { snd.voices[0].frequency = setNibble(snd.voices[0].frequency, data, 3); },
                 AUDIO.ADDR_V1_FQ4 => { snd.voices[0].frequency = setNibble(snd.voices[0].frequency, data, 4); },
                 AUDIO.ADDR_V1_VOLUME => { snd.voices[0].volume = @truncate(data); },
+
                 AUDIO.ADDR_V2_FQ1 => { snd.voices[1].frequency = setNibble(snd.voices[1].frequency, data, 1); },
                 AUDIO.ADDR_V2_FQ2 => { snd.voices[1].frequency = setNibble(snd.voices[1].frequency, data, 2); },
                 AUDIO.ADDR_V2_FQ3 => { snd.voices[1].frequency = setNibble(snd.voices[1].frequency, data, 3); },
                 AUDIO.ADDR_V2_FQ4 => { snd.voices[1].frequency = setNibble(snd.voices[1].frequency, data, 4); },
-                AUDIO.ADDR_V2_VOLUME => { snd.voices[2].volume = @truncate(data); },
+                AUDIO.ADDR_V2_VOLUME => { snd.voices[1].volume = @truncate(data); },
+
                 AUDIO.ADDR_V3_FQ1 => { snd.voices[2].frequency = setNibble(snd.voices[2].frequency, data, 1); },
                 AUDIO.ADDR_V3_FQ2 => { snd.voices[2].frequency = setNibble(snd.voices[2].frequency, data, 2); },
                 AUDIO.ADDR_V3_FQ3 => { snd.voices[2].frequency = setNibble(snd.voices[2].frequency, data, 3); },
@@ -904,9 +910,6 @@ pub fn Namco(comptime sys: System) type {
                         const val: i8 = (@as(i8, @intCast(snd.rom[smp_index] & 0xF)) - 8) * voice.volume;
                         voice.sample += @floatFromInt(val);
                         voice.sample_div += 128.0;
-                    } else {
-                        voice.sample = 0.0;
-                        voice.sample_div = 0.0;
                     }
                 }
             }

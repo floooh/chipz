@@ -42,3 +42,9 @@ const smp_index: u32 = ((voice.waveform << 5) | ((voice.counter >> 15) & 0x1F)) 
 ```
 
 ^^^ error: type 'u2' cannot represent integer value '5'
+
+```zig
+const mask: u20 = ~(0x0000F << shl);
+```
+
+^^^ unable to perform binary not operation on type 'comptime_int'
