@@ -689,8 +689,9 @@ pub fn Namco(comptime sys: System) type {
             const tile_base: usize = 0x1000 + @as(usize, self.tile_select) * 0x2000;
             const max_sprite: usize = if (sys == .Pacman) 6 else 7;
             const min_sprite: usize = if (sys == .Pacman) 1 else 0;
-            var sprite_index: usize = max_sprite;
-            while (sprite_index >= min_sprite) : (sprite_index -= 1) {
+            const num_sprites = (max_sprite - min_sprite) + 1;
+            for (0..num_sprites) |i| {
+                const sprite_index: usize = (max_sprite - i);
                 const py: usize = self.sprite_coords[sprite_index * 2 + 0] -% 31;
                 const px: usize = 272 - @as(usize, self.sprite_coords[sprite_index * 2 + 1]);
                 const shape: u8 = self.ram.main[MEMMAP.SPRITES_ATTRS + sprite_index * 2 + 0];

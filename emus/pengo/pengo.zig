@@ -56,19 +56,40 @@ export fn cleanup() void {
     host.audio.shutdown();
 }
 
+fn keyToInput(key: sapp.Keycode) Pengo.Input {
+    return switch (key) {
+        .RIGHT => .P1_RIGHT,
+        .LEFT => .P1_LEFT,
+        .UP => .P1_UP,
+        .DOWN => .P1_DOWN,
+        .SPACE => .P1_BUTTON,
+        ._1 => .P1_COIN,
+        ._2 => .P2_COIN,
+        else => .P1_START,
+    };
+}
+
 export fn input(ev: [*c]const sapp.Event) void {
-    _ = ev;
+    switch (ev.*.type) {
+        .KEY_DOWN => state.sys.setInput(keyToInput(ev.*.key_code)),
+        .KEY_UP => state.sys.clearInput(keyToInput(ev.*.key_code)),
+        else => {},
+    }
 }
 
 pub fn main() void {
+    const display_info = Pengo.displayInfo(null);
+    const border = host.gfx.DEFAULT_BORDER;
+    const width = 2 * display_info.view.width + border.left + border.right;
+    const height = 3 * display_info.view.height + border.top + border.bottom;
     sapp.run(.{
         .init_cb = init,
         .frame_cb = frame,
         .cleanup_cb = cleanup,
         .event_cb = input,
         .window_title = "Pengo (chipz)",
-        .width = 640,
-        .height = 480,
+        .width = width,
+        .height = height,
         .icon = .{ .sokol_default = true },
         .logger = .{ .func = slog.func },
     });

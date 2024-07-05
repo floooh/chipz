@@ -42,7 +42,6 @@ export fn init() void {
 }
 
 export fn frame() void {
-    std.debug.assert(&state.sys.mem.pages[16].write[0] == &state.sys.ram.video[0]);
     state.frame_time_us = host.time.frameTime();
     state.ticks_per_frame = state.sys.exec(state.frame_time_us);
     host.gfx.draw(state.sys.displayInfo());
