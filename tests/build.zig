@@ -30,12 +30,12 @@ pub fn build(b: *Build, opts: Options) void {
     }
 
     // unit tests
-    const unit_tests = [_][]const u8{"memory"};
+    const unit_tests = [_][]const u8{ "memory", "ay3891x" };
     const test_step = b.step("test", "Run unit tests");
     for (unit_tests) |name| {
         const unit_test = b.addTest(.{
             .name = name,
-            .root_source_file = b.path(b.fmt("{s}/{s}.zig", .{ opts.src_dir, name })),
+            .root_source_file = b.path(b.fmt("{s}/{s}.test.zig", .{ opts.src_dir, name })),
             .target = opts.target,
         });
         b.installArtifact(unit_test); // install an exe for debugging
