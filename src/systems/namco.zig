@@ -393,7 +393,6 @@ pub fn Namco(comptime sys: System) type {
 
         bus: u64 = 0,
         cpu: Z80,
-        mem: Memory,
         in0: u8 = 0, // inverted bits (active-low)
         in1: u8 = 0, // inverted bits (active-low)
         dsw1: u8 = DSW1.DEFAULT, // dip-switches as-is (active-high)
@@ -407,6 +406,7 @@ pub fn Namco(comptime sys: System) type {
         tile_select: u8 = 0, // Pengo only
         sprite_coords: [16]u8, // 8 sprites x/y pairs
         vsync_count: u32 = VSYNC_PERIOD,
+        mem: Memory,
 
         ram: struct {
             video: [MEMMAP.VIDEO_RAM_SIZE]u8,
@@ -593,15 +593,14 @@ pub fn Namco(comptime sys: System) type {
             self.setClearInput(inp, false);
         }
 
-        pub fn displayInfo(selfOrNull: ?*Self) DisplayInfo {
+        pub fn displayInfo(selfOrNull: ?*const Self) DisplayInfo {
             return .{
                 .fb = .{
                     .dim = .{
                         .width = DISPLAY.FB_WIDTH,
                         .height = DISPLAY.FB_HEIGHT,
                     },
-                    .format = .Palette8,
-                    .buffer = if (selfOrNull) |self| &self.fb else null,
+                    .buffer = if (selfOrNull) |self| .{ .Palette8 = &self.fb } else null,
                 },
                 .view = .{
                     .x = 0,

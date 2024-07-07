@@ -1,4 +1,6 @@
-//! AY-38910/2/3 sound chip emulator
+//! AY-3-8910/2/3 sound chip emulator
+//! FIXME: AY-3-8913 chip select pin is not emulated, instead the AY-3-8913
+//! is simply a AY-3-8910 without IO ports
 const bitutils = @import("common").bitutils;
 const mask = bitutils.mask;
 const maskm = bitutils.maskm;
@@ -168,6 +170,7 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
             counter: i32 = 0,
             volume: f32 = 0.0,
             sample: f32 = 0.0,
+            ready: bool = false, // true if a new sample value is ready
             dcadj: struct {
                 sum: f32 = 0.0,
                 pos: u32 = 0.0,
@@ -342,6 +345,9 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
                     }
                 }
                 self.smp.sample = dcadjust(self, sm) * self.smp.volume;
+                self.smp.ready = true;
+            } else {
+                self.smp.ready = false;
             }
             return bus;
         }

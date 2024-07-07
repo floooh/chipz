@@ -1,4 +1,3 @@
-const std = @import("std");
 const sokol = @import("sokol");
 const sapp = sokol.app;
 const slog = sokol.log;

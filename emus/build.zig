@@ -7,6 +7,7 @@ const Module = Build.Module;
 const emulators = .{
     "pacman",
     "pengo",
+    "bombjack",
 };
 
 pub const Options = struct {

@@ -46,10 +46,11 @@ pub const DisplayInfo = struct {
     fb: struct {
         /// framebuffer dimensions in pixels
         dim: Dim,
-        /// framebuffer pixel format
-        format: PixelFormat,
         /// slice to the actual framebuffer pixels
-        buffer: ?[]const u8,
+        buffer: ?union(PixelFormat) {
+            Palette8: []const u8,
+            Rgba8: []const u32,
+        },
     },
     /// the visible area of the framebuffer
     view: Rect,

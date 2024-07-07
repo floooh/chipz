@@ -107,7 +107,9 @@ pub fn init(opts: Options) void {
     state.border = opts.border;
     state.display.orientation = opts.display_info.orientation;
     state.fb.dim = opts.display_info.fb.dim;
-    state.fb.paletted = opts.display_info.fb.format == .Palette8;
+    if (opts.display_info.fb.buffer) |buf| {
+        state.fb.paletted = buf == .Palette8;
+    }
     state.offscreen.pixel_aspect = opts.pixel_aspect;
     state.offscreen.view = opts.display_info.view;
 
@@ -227,7 +229,10 @@ pub fn draw(display_info: DisplayInfo) void {
 
     // copy emulator pixels into framebuffer texture
     var img_data = sg.ImageData{};
-    img_data.subimage[0][0] = sg.asRange(display_info.fb.buffer.?);
+    img_data.subimage[0][0] = switch (display_info.fb.buffer.?) {
+        .Palette8 => |pal_buf| sg.asRange(pal_buf),
+        .Rgba8 => |rgba8_buf| sg.asRange(rgba8_buf),
+    };
     sg.updateImage(state.fb.img, img_data);
 
     // upscale emulator framebuffer with 2x nearest filtering
