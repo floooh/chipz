@@ -50,7 +50,7 @@ export fn init() void {
 
 export fn frame() void {
     state.frame_time_us = host.time.frameTime();
-    // FIXME: state.ticks_per_frame = state.sys.exec(state.frame_time_us);
+    state.ticks_per_frame = state.sys.exec(state.frame_time_us);
     host.gfx.draw(state.sys.displayInfo());
 }
 

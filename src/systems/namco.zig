@@ -460,10 +460,6 @@ pub fn Namco(comptime sys: System) type {
 
         // FIXME: initAlloc()?
 
-        inline fn pin(bus: u64, p: comptime_int) bool {
-            return (bus & p) != 0;
-        }
-
         /// run emulation for a number of microseconds and decode a video frame
         /// return number of clock cycles executed
         pub fn exec(self: *Self, micro_seconds: u32) u32 {
@@ -475,6 +471,10 @@ pub fn Namco(comptime sys: System) type {
             self.bus = bus;
             self.decodeVideo();
             return num_ticks;
+        }
+
+        inline fn pin(bus: u64, p: comptime_int) bool {
+            return (bus & p) != 0;
         }
 
         /// execute a single clock cycle
