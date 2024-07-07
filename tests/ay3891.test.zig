@@ -36,7 +36,7 @@ test "init AY38910" {
         .volume = 0.5,
     });
     try expect(ay.noise.rng == 1);
-    try expectApproxEqAbs(ay.sample.volume, 0.5, 0.001);
+    try expectApproxEqAbs(ay.smp.volume, 0.5, 0.001);
     try expect(ay.tone[0].period == 1);
     try expect(ay.tone[1].period == 1);
     try expect(ay.tone[2].period == 1);
@@ -49,7 +49,7 @@ test "init AY38912" {
         .volume = 0.5,
     });
     try expect(ay.noise.rng == 1);
-    try expectApproxEqAbs(ay.sample.volume, 0.5, 0.001);
+    try expectApproxEqAbs(ay.smp.volume, 0.5, 0.001);
     try expect(ay.tone[0].period == 1);
     try expect(ay.tone[1].period == 1);
     try expect(ay.tone[2].period == 1);
@@ -62,7 +62,7 @@ test "init AY38913" {
         .volume = 0.5,
     });
     try expect(ay.noise.rng == 1);
-    try expectApproxEqAbs(ay.sample.volume, 0.5, 0.001);
+    try expectApproxEqAbs(ay.smp.volume, 0.5, 0.001);
     try expect(ay.tone[0].period == 1);
     try expect(ay.tone[1].period == 1);
     try expect(ay.tone[2].period == 1);

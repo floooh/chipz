@@ -140,16 +140,16 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
         pub const Tone = struct {
             period: u16 = 0,
             counter: u16 = 0,
-            bit: u32 = 0,
-            tone_disable: u32 = 0,
-            noise_disable: u32 = 0,
+            phase: u1 = 0,
+            tone_disable: u1 = 0,
+            noise_disable: u1 = 0,
         };
 
         pub const Noise = struct {
             period: u16 = 0,
             counter: u16 = 0,
             rng: u32 = 0,
-            bit: u32 = 0,
+            phase: u1 = 0,
         };
 
         pub const Envelope = struct {
@@ -158,8 +158,8 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
             shape: struct {
                 holding: bool = false,
                 hold: bool = false,
-                counter: u8 = 0,
-                state: u8 = 0,
+                counter: u5 = 0,
+                state: u4 = 0,
             } = .{},
         };
 
@@ -175,7 +175,7 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
             } = .{},
         };
 
-        tick_count: u32 = 0, // tick counter for internal clock division
+        tick_count: u38 = 0, // tick counter for internal clock division
         cs_mask: u8 = 0, // hi: 4-bit chip-select (options.chip_select << 4)
         active: bool = false, // true if upper chip-select matches when writing address
         addr: u4 = 0, // current register index
@@ -183,7 +183,7 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
         tone: [NUM_CHANNELS]Tone = [_]Tone{.{}} ** NUM_CHANNELS, // tone generator states (3 channels)
         noise: Noise = .{}, // noise generator state
         env: Envelope = .{}, // envelope generator state
-        sample: Sample = .{}, // sample generator state
+        smp: Sample = .{}, // sample generator state
 
         pub inline fn getData(bus: Bus) u8 {
             return @truncate(bus >> P.DBUS[0]);
@@ -227,7 +227,7 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
                 .noise = .{
                     .rng = 1,
                 },
-                .sample = .{
+                .smp = .{
                     .period = sample_period,
                     .counter = sample_period,
                     .volume = opts.volume,
@@ -281,8 +281,83 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
             if (model != .AY38913) {
                 bus = self.portIO(bus);
             }
-            // FIXME: perform per tick operations
+
+            // perform tick operations
+            self.tick_count +%= 1;
+            if ((self.tick_count & 7) == 0) {
+                // tick tone channels
+                for (&self.tone) |*chn| {
+                    chn.counter +%= 1;
+                    if (chn.counter >= chn.period) {
+                        chn.counter = 0;
+                        chn.phase ^= 1;
+                    }
+                }
+                // tick the noise channel
+                self.noise.counter +%= 1;
+                if (self.noise.counter >= self.noise.period) {
+                    self.noise.counter = 0;
+                    // random number generator from MAME:
+                    // https://github.com/mamedev/mame/blob/master/src/devices/sound/ay8910.cpp
+                    // The Random Number Generator of the 8910 is a 17-bit shift
+                    // register. The input to the shift register is bit0 XOR bit3
+                    // (bit0 is the output). This was verified on AY-3-8910 and YM2149 chips.
+                    self.noise.rng ^= ((self.noise.rng & 1) ^ ((self.noise.rng >> 3) & 1)) << 17;
+                    self.noise.rng >>= 1;
+                }
+            }
+
+            // tick the envelope generator
+            if ((self.tick_count & 15) == 0) {
+                self.env.counter +%= 1;
+                if (self.env.counter >= self.env.period) {
+                    self.env.period = 0;
+                    if (!self.env.shape.holding) {
+                        self.env.shape.counter +%= 1;
+                        if (self.env.shape.hold and (0x1F == self.env.shape.counter)) {
+                            self.env.shape.holding = true;
+                        }
+                    }
+                }
+                self.env.shape.state = env_shapes[self.reg(.ENV_SHAPE_CYCLE)][self.env.shape.counter];
+            }
+
+            // generate sample
+            self.smp.counter -= FIXEDPOINT_SCALE;
+            if (self.smp.counter <= 0) {
+                self.smp.counter += self.smp.period;
+                var sm: f32 = 0.0;
+                inline for (&self.tone, .{ Reg.AMP_A, Reg.AMP_B, Reg.AMP_C }) |chn, ampReg| {
+                    const voice_enable: u1 = @truncate((self.noise.rng & 1) & chn.noise_disable);
+                    const tone_enable: u1 = chn.phase | chn.tone_disable;
+                    if ((tone_enable & voice_enable) == 1) {
+                        const amp = self.reg(ampReg);
+                        if (0 == (amp & (1 << 4))) {
+                            // fixed amplitude
+                            sm += volumes[amp & 0x0F];
+                        } else {
+                            // envelope control
+                            sm += volumes[self.env.shape.state];
+                        }
+                    }
+                }
+                self.smp.sample = dcadjust(self, sm) * self.smp.volume;
+            }
             return bus;
+        }
+
+        // DC adjustment filter from StSound, this moves an "offcenter"
+        // signal back to the zero-line (e.g. the volume-level output
+        // from the chip simulation which is >0.0 gets converted to
+        //a +/- sample value)
+        fn dcadjust(self: *Self, s: f32) f32 {
+            const pos = self.smp.dcadj.pos;
+            self.smp.dcadj.sum -= self.smp.dcadj.buf[pos];
+            self.smp.dcadj.sum += s;
+            self.smp.dcadj.buf[pos] = s;
+            self.smp.dcadj.pos = (pos + 1) & (DCADJ_BUFLEN - 1);
+            const div: f32 = @floatFromInt(DCADJ_BUFLEN);
+            return s - (self.smp.dcadj.sum / div);
         }
 
         // write from data bus to register
@@ -343,8 +418,8 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
                     chn.period = 1;
                 }
                 // a set 'enabled bit' actually means 'disabled'
-                chn.tone_disable = (self.reg(.ENABLE) >> i) & 1;
-                chn.noise_disable = (self.reg(.ENABLE) >> (3 + i)) & 1;
+                chn.tone_disable = @truncate((self.reg(.ENABLE) >> i) & 1);
+                chn.noise_disable = @truncate((self.reg(.ENABLE) >> (3 + i)) & 1);
             }
             // update noise generator values
             self.noise.period = self.reg(.PERIOD_NOISE);
@@ -387,7 +462,7 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
         };
 
         // canned envelope generator shapes
-        const env_shapes = [16][32]u8{
+        const env_shapes = [16][32]u4{
             // CONTINUE ATTACK ALTERNATE HOLD
             // 0 0 X X
             .{ 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
