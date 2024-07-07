@@ -40,7 +40,6 @@ pub const Model = enum {
 };
 
 pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) type {
-    _ = model; // autofix
     return struct {
         const Self = @This();
 
@@ -81,55 +80,57 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
         pub const IOB6 = mask(Bus, P.IOB[6]);
 
         // misc constants
-        const NUM_REGS = 16;
         const NUM_CHANNELS = 3;
         const FIXEDPOINT_SCALE = 16; // error accumulation precision boost
         const DCADJ_BUFLEN = 128;
 
-        // register indices
-        pub const REG = struct {
-            pub const PERIOD_A_FINE = 0;
-            pub const PERIOD_A_COARSE = 1;
-            pub const PERIOD_B_FINE = 2;
-            pub const PERIOD_B_COARSE = 3;
-            pub const PERIOD_C_FINE = 4;
-            pub const PERIOD_C_COARSE = 5;
-            pub const PERIOD_NOISE = 6;
-            pub const ENABLE = 7;
-            pub const AMP_A = 8;
-            pub const AMP_B = 9;
-            pub const AMP_C = 10;
-            pub const ENV_PERIOD_FINE = 11;
-            pub const ENV_PERIOD_COARSE = 12;
-            pub const ENV_SHAPE_CYCLE = 13;
-            pub const IO_PORT_A = 14; // not on AY-3-8913
-            pub const IO_PORT_B = 15; // only on AY-3-8910
-            // register bit-width masks
-            const MASK = [NUM_REGS]u8{
-                0xFF, // REG.PERIOD_A_FINE
-                0x0F, // REG.PERIOD_A_COARSE
-                0xFF, // REG.PERIOD_B_FINE
-                0x0F, // REG.PERIOD_B_COARSE
-                0xFF, // REG.PERIOD_C_FINE
-                0x0F, // REG.PERIOD_C_COARSE
-                0x1F, // REG.PERIOD_NOISE
-                0xFF, // REG.ENABLE,
-                0x1F, // REG.AMP_A (0..3: 4-bit volume, 4: use envelope)
-                0x1F, // REG.AMP_B (^^^)
-                0x1F, // REG.AMP_C (^^^)
-                0xFF, // REG.ENV_PERIOD_FINE
-                0xFF, // REG.ENV_PERIOD_COARSE
-                0x0F, // REG.ENV_SHAPE_CYCLE
-                0xFF, // REG.IO_PORT_A
-                0xFF, // REG.IO_PORT_B
-            };
+        // registers
+        pub const Reg = enum(u4) {
+            PERIOD_A_FINE,
+            PERIOD_A_COARSE,
+            PERIOD_B_FINE,
+            PERIOD_B_COARSE,
+            PERIOD_C_FINE,
+            PERIOD_C_COARSE,
+            PERIOD_NOISE,
+            ENABLE,
+            AMP_A,
+            AMP_B,
+            AMP_C,
+            ENV_PERIOD_FINE,
+            ENV_PERIOD_COARSE,
+            ENV_SHAPE_CYCLE,
+            IO_PORT_A,
+            IO_PORT_B,
+
+            const NUM = 16;
+        };
+
+        // register bit widths
+        const RegMask = [Reg.NUM]u8{
+            0xFF, // REG.PERIOD_A_FINE
+            0x0F, // REG.PERIOD_A_COARSE
+            0xFF, // REG.PERIOD_B_FINE
+            0x0F, // REG.PERIOD_B_COARSE
+            0xFF, // REG.PERIOD_C_FINE
+            0x0F, // REG.PERIOD_C_COARSE
+            0x1F, // REG.PERIOD_NOISE
+            0xFF, // REG.ENABLE,
+            0x1F, // REG.AMP_A (0..3: 4-bit volume, 4: use envelope)
+            0x1F, // REG.AMP_B (^^^)
+            0x1F, // REG.AMP_C (^^^)
+            0xFF, // REG.ENV_PERIOD_FINE
+            0xFF, // REG.ENV_PERIOD_COARSE
+            0x0F, // REG.ENV_SHAPE_CYCLE
+            0xFF, // REG.IO_PORT_A
+            0xFF, // REG.IO_PORT_B
         };
 
         // port names
         pub const Port = enum { A, B };
 
         // envelope shape bits
-        pub const ENVELOPE = struct {
+        pub const ENV = struct {
             pub const HOLD: u8 = (1 << 0);
             pub const ALTERNATE: u8 = (1 << 1);
             pub const ATTACK: u8 = (1 << 2);
@@ -174,10 +175,11 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
             } = .{},
         };
 
-        tick: u32 = 0, // tick counter for internal clock division
+        tick_count: u32 = 0, // tick counter for internal clock division
         cs_mask: u8 = 0, // hi: 4-bit chip-select (options.chip_select << 4)
-        addr: u8 = 0, // hi: 4-bit chip-select, lo: 4-bit register index
-        regs: [NUM_REGS]u8 = [_]u8{0} ** NUM_REGS,
+        active: bool = false, // true if upper chip-select matches when writing address
+        addr: u4 = 0, // current register index
+        regs: [Reg.NUM]u8 = [_]u8{0} ** Reg.NUM,
         tone: [NUM_CHANNELS]Tone = [_]Tone{.{}} ** NUM_CHANNELS, // tone generator states (3 channels)
         noise: Noise = .{}, // noise generator state
         env: Envelope = .{}, // envelope generator state
@@ -205,12 +207,17 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
             };
         }
 
-        inline fn r8(self: *const Self, comptime i: usize) u8 {
-            return self.regs[i];
+        pub inline fn setReg(self: *Self, comptime r: Reg, data: u8) void {
+            const idx = @intFromEnum(r);
+            self.regs[idx] = data & RegMask[idx];
         }
 
-        inline fn r16(self: *const Self, comptime i_hi: usize, comptime i_lo: usize) u16 {
-            return (@as(u16, self.regs[i_hi]) << 8) | self.regs[i_lo];
+        pub inline fn reg(self: *const Self, comptime r: Reg) u8 {
+            return self.regs[@intFromEnum(r)];
+        }
+
+        inline fn reg16(self: *const Self, comptime r_hi: Reg, comptime r_lo: Reg) u16 {
+            return (@as(u16, self.regs[@intFromEnum(r_hi)]) << 8) | self.regs[@intFromEnum(r_lo)];
         }
 
         pub fn init(opts: Options) Self {
@@ -232,10 +239,11 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
         }
 
         pub fn reset(self: *Self) void {
+            self.active = false;
             self.addr = 0;
-            self.tick = 0;
-            for (&self.regs) |reg| {
-                reg.* = 0;
+            self.tick_count = 0;
+            for (&self.regs) |r| {
+                r.* = 0;
             }
             self.updateValues();
             self.restartEnvelope();
@@ -246,28 +254,81 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
             // first check read/write access
             switch (bus & (BDIR | BC1)) {
                 // latch register addr
-                // NOTE: the lo 4-bit are the register index, the hi 4-bit
-                // are used for chip-selection, the AY will ignore any
-                // read/write requests that don't match the 4-bit chips-select
-                // mask burned into the chip
                 BDIR | BC1 => {
-                    self.addr = getData(bus);
+                    const data = getData(bus);
+                    self.active = (data & 0xF0) == self.cs_mask;
+                    if (self.active) {
+                        self.addr = @truncate(data);
+                    }
                 },
                 // write to register at latched addr (only if chip-select mask matches)
                 BDIR => {
-                    if ((self.addr & 0xF0) == self.cs_mask) {
+                    if (self.active) {
                         self.write(bus);
                     }
                 },
                 // read from register at latched addr (only if chip-select mask macthes)
                 BC1 => {
-                    if ((self.addr & 0xF0) == self.cs_mask) {
+                    if (self.active) {
                         bus = self.read(bus);
+                    } else {
+                        bus = setData(bus, 0xFF);
                     }
                 },
                 else => {},
             }
+            // handle port IO
+            if (model != .AY38913) {
+                bus = self.portIO(bus);
+            }
             // FIXME: perform per tick operations
+            return bus;
+        }
+
+        // write from data bus to register
+        fn write(self: *Self, bus: Bus) void {
+            const data = getData(bus);
+            // update register content and dependent values
+            self.regs[self.addr] = data & RegMask[self.addr];
+            self.updateValues();
+            if (self.addr == @intFromEnum(Reg.ENV_SHAPE_CYCLE)) {
+                self.restartEnvelope();
+            }
+        }
+
+        // read from register to data bus
+        fn read(self: *const Self, bus: Bus) Bus {
+            return setData(bus, self.regs[self.addr]);
+        }
+
+        // handle IO ports
+        fn portIO(self: *Self, in_bus: Bus) Bus {
+            var bus = in_bus;
+            // The bits 6 and 7 of the 'enable' register define whether
+            // port A and B are in input or output mode. When in input mode,
+            // the port bits are mirrored into the port A/B register, and
+            // when in output mode the port A/B registers are mirrored on the port pins
+            if (model != .AY38913) {
+                // port A exists only on AY38910 and AY38912
+                if ((self.reg(.ENABLE) & (1 << 6)) != 0) {
+                    // port A is in output mode
+                    bus = setPort(.A, bus, self.reg(.IO_PORT_A));
+                } else {
+                    // port A is in input mode
+                    self.setReg(.IO_PORT_A, getPort(.A, bus));
+                }
+            }
+            if (model == .AY38910) {
+                // port B exists only on AY38910
+                if ((self.reg(.ENABLE) & (1 << 7)) != 0) {
+                    // port B is in output mode
+                    bus = setPort(.B, bus, self.reg(.IO_PORT_B));
+                } else {
+                    // port B is in input mode
+                    self.setReg(.IO_PORT_B, getPort(.B, bus));
+                }
+            }
+            return bus;
         }
 
         // called after register values change
@@ -277,21 +338,21 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
                 // "...Note also that due to the design technique used in the Tone Period
                 // count-down, the lowest period value is 000000000001 (divide by 1)
                 // and the highest period value is 111111111111 (divide by 4095)
-                chn.period = self.r16(2 * i + 1, 2 * i);
+                chn.period = self.reg16(@enumFromInt(2 * i + 1), @enumFromInt(2 * i));
                 if (chn.period == 0) {
                     chn.period = 1;
                 }
                 // a set 'enabled bit' actually means 'disabled'
-                chn.tone_disable = (self.r8(REG.ENABLE) >> i) & 1;
-                chn.noise_disable = (self.r8(REG.ENABLE) >> (3 + i)) & 1;
+                chn.tone_disable = (self.reg(.ENABLE) >> i) & 1;
+                chn.noise_disable = (self.reg(.ENABLE) >> (3 + i)) & 1;
             }
-            // update  noise generator values
-            self.noise.period = self.r8(REG.PERIOD_NOISE);
+            // update noise generator values
+            self.noise.period = self.reg(.PERIOD_NOISE);
             if (self.noise.period == 0) {
                 self.noise.period = 1;
             }
             // update envelope generator values
-            self.env.period = self.r16(REG.ENV_PERIOD_COARSE, REG.ENV_PERIOD_FINE);
+            self.env.period = self.reg16(.ENV_PERIOD_COARSE, .ENV_PERIOD_FINE);
             if (self.env.period == 0) {
                 self.env.period = 1;
             }
@@ -301,8 +362,8 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
         fn restartEnvelope(self: *Self) void {
             self.env.shape.holding = false;
             self.env.shape.counter = 0;
-            const cycle = self.r8(REG.ENV_SHAPE_CYCLE);
-            self.env.shape.hold = 0 == (cycle & ENVELOPE.CONTINUE) and 0 != (cycle & ENVELOPE.HOLD);
+            const cycle = self.reg(.ENV_SHAPE_CYCLE);
+            self.env.shape.hold = 0 == (cycle & ENV.CONTINUE) and 0 != (cycle & ENV.HOLD);
         }
 
         // volume table from: https://github.com/true-grue/ayumi/blob/master/ayumi.c

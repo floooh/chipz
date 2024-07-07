@@ -30,7 +30,7 @@ pub fn build(b: *Build, opts: Options) void {
     }
 
     // unit tests
-    const unit_tests = [_][]const u8{ "memory", "ay3891x" };
+    const unit_tests = [_][]const u8{ "memory", "ay3891" };
     const test_step = b.step("test", "Run unit tests");
     for (unit_tests) |name| {
         const unit_test = b.addTest(.{
