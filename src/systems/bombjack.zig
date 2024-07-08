@@ -73,6 +73,9 @@ const MREQ = Z80.MREQ;
 const IORQ = Z80.IORQ;
 const RD = Z80.RD;
 const WR = Z80.WR;
+const A0 = Z80.A0;
+const A4 = Z80.A4;
+const A7 = Z80.A7;
 
 pub const Bombjack = struct {
     const Self = @This();
@@ -226,6 +229,7 @@ pub const Bombjack = struct {
     pub const SoundBoard = struct {
         cpu: Z80,
         bus: Bus = 0,
+        tick_count: u32 = 0,
         psg0: PSG0,
         psg1: PSG1,
         psg2: PSG2,
@@ -278,17 +282,17 @@ pub const Bombjack = struct {
                 .psg0 = PSG0.init(.{
                     .tick_hz = PSG_FREQUENCY,
                     .sound_hz = @intCast(opts.audio.sample_rate),
-                    .volume = 0.2,
+                    .volume = 0.3,
                 }),
                 .psg1 = PSG1.init(.{
                     .tick_hz = PSG_FREQUENCY,
                     .sound_hz = @intCast(opts.audio.sample_rate),
-                    .volume = 0.2,
+                    .volume = 0.3,
                 }),
                 .psg2 = PSG2.init(.{
                     .tick_hz = PSG_FREQUENCY,
                     .sound_hz = @intCast(opts.audio.sample_rate),
-                    .volume = 0.2,
+                    .volume = 0.3,
                 }),
                 .vsync_count = VSYNC_PERIOD_3MHZ,
                 .mem = Memory.init(.{
@@ -384,32 +388,6 @@ pub const Bombjack = struct {
         return 2 * (mb_num_ticks + sb_num_ticks);
     }
 
-    fn setClearBits(val: u8, comptime mask: u8, comptime set: bool) u8 {
-        if (set) {
-            return val | mask;
-        } else {
-            return val & ~mask;
-        }
-    }
-
-    fn setClearInput(self: *Self, inp: Input, comptime set: bool) void {
-        var b = &self.main_board;
-        if (inp.p1_right) b.p1 = setClearBits(b.p1, JOY.RIGHT, set);
-        if (inp.p1_left) b.p1 = setClearBits(b.p1, JOY.LEFT, set);
-        if (inp.p1_up) b.p1 = setClearBits(b.p1, JOY.UP, set);
-        if (inp.p1_down) b.p1 = setClearBits(b.p1, JOY.DOWN, set);
-        if (inp.p1_button) b.p1 = setClearBits(b.p1, JOY.BUTTON, set);
-        if (inp.p1_coin) b.sys = setClearBits(b.sys, SYS.P1_COIN, set);
-        if (inp.p1_start) b.sys = setClearBits(b.sys, SYS.P1_START, set);
-        if (inp.p2_right) b.p2 = setClearBits(b.p2, JOY.RIGHT, set);
-        if (inp.p2_left) b.p2 = setClearBits(b.p2, JOY.LEFT, set);
-        if (inp.p2_up) b.p2 = setClearBits(b.p2, JOY.UP, set);
-        if (inp.p2_down) b.p2 = setClearBits(b.p2, JOY.DOWN, set);
-        if (inp.p2_button) b.p2 = setClearBits(b.p2, JOY.BUTTON, set);
-        if (inp.p2_coin) b.sys = setClearBits(b.sys, SYS.P2_COIN, set);
-        if (inp.p2_start) b.sys = setClearBits(b.sys, SYS.P2_START, set);
-    }
-
     pub fn setInput(self: *Self, inp: Input) void {
         self.setClearInput(inp, true);
     }
@@ -475,9 +453,95 @@ pub const Bombjack = struct {
         return bus;
     }
 
-    fn tickSoundBoard(self: *Self, bus: Bus) Bus {
-        _ = self; // autofix
-        // FIXME
+    fn tickSoundBoard(self: *Self, in_bus: Bus) Bus {
+        var bus = in_bus;
+        var board: *SoundBoard = &self.sound_board;
+
+        // vsync triggers a flip-flop connected to the CPU's NMI, the flip-flop
+        // is reset on a read from address 0x6000 (this read happens in the
+        // interrupt service routine
+        board.vsync_count -= 1;
+        if (board.vsync_count == 0) {
+            board.vsync_count = VSYNC_PERIOD_3MHZ;
+            bus |= NMI;
+        }
+
+        // tick the sound board CPU
+        bus = board.cpu.tick(bus);
+
+        // handle memory and IO requests
+        if (pin(bus, MREQ)) {
+            const addr = getAddr(bus);
+            if (pin(bus, RD)) {
+                // special case: read and clear sound latch and NMI flip-flop
+                if (addr == 0x6000) {
+                    bus = setData(bus, self.sound_latch);
+                    self.sound_latch = 0;
+                    bus &= ~NMI;
+                } else {
+                    // regular memory read
+                    bus = setData(bus, board.mem.rd(addr));
+                }
+            } else if (pin(bus, WR)) {
+                // regular memory write
+                board.mem.wr(addr, getData(bus));
+            }
+        } else if (pin(bus, IORQ)) {
+            // For IO address decoding, see schematics page 9 and 10:
+            //
+            // PSG1, PSG2 and PSG3 are selected through a
+            // LS-138 1-of-4 decoder from address lines 4 and 7:
+            //
+            // A7 A4
+            // 0  0   -> PSG 1
+            // 0  1   -> PSG 2
+            // 1  0   -> PSG 3
+            // 1  1   -> not connected
+            //
+            // A0 is connected to BC1(!) (I guess that's an error in the
+            // schematics since these show BC2).
+            //
+            switch (bus & (A7 | A4)) {
+                0 => { // PSG0
+                    if (pin(bus, WR)) bus |= PSG0.BDIR;
+                    if (!pin(bus, A0)) bus |= PSG0.BC1;
+                },
+                A4 => { // PSG1
+                    if (pin(bus, WR)) bus |= PSG1.BDIR;
+                    if (!pin(bus, A0)) bus |= PSG1.BC1;
+                },
+                A7 => {
+                    if (pin(bus, WR)) bus |= PSG2.BDIR;
+                    if (!pin(bus, A0)) bus |= PSG2.BC1;
+                },
+                else => {},
+            }
+        }
+
+        // tick the AY chips at half frequency
+        board.tick_count +%= 1;
+        if ((board.tick_count & 1) == 0) {
+            bus = board.psg0.tick(bus);
+            bus = board.psg1.tick(bus);
+            bus = board.psg2.tick(bus);
+
+            // clear AY control bits (this cannot happen each CPU tick because
+            // the AY chips are clocked at half frequency and might miss them)
+            bus &= ~(PSG0.BDIR | PSG0.BC1 | PSG1.BDIR | PSG1.BC1 | PSG2.BDIR | PSG2.BC1);
+
+            if (board.psg0.smp.ready) {
+                const s: f32 = board.psg0.smp.sample + board.psg1.smp.sample + board.psg2.smp.sample;
+                self.audio.sample_buffer[self.audio.sample_pos] = s * self.audio.volume;
+                self.audio.sample_pos += 1;
+                if (self.audio.sample_pos == self.audio.num_samples) {
+                    if (self.audio.callback) |cb| {
+                        cb(self.audio.sample_buffer[0..self.audio.num_samples]);
+                    }
+                    self.audio.sample_pos = 0;
+                }
+            }
+        }
+
         return bus;
     }
 
@@ -860,5 +924,31 @@ pub const Bombjack = struct {
         // sound board memory map
         self.sound_board.mem.mapROM(0x0000, 0x2000, &self.rom.sound);
         self.sound_board.mem.mapRAM(0x4000, 0x0400, &self.ram.sound);
+    }
+
+    fn setClearBits(val: u8, comptime mask: u8, comptime set: bool) u8 {
+        if (set) {
+            return val | mask;
+        } else {
+            return val & ~mask;
+        }
+    }
+
+    fn setClearInput(self: *Self, inp: Input, comptime set: bool) void {
+        var b = &self.main_board;
+        if (inp.p1_right) b.p1 = setClearBits(b.p1, JOY.RIGHT, set);
+        if (inp.p1_left) b.p1 = setClearBits(b.p1, JOY.LEFT, set);
+        if (inp.p1_up) b.p1 = setClearBits(b.p1, JOY.UP, set);
+        if (inp.p1_down) b.p1 = setClearBits(b.p1, JOY.DOWN, set);
+        if (inp.p1_button) b.p1 = setClearBits(b.p1, JOY.BUTTON, set);
+        if (inp.p1_coin) b.sys = setClearBits(b.sys, SYS.P1_COIN, set);
+        if (inp.p1_start) b.sys = setClearBits(b.sys, SYS.P1_START, set);
+        if (inp.p2_right) b.p2 = setClearBits(b.p2, JOY.RIGHT, set);
+        if (inp.p2_left) b.p2 = setClearBits(b.p2, JOY.LEFT, set);
+        if (inp.p2_up) b.p2 = setClearBits(b.p2, JOY.UP, set);
+        if (inp.p2_down) b.p2 = setClearBits(b.p2, JOY.DOWN, set);
+        if (inp.p2_button) b.p2 = setClearBits(b.p2, JOY.BUTTON, set);
+        if (inp.p2_coin) b.sys = setClearBits(b.sys, SYS.P2_COIN, set);
+        if (inp.p2_start) b.sys = setClearBits(b.sys, SYS.P2_START, set);
     }
 };

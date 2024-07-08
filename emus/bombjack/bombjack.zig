@@ -13,9 +13,7 @@ const state = struct {
 };
 
 export fn init() void {
-    host.audio.init(.{
-        .disable_audio = true,
-    });
+    host.audio.init(.{});
     host.time.init();
     state.sys.initInPlace(.{
         .audio = .{
