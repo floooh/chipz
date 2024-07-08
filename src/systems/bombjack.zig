@@ -430,9 +430,283 @@ pub const Bombjack = struct {
         return bus;
     }
 
+    // helper function to gather 16 bits of tile data from tile rom
+    inline fn gather16(rom: []const u8, offset: usize) u16 {
+        return (@as(u16, rom[offset]) << 8) | rom[8 + offset];
+    }
+
+    // helper function to gather 32 bits of tile data from tile rom
+    inline fn gather32(rom: []const u8, offset: usize) u32 {
+        return (@as(u32, rom[offset]) << 24) |
+            (@as(u32, rom[offset + 8]) << 16) |
+            (@as(u32, rom[offset + 32]) << 8) |
+            (@as(u32, rom[offset + 40]) << 0);
+    }
+
+    // render background tiles
+    //
+    // Background tiles are 16x16 pixels, and the screen is made of
+    // 16x16 tiles. A background images consists of 16x16=256 tile
+    // 'char codes', followed by 256 color code bytes. So each background
+    // image occupies 512 (0x200) bytes in the 'map rom'.
+    //
+    // The map-rom is 4 KByte, room for 8 background images (although I'm
+    // not sure yet whether all 8 are actually used). The background
+    // image number is written to address 0x9E00 (only the 3 LSB bits are
+    // considered). If bit 4 is cleared, no background image is shown
+    // (all tile codes are 0).
+    //
+    // A tile's image is created from 3 bitmaps, each bitmap stored in
+    // 32 bytes with the following layout (the numbers are the byte index,
+    // each byte contains the bitmap pattern for 8 pixels):
+    //
+    // 0: +--------+   8: +--------+
+    // 1: +--------+   9: +--------+
+    // 2: +--------+   10:+--------+
+    // 3: +--------+   11:+--------+
+    // 4: +--------+   12:+--------+
+    // 5: +--------+   13:+--------+
+    // 6: +--------+   14:+--------+
+    // 7: +--------+   15:+--------+
+    //
+    // 16:+--------+   24:+--------+
+    // 17:+--------+   25:+--------+
+    // 18:+--------+   26:+--------+
+    // 19:+--------+   27:+--------+
+    // 20:+--------+   28:+--------+
+    // 21:+--------+   29:+--------+
+    // 22:+--------+   30:+--------+
+    // 23:+--------+   31:+--------+
+    //
+    // The 3 bitmaps for each tile are 8 KBytes apart (basically each
+    // of the 3 background-tile ROM chips contains one set of bitmaps
+    // for all 256 tiles).
+    //
+    // The 3 bitmaps are combined to get the lower 3 bits of the
+    // color palette index. The remaining 4 bits of the palette
+    // index are provided by the color attribute byte (for 7 bits
+    // = 128 color palette entries).
+    //
+    // This is how a color palette entry is constructed from the 4
+    // attribute bits, and 3 tile bitmap bits:
+    //
+    // |x|attr3|attr2|attr1|attr0|bm0|bm1|bm2|
+    //
+    // This basically means that each 16x16 background tile
+    // can select one of 16 color blocks from the palette, and
+    // each pixel of the tile can select one of 8 colors in the
+    // tile's color block.
+    //
+    // Bit 7 in the attribute byte defines whether the tile should
+    // be flipped around the Y axis.
+    //
+    fn decodeBackground(self: *Self) void {
+        var fb_idx: usize = 0;
+        const fb_width = DISPLAY.FB_WIDTH;
+        const img_base_addr: usize = @as(usize, self.main_board.bg_image & 7) * 0x0200;
+        const img_valid = (self.main_board.bg_image & 0x10) != 0;
+        for (0..16) |y| {
+            for (0..16) |x| {
+                const addr = img_base_addr + (y * 16 + x);
+                const tile_code: usize = if (img_valid) self.rom.maps[addr] else 0;
+                const attr = self.rom.maps[addr + 0x0100];
+                const color_block: usize = (attr & 0x0F) << 3;
+                const flip_y = (attr & 0x80) != 0;
+                if (flip_y) {
+                    fb_idx +%= 15 * fb_width;
+                }
+                // every tile is 32 bytes
+                var offset = tile_code * 32;
+                for (0..16) |yy| {
+                    const bm0 = gather16(&self.rom.tiles[0], offset);
+                    const bm1 = gather16(&self.rom.tiles[1], offset);
+                    const bm2 = gather16(&self.rom.tiles[2], offset);
+                    offset += 1;
+                    if (yy == 7) {
+                        offset += 8;
+                    }
+                    for (0..16) |ixx| {
+                        const xx: u4 = @truncate(15 - ixx);
+                        const pen: usize = ((bm2 >> xx) & 1) | (((bm1 >> xx) & 1) << 1) | (((bm0 >> xx) & 1) << 1);
+                        self.fb[fb_idx] = self.main_board.palette[color_block | pen];
+                        fb_idx +%= 1;
+                    }
+                    if (flip_y) {
+                        fb_idx -%= 272;
+                    } else {
+                        fb_idx += 240;
+                    }
+                }
+                if (flip_y) {
+                    fb_idx +%= fb_width + 16;
+                } else {
+                    fb_idx -%= (fb_width * 16) - 16;
+                }
+            }
+            fb_idx +%= 15 * fb_width;
+        }
+        assert(fb_idx == fb_width * DISPLAY.HEIGHT);
+    }
+
+    // render foreground tiles
+    //
+    //  Similar to the background tiles, but each tile is 8x8 pixels,
+    //  for 32x32 tiles on the screen.
+    //
+    //  Tile char- and color-bytes are not stored in ROM, but in RAM
+    //  at address 0x9000 (1 KB char codes) and 0x9400 (1 KB color codes).
+    //
+    //  There are actually 512 char-codes, bit 4 of the color byte
+    //  is used as the missing bit 8 of the char-code.
+    //
+    //  The color decoding is the same as the background tiles, the lower
+    //  3 bits are provided by the 3 tile bitmaps, and the remaining
+    //  4 upper bits by the color byte.
+    //
+    //  Only 7 foreground colors are possible, since 0 defines a transparent
+    //  pixel.
+    //
+    fn decodeForeground(self: *Self) void {
+        var fb_idx: usize = 0;
+        const fb_width = DISPLAY.FB_WIDTH;
+        // 32x32 tiles, each 8x8 pixels
+        for (0..32) |y| {
+            for (0..32) |x| {
+                const addr = y * 32 + x;
+                // char codes are at 0x9000, color codes at 0x9400, RAM starts at 0x8000
+                const chr = self.ram.main[(0x9000 - 0x8000) + addr];
+                const clr = self.ram.main[(0x9400 - 0x8000) + addr];
+                // 512 foreground tiles, take 9th bit from color code
+                const tile_code: usize = chr | (@as(usize, clr) & 0x10) << 4;
+                // 16 color blocks at 8 colors
+                const color_block: usize = (clr & 0x0F) << 3;
+                // 8 bytes per char bitmap
+                var offset = tile_code * 8;
+                for (0..8) |_| {
+                    // 3 bit planes per char (8 colors per pixel within
+                    // the palette color block of the char
+                    const bm0 = self.rom.chars[0][offset];
+                    const bm1 = self.rom.chars[1][offset];
+                    const bm2 = self.rom.chars[2][offset];
+                    offset += 1;
+                    for (0..8) |ixx| {
+                        const xx: u3 = @truncate(7 - ixx);
+                        const pen: usize = ((bm2 >> xx) & 1) | (((bm1 >> xx) & 1) << 1) | (((bm0 >> xx) & 1) << 2);
+                        if (pen != 0) {
+                            self.fb[fb_idx] = self.main_board.palette[color_block | pen];
+                        }
+                        fb_idx +%= 1;
+                    }
+                    fb_idx +%= 248;
+                }
+                fb_idx -%= (8 * fb_width) - 8;
+            }
+            fb_idx +%= 7 * fb_width;
+        }
+        assert(fb_idx == fb_width * DISPLAY.HEIGHT);
+    }
+
+    // render sprites
+    //
+    // Each sprite is described by 4 bytes in the 'sprite RAM'
+    // (0x9820..0x987F => 96 bytes => 24 sprites):
+    //
+    // ABBBBBBB CDEFGGGG XXXXXXXX YYYYYYYY
+    //
+    // A:  sprite size (16x16 or 32x32)
+    // B:  sprite index
+    // C:  X flip
+    // D:  Y flip
+    // E:  ?
+    // F:  ?
+    // G:  color
+    // X:  x pos
+    // Y:  y pos
+    //
+    fn decodeSprites(self: *Self) void {
+        const fb_width = DISPLAY.FB_WIDTH;
+        // 24 hardware sprites, sprite 0 has highest priority
+        for (0..24) |i| {
+            const sprite_nr = 23 - i;
+            // sprite RAM starts at 0x9820, RAM starts at 0x8000
+            const addr: usize = (0x9820 - 0x8000) + sprite_nr * 4;
+            const b0 = self.ram.main[addr + 0];
+            const b1 = self.ram.main[addr + 1];
+            const b2 = self.ram.main[addr + 2];
+            const b3 = self.ram.main[addr + 3];
+            const color_block: usize = (b1 & 0x0F) << 3;
+
+            // screen is 90 degrees rotated, so x and y are switched
+            const px: usize = b3;
+            const sprite_code: u32 = b0 & 0x7F;
+            if ((b0 & 0x80) != 0) {
+                // 32x32 large sprite (no flip x/y needed)
+                const py: usize = 225 - b2;
+                var fb_idx: usize = py * fb_width + px;
+                // offset into sprite rom to gather sprite bitmap pixels
+                var offset: usize = sprite_code * 128;
+                for (0..32) |y| {
+                    const bm0 = gather32(&self.rom.sprites[0], offset);
+                    const bm1 = gather32(&self.rom.sprites[1], offset);
+                    const bm2 = gather32(&self.rom.sprites[2], offset);
+                    offset += 1;
+                    if ((y & 7) == 7) {
+                        offset += 8;
+                    }
+                    if ((y & 15) == 15) {
+                        offset += 32;
+                    }
+                    for (0..32) |ix| {
+                        const x: u5 = @truncate(31 - ix);
+                        const pen: usize = ((bm2 >> x) & 1) | (((bm1 >> x) & 1) << 1) | (((bm0 >> x) & 1) << 2);
+                        if (0 != pen) {
+                            self.fb[fb_idx] = self.main_board.palette[color_block | pen];
+                        }
+                        fb_idx +%= 1;
+                    }
+                    fb_idx +%= 224;
+                }
+            } else {
+                // 16*16 sprites are decoded like background tiles
+                const py: usize = 241 - b2;
+                var fb_idx: usize = py * fb_width + px;
+                const flip_x = (b1 & 0x80) != 0;
+                const flip_y = (b1 & 0x40) != 0;
+                if (flip_x) {
+                    fb_idx +%= 16 * fb_width;
+                }
+                // offset into sprite rom to gather sprite bitmap pixels
+                var offset: usize = sprite_code * 32;
+                for (0..16) |y| {
+                    const bm0 = gather16(&self.rom.sprites[0], offset);
+                    const bm1 = gather16(&self.rom.sprites[1], offset);
+                    const bm2 = gather16(&self.rom.sprites[2], offset);
+                    offset += 1;
+                    if (y == 7) {
+                        offset += 8;
+                    }
+                    for (0..16) |ix| {
+                        const x: u4 = @truncate(if (flip_y) ix else 15 - ix);
+                        const pen: usize = ((bm2 >> x) & 1) | (((bm1 >> x) & 1) << 1) | (((bm0 >> x) & 1) << 2);
+                        if (0 != pen) {
+                            self.fb[fb_idx] = self.main_board.palette[color_block | pen];
+                        }
+                        fb_idx +%= 1;
+                    }
+                    if (flip_x) {
+                        fb_idx -%= 272;
+                    } else {
+                        fb_idx +%= 240;
+                    }
+                }
+            }
+        }
+    }
+
     fn decodeVideo(self: *Self) void {
-        _ = self; // autofix
-        // FIXME
+        self.decodeBackground();
+        self.decodeForeground();
+        self.decodeSprites();
     }
 
     fn updatePaletteCache(self: *Self, addr: u16, data: u8) void {
