@@ -59,9 +59,25 @@ export fn cleanup() void {
     host.audio.shutdown();
 }
 
+fn keyToInput(key: sapp.Keycode) Bombjack.Input {
+    return switch (key) {
+        .RIGHT => .{ .p1_right = true },
+        .LEFT => .{ .p1_left = true },
+        .UP => .{ .p1_up = true },
+        .DOWN => .{ .p1_down = true },
+        .SPACE => .{ .p1_button = true },
+        ._1 => .{ .p1_coin = true },
+        ._2 => .{ .p2_coin = true },
+        else => .{ .p1_start = true },
+    };
+}
+
 export fn input(ev: [*c]const sapp.Event) void {
-    _ = ev; // autofix
-    // FIXME
+    switch (ev.*.type) {
+        .KEY_DOWN => state.sys.setInput(keyToInput(ev.*.key_code)),
+        .KEY_UP => state.sys.clearInput(keyToInput(ev.*.key_code)),
+        else => {},
+    }
 }
 
 pub fn main() void {

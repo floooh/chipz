@@ -100,6 +100,23 @@ pub const Bombjack = struct {
         },
     };
 
+    pub const Input = packed struct {
+        p1_right: bool = false,
+        p1_left: bool = false,
+        p1_up: bool = false,
+        p1_down: bool = false,
+        p1_button: bool = false,
+        p1_coin: bool = false,
+        p1_start: bool = false,
+        p2_right: bool = false,
+        p2_left: bool = false,
+        p2_up: bool = false,
+        p2_down: bool = false,
+        p2_button: bool = false,
+        p2_coin: bool = false,
+        p2_start: bool = false,
+    };
+
     // general constants
     const MAINBOARD_FREQUENCY = 4000000; // 4.0 MHz
     const SOUNDBOARD_FREQUENCY = 3000000; // 3.0 MHz
@@ -365,6 +382,40 @@ pub const Bombjack = struct {
         }
         self.decodeVideo();
         return 2 * (mb_num_ticks + sb_num_ticks);
+    }
+
+    fn setClearBits(val: u8, comptime mask: u8, comptime set: bool) u8 {
+        if (set) {
+            return val | mask;
+        } else {
+            return val & ~mask;
+        }
+    }
+
+    fn setClearInput(self: *Self, inp: Input, comptime set: bool) void {
+        var b = &self.main_board;
+        if (inp.p1_right) b.p1 = setClearBits(b.p1, JOY.RIGHT, set);
+        if (inp.p1_left) b.p1 = setClearBits(b.p1, JOY.LEFT, set);
+        if (inp.p1_up) b.p1 = setClearBits(b.p1, JOY.UP, set);
+        if (inp.p1_down) b.p1 = setClearBits(b.p1, JOY.DOWN, set);
+        if (inp.p1_button) b.p1 = setClearBits(b.p1, JOY.BUTTON, set);
+        if (inp.p1_coin) b.sys = setClearBits(b.sys, SYS.P1_COIN, set);
+        if (inp.p1_start) b.sys = setClearBits(b.sys, SYS.P1_START, set);
+        if (inp.p2_right) b.p2 = setClearBits(b.p2, JOY.RIGHT, set);
+        if (inp.p2_left) b.p2 = setClearBits(b.p2, JOY.LEFT, set);
+        if (inp.p2_up) b.p2 = setClearBits(b.p2, JOY.UP, set);
+        if (inp.p2_down) b.p2 = setClearBits(b.p2, JOY.DOWN, set);
+        if (inp.p2_button) b.p2 = setClearBits(b.p2, JOY.BUTTON, set);
+        if (inp.p2_coin) b.sys = setClearBits(b.sys, SYS.P2_COIN, set);
+        if (inp.p2_start) b.sys = setClearBits(b.sys, SYS.P2_START, set);
+    }
+
+    pub fn setInput(self: *Self, inp: Input) void {
+        self.setClearInput(inp, true);
+    }
+
+    pub fn clearInput(self: *Self, inp: Input) void {
+        self.setClearInput(inp, false);
     }
 
     fn tickMainBoard(self: *Self, in_bus: Bus) Bus {

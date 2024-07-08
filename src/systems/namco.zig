@@ -119,21 +119,21 @@ pub fn Namco(comptime sys: System) type {
             },
         };
 
-        pub const Input = enum {
-            P1_UP,
-            P1_LEFT,
-            P1_RIGHT,
-            P1_DOWN,
-            P1_BUTTON,
-            P1_COIN,
-            P1_START,
-            P2_UP,
-            P2_LEFT,
-            P2_RIGHT,
-            P2_DOWN,
-            P2_BUTTON,
-            P2_COIN,
-            P2_START,
+        pub const Input = packed struct {
+            p1_up: bool = false,
+            p1_left: bool = false,
+            p1_right: bool = false,
+            p1_down: bool = false,
+            p1_button: bool = false,
+            p1_coin: bool = false,
+            p1_start: bool = false,
+            p2_up: bool = false,
+            p2_left: bool = false,
+            p2_right: bool = false,
+            p2_down: bool = false,
+            p2_button: bool = false,
+            p2_coin: bool = false,
+            p2_start: bool = false,
         };
 
         const PALETTE_MAP_SIZE = if (sys == .Pacman) 256 else 512;
@@ -558,26 +558,20 @@ pub fn Namco(comptime sys: System) type {
         }
 
         fn setClearInput(self: *Self, inp: Input, comptime set: bool) void {
-            switch (inp) {
-                .P1_UP => self.in0 = setClearBits(self.in0, IN0.UP, set),
-                .P1_LEFT => self.in0 = setClearBits(self.in0, IN0.LEFT, set),
-                .P1_RIGHT => self.in0 = setClearBits(self.in0, IN0.RIGHT, set),
-                .P1_DOWN => self.in0 = setClearBits(self.in0, IN0.DOWN, set),
-                .P1_BUTTON => if (sys == .Pengo) {
-                    self.in0 = setClearBits(self.in0, IN0.BUTTON, set);
-                },
-                .P1_COIN => self.in0 = setClearBits(self.in0, IN0.COIN1, set),
-                .P1_START => self.in1 = setClearBits(self.in1, IN1.P1_START, set),
-                .P2_UP => self.in1 = setClearBits(self.in1, IN1.UP, set),
-                .P2_LEFT => self.in1 = setClearBits(self.in1, IN1.LEFT, set),
-                .P2_RIGHT => self.in1 = setClearBits(self.in1, IN1.RIGHT, set),
-                .P2_DOWN => self.in1 = setClearBits(self.in1, IN1.DOWN, set),
-                .P2_BUTTON => if (sys == .Pengo) {
-                    self.in1 = setClearBits(self.in1, IN1.BUTTON, set);
-                },
-                .P2_COIN => self.in0 = setClearBits(self.in1, IN0.COIN2, set),
-                .P2_START => self.in1 = setClearBits(self.in1, IN1.P2_START, set),
-            }
+            if (inp.p1_up) self.in0 = setClearBits(self.in0, IN0.UP, set);
+            if (inp.p1_left) self.in0 = setClearBits(self.in0, IN0.LEFT, set);
+            if (inp.p1_right) self.in0 = setClearBits(self.in0, IN0.RIGHT, set);
+            if (inp.p1_down) self.in0 = setClearBits(self.in0, IN0.DOWN, set);
+            if (inp.p1_button and sys == .Pengo) self.in0 = setClearBits(self.in0, IN0.BUTTON, set);
+            if (inp.p1_coin) self.in0 = setClearBits(self.in0, IN0.COIN1, set);
+            if (inp.p1_start) self.in1 = setClearBits(self.in1, IN1.P1_START, set);
+            if (inp.p2_up) self.in1 = setClearBits(self.in1, IN1.UP, set);
+            if (inp.p2_left) self.in1 = setClearBits(self.in1, IN1.LEFT, set);
+            if (inp.p2_right) self.in1 = setClearBits(self.in1, IN1.RIGHT, set);
+            if (inp.p2_down) self.in1 = setClearBits(self.in1, IN1.DOWN, set);
+            if (inp.p2_button and sys == .Pengo) self.in1 = setClearBits(self.in1, IN1.BUTTON, set);
+            if (inp.p2_coin) self.in0 = setClearBits(self.in1, IN0.COIN2, set);
+            if (inp.p2_start) self.in1 = setClearBits(self.in1, IN1.P2_START, set);
         }
 
         /// set input bits to 'active' state

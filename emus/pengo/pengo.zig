@@ -57,14 +57,14 @@ export fn cleanup() void {
 
 fn keyToInput(key: sapp.Keycode) Pengo.Input {
     return switch (key) {
-        .RIGHT => .P1_RIGHT,
-        .LEFT => .P1_LEFT,
-        .UP => .P1_UP,
-        .DOWN => .P1_DOWN,
-        .SPACE => .P1_BUTTON,
-        ._1 => .P1_COIN,
-        ._2 => .P2_COIN,
-        else => .P1_START,
+        .RIGHT => .{ .p1_right = true },
+        .LEFT => .{ .p1_left = true },
+        .UP => .{ .p1_up = true },
+        .DOWN => .{ .p1_down = true },
+        .SPACE => .{ .p1_button = true },
+        ._1 => .{ .p1_coin = true },
+        ._2 => .{ .p2_coin = true },
+        else => .{ .p1_start = true },
     };
 }
 

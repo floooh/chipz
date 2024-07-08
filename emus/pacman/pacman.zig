@@ -53,13 +53,13 @@ export fn cleanup() void {
 
 fn keyToInput(key: sapp.Keycode) Pacman.Input {
     return switch (key) {
-        .RIGHT => .P1_RIGHT,
-        .LEFT => .P1_LEFT,
-        .UP => .P1_UP,
-        .DOWN => .P1_DOWN,
-        ._1 => .P1_COIN,
-        ._2 => .P2_COIN,
-        else => .P1_START,
+        .RIGHT => .{ .p1_right = true },
+        .LEFT => .{ .p1_left = true },
+        .UP => .{ .p1_up = true },
+        .DOWN => .{ .p1_down = true },
+        ._1 => .{ .p1_coin = true },
+        ._2 => .{ .p2_coin = true },
+        else => .{ .p1_start = true },
     };
 }
 
