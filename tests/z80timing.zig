@@ -8,6 +8,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 const chipz = @import("chipz");
 const z80 = chipz.chips.z80;
+const pin = chipz.common.bitutils.pin;
 
 const T = assert;
 const Bus = u64;
@@ -29,16 +30,16 @@ const RFSH = Z80.RFSH;
 fn tick() void {
     bus = cpu.tick(bus);
     const addr = Z80.getAddr(bus);
-    if (bus & MREQ != 0) {
-        if (bus & RD != 0) {
+    if (pin(bus, MREQ)) {
+        if (pin(bus, RD)) {
             bus = Z80.setData(bus, mem[addr]);
-        } else if (bus & WR != 0) {
+        } else if (pin(bus, WR)) {
             mem[addr] = Z80.getData(bus);
         }
-    } else if (bus & IORQ != 0) {
-        if ((bus & RD) != 0) {
+    } else if (pin(bus, IORQ)) {
+        if (pin(bus, RD)) {
             bus = Z80.setData(bus, io[addr]);
-        } else if (bus & WR != 0) {
+        } else if (pin(bus, WR)) {
             io[addr] = Z80.getData(bus);
         }
     }

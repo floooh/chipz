@@ -38,6 +38,7 @@ const z80 = @import("chips").z80;
 const common = @import("common");
 const memory = common.memory;
 const clock = common.clock;
+const pin = common.bitutils.pin;
 const AudioCallback = common.host.AudioCallback;
 const AudioOptions = common.host.AudioOptions;
 const DisplayInfo = common.host.DisplayInfo;
@@ -471,10 +472,6 @@ pub fn Namco(comptime sys: System) type {
             self.bus = bus;
             self.decodeVideo();
             return num_ticks;
-        }
-
-        inline fn pin(bus: u64, p: comptime_int) bool {
-            return (bus & p) != 0;
         }
 
         /// execute a single clock cycle

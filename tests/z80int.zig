@@ -9,6 +9,8 @@ const std = @import("std");
 const assert = std.debug.assert;
 const chipz = @import("chipz");
 const z80 = chipz.chips.z80;
+const pin = chipz.common.bitutils.pin;
+const pinsAll = chipz.common.bitutils.pinsAll;
 
 const T = assert;
 const Bus = u64;
@@ -38,13 +40,13 @@ const WZH = Z80.WZH;
 fn tick() void {
     bus = cpu.tick(bus);
     const addr = Z80.getAddr(bus);
-    if ((bus & MREQ) != 0) {
-        if ((bus & RD) != 0) {
+    if (pin(bus, MREQ)) {
+        if (pin(bus, RD)) {
             bus = Z80.setData(bus, mem[addr]);
-        } else if ((bus & WR) != 0) {
+        } else if (pin(bus, WR)) {
             mem[addr] = Z80.getData(bus);
         }
-    } else if ((bus & (M1 | IORQ)) == M1 | IORQ) {
+    } else if (pinsAll(bus, M1 | IORQ)) {
         // put 0xE0 on data bus (in IM2 mode this is the low byte of the
         // interrupt vector, and in IM1 mode it is ignored)
         bus = Z80.setData(bus, 0xE0);
@@ -55,13 +57,13 @@ fn tick() void {
 fn im0_tick() void {
     bus = cpu.tick(bus);
     const addr = Z80.getAddr(bus);
-    if ((bus & MREQ) != 0) {
-        if ((bus & RD) != 0) {
+    if (pin(bus, MREQ)) {
+        if (pin(bus, RD)) {
             bus = Z80.setData(bus, mem[addr]);
-        } else if ((bus & WR) != 0) {
+        } else if (pin(bus, WR)) {
             mem[addr] = Z80.getData(bus);
         }
-    } else if ((bus & (M1 | IORQ)) == M1 | IORQ) {
+    } else if (pinsAll(bus, M1 | IORQ)) {
         bus = Z80.setData(bus, 0xFF);
     }
 }

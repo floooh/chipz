@@ -4,6 +4,7 @@ const chips = @import("chips");
 const common = @import("common");
 const memory = common.memory;
 const clock = common.clock;
+const pin = common.bitutils.pin;
 const AudioCallback = common.host.AudioCallback;
 const AudioOptions = common.host.AudioOptions;
 const DisplayInfo = common.host.DisplayInfo;
@@ -364,10 +365,6 @@ pub const Bombjack = struct {
         }
         self.decodeVideo();
         return 2 * (mb_num_ticks + sb_num_ticks);
-    }
-
-    inline fn pin(bus: u64, p: comptime_int) bool {
-        return (bus & p) != 0;
     }
 
     fn tickMainBoard(self: *Self, in_bus: Bus) Bus {
