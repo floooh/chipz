@@ -331,9 +331,9 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
                 self.smp.counter += self.smp.period;
                 var sm: f32 = 0.0;
                 inline for (&self.tone, .{ Reg.AMP_A, Reg.AMP_B, Reg.AMP_C }) |chn, ampReg| {
-                    const voice_enable: u1 = @truncate((self.noise.rng & 1) & chn.noise_disable);
+                    const noise_enable: u1 = @truncate((self.noise.rng & 1) | chn.noise_disable);
                     const tone_enable: u1 = chn.phase | chn.tone_disable;
-                    if ((tone_enable & voice_enable) == 1) {
+                    if ((tone_enable & noise_enable) != 0) {
                         const amp = self.reg(ampReg);
                         if (0 == (amp & (1 << 4))) {
                             // fixed amplitude
