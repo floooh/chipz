@@ -578,7 +578,7 @@ pub const Bombjack = struct {
                     }
                     for (0..16) |ixx| {
                         const xx: u4 = @truncate(15 - ixx);
-                        const pen: usize = ((bm2 >> xx) & 1) | (((bm1 >> xx) & 1) << 1) | (((bm0 >> xx) & 1) << 1);
+                        const pen: usize = ((bm2 >> xx) & 1) | (((bm1 >> xx) & 1) << 1) | (((bm0 >> xx) & 1) << 2);
                         self.fb[fb_idx] = self.main_board.palette[color_block | pen];
                         fb_idx +%= 1;
                     }
