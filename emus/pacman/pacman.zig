@@ -2,9 +2,9 @@ const sokol = @import("sokol");
 const sapp = sokol.app;
 const slog = sokol.log;
 const host = @import("host");
-const chipz = @import("chipz");
+const Namco = @import("chipz").systems.namco.Namco;
 
-const Pacman = chipz.systems.namco.Namco(.Pacman);
+const Pacman = Namco(.Pacman);
 
 var sys: Pacman = undefined;
 

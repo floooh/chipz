@@ -2,9 +2,7 @@ const sokol = @import("sokol");
 const sapp = sokol.app;
 const slog = sokol.log;
 const host = @import("host");
-const chipz = @import("chipz");
-
-const Bombjack = chipz.systems.bombjack.Bombjack;
+const Bombjack = @import("chipz").systems.bombjack.Bombjack;
 
 var sys: Bombjack = undefined;
 
