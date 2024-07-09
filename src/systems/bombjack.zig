@@ -5,9 +5,9 @@ const common = @import("common");
 const memory = common.memory;
 const clock = common.clock;
 const pin = common.bitutils.pin;
-const AudioCallback = common.host.AudioCallback;
-const AudioOptions = common.host.AudioOptions;
-const DisplayInfo = common.host.DisplayInfo;
+const AudioCallback = common.glue.AudioCallback;
+const AudioOptions = common.glue.AudioOptions;
+const DisplayInfo = common.glue.DisplayInfo;
 
 const Bus = u64;
 

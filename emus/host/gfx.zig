@@ -8,10 +8,10 @@ const slog = sokol.log;
 const chipz = @import("chipz");
 const shaders = @import("shaders.zig");
 
-const DisplayInfo = chipz.common.host.DisplayInfo;
-const DisplayOrientation = chipz.common.host.DisplayOrientation;
-const Dim = chipz.common.host.Dim;
-const Rect = chipz.common.host.Rect;
+const DisplayInfo = chipz.common.glue.DisplayInfo;
+const DisplayOrientation = chipz.common.glue.DisplayOrientation;
+const Dim = chipz.common.glue.Dim;
+const Rect = chipz.common.glue.Rect;
 
 pub const Border = struct {
     top: u32,
