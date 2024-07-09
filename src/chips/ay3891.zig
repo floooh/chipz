@@ -169,7 +169,7 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
             period: i32 = 0,
             counter: i32 = 0,
             volume: f32 = 0.0,
-            sample: f32 = 0.0,
+            value: f32 = 0.0,
             ready: bool = false, // true if a new sample value is ready
             dcadj: struct {
                 sum: f32 = 0.0,
@@ -186,7 +186,7 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
         tone: [NUM_CHANNELS]Tone = [_]Tone{.{}} ** NUM_CHANNELS, // tone generator states (3 channels)
         noise: Noise = .{}, // noise generator state
         env: Envelope = .{}, // envelope generator state
-        smp: Sample = .{}, // sample generator state
+        sample: Sample = .{}, // sample generator state
 
         pub inline fn getData(bus: Bus) u8 {
             return @truncate(bus >> P.DBUS[0]);
@@ -230,7 +230,7 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
                 .noise = .{
                     .rng = 1,
                 },
-                .smp = .{
+                .sample = .{
                     .period = sample_period,
                     .counter = sample_period,
                     .volume = opts.volume,
@@ -326,9 +326,9 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
             }
 
             // generate sample
-            self.smp.counter -= FIXEDPOINT_SCALE;
-            if (self.smp.counter <= 0) {
-                self.smp.counter += self.smp.period;
+            self.sample.counter -= FIXEDPOINT_SCALE;
+            if (self.sample.counter <= 0) {
+                self.sample.counter += self.sample.period;
                 var sm: f32 = 0.0;
                 inline for (&self.tone, .{ Reg.AMP_A, Reg.AMP_B, Reg.AMP_C }) |chn, ampReg| {
                     const noise_enable: u1 = @truncate((self.noise.rng & 1) | chn.noise_disable);
@@ -344,10 +344,10 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
                         }
                     }
                 }
-                self.smp.sample = dcadjust(self, sm) * self.smp.volume;
-                self.smp.ready = true;
+                self.sample.value = dcadjust(self, sm) * self.sample.volume;
+                self.sample.ready = true;
             } else {
-                self.smp.ready = false;
+                self.sample.ready = false;
             }
             return bus;
         }
@@ -357,13 +357,13 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
         // from the chip simulation which is >0.0 gets converted to
         //a +/- sample value)
         fn dcadjust(self: *Self, s: f32) f32 {
-            const pos = self.smp.dcadj.pos;
-            self.smp.dcadj.sum -= self.smp.dcadj.buf[pos];
-            self.smp.dcadj.sum += s;
-            self.smp.dcadj.buf[pos] = s;
-            self.smp.dcadj.pos = (pos + 1) & (DCADJ_BUFLEN - 1);
+            const pos = self.sample.dcadj.pos;
+            self.sample.dcadj.sum -= self.sample.dcadj.buf[pos];
+            self.sample.dcadj.sum += s;
+            self.sample.dcadj.buf[pos] = s;
+            self.sample.dcadj.pos = (pos + 1) & (DCADJ_BUFLEN - 1);
             const div: f32 = @floatFromInt(DCADJ_BUFLEN);
-            return s - (self.smp.dcadj.sum / div);
+            return s - (self.sample.dcadj.sum / div);
         }
 
         // write from data bus to register

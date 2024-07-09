@@ -61,9 +61,9 @@ const AY_PORT = .{ 41, 42, 43, 44, 45, 46, 47, 48 };
 // type definitions
 const Memory = memory.Memory(0x0400);
 const Z80 = chips.z80.Z80(CPU_BUS, Bus);
-const PSG0 = chips.ay3891.AY3891(.AY38910, PSG0_BUS, Bus);
-const PSG1 = chips.ay3891.AY3891(.AY38910, PSG1_BUS, Bus);
-const PSG2 = chips.ay3891.AY3891(.AY38910, PSG2_BUS, Bus);
+const Psg0 = chips.ay3891.AY3891(.AY38910, PSG0_BUS, Bus);
+const Psg1 = chips.ay3891.AY3891(.AY38910, PSG1_BUS, Bus);
+const Psg2 = chips.ay3891.AY3891(.AY38910, PSG2_BUS, Bus);
 
 const getData = Z80.getData;
 const setData = Z80.setData;
@@ -230,9 +230,9 @@ pub const Bombjack = struct {
         cpu: Z80,
         bus: Bus = 0,
         tick_count: u32 = 0,
-        psg0: PSG0,
-        psg1: PSG1,
-        psg2: PSG2,
+        psg0: Psg0,
+        psg1: Psg1,
+        psg2: Psg2,
         vsync_count: u32 = 0,
         mem: Memory,
     };
@@ -279,17 +279,17 @@ pub const Bombjack = struct {
             },
             .sound_board = .{
                 .cpu = .{},
-                .psg0 = PSG0.init(.{
+                .psg0 = Psg0.init(.{
                     .tick_hz = PSG_FREQUENCY,
                     .sound_hz = @intCast(opts.audio.sample_rate),
                     .volume = 0.3,
                 }),
-                .psg1 = PSG1.init(.{
+                .psg1 = Psg1.init(.{
                     .tick_hz = PSG_FREQUENCY,
                     .sound_hz = @intCast(opts.audio.sample_rate),
                     .volume = 0.3,
                 }),
-                .psg2 = PSG2.init(.{
+                .psg2 = Psg2.init(.{
                     .tick_hz = PSG_FREQUENCY,
                     .sound_hz = @intCast(opts.audio.sample_rate),
                     .volume = 0.3,
@@ -503,16 +503,16 @@ pub const Bombjack = struct {
             //
             switch (bus & (A7 | A4)) {
                 0 => { // PSG0
-                    if (pin(bus, WR)) bus |= PSG0.BDIR;
-                    if (!pin(bus, A0)) bus |= PSG0.BC1;
+                    if (pin(bus, WR)) bus |= Psg0.BDIR;
+                    if (!pin(bus, A0)) bus |= Psg0.BC1;
                 },
                 A4 => { // PSG1
-                    if (pin(bus, WR)) bus |= PSG1.BDIR;
-                    if (!pin(bus, A0)) bus |= PSG1.BC1;
+                    if (pin(bus, WR)) bus |= Psg1.BDIR;
+                    if (!pin(bus, A0)) bus |= Psg1.BC1;
                 },
                 A7 => {
-                    if (pin(bus, WR)) bus |= PSG2.BDIR;
-                    if (!pin(bus, A0)) bus |= PSG2.BC1;
+                    if (pin(bus, WR)) bus |= Psg2.BDIR;
+                    if (!pin(bus, A0)) bus |= Psg2.BC1;
                 },
                 else => {},
             }
@@ -527,10 +527,10 @@ pub const Bombjack = struct {
 
             // clear AY control bits (this cannot happen each CPU tick because
             // the AY chips are clocked at half frequency and might miss them)
-            bus &= ~(PSG0.BDIR | PSG0.BC1 | PSG1.BDIR | PSG1.BC1 | PSG2.BDIR | PSG2.BC1);
+            bus &= ~(Psg0.BDIR | Psg0.BC1 | Psg1.BDIR | Psg1.BC1 | Psg2.BDIR | Psg2.BC1);
 
-            if (board.psg0.smp.ready) {
-                const s: f32 = board.psg0.smp.sample + board.psg1.smp.sample + board.psg2.smp.sample;
+            if (board.psg0.sample.ready) {
+                const s = board.psg0.sample.value + board.psg1.sample.value + board.psg2.sample.value;
                 self.audio.sample_buffer[self.audio.sample_pos] = s * self.audio.volume;
                 self.audio.sample_pos += 1;
                 if (self.audio.sample_pos == self.audio.num_samples) {
