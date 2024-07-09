@@ -6,16 +6,13 @@ const chipz = @import("chipz");
 
 const Pacman = chipz.systems.namco.Namco(.Pacman);
 
-const state = struct {
-    var sys: Pacman = undefined;
-    var frame_time_us: u32 = 0;
-    var ticks_per_frame: u32 = 0;
-};
+var sys: Pacman = undefined;
 
 export fn init() void {
     host.audio.init(.{});
     host.time.init();
-    state.sys.initInPlace(.{
+    host.prof.init();
+    sys.initInPlace(.{
         .audio = .{
             .sample_rate = host.audio.sampleRate(),
             .callback = host.audio.push,
@@ -35,19 +32,31 @@ export fn init() void {
     });
     host.gfx.init(.{
         .border = host.gfx.DEFAULT_BORDER,
-        .display_info = state.sys.displayInfo(),
+        .display = sys.displayInfo(),
         .pixel_aspect = .{ .width = 2, .height = 3 },
     });
 }
 
 export fn frame() void {
-    state.frame_time_us = host.time.frameTime();
-    state.ticks_per_frame = state.sys.exec(state.frame_time_us);
-    host.gfx.draw(state.sys.displayInfo());
+    const frame_time_us = host.time.frameTime();
+    host.prof.pushMicroSeconds(.FRAME, frame_time_us);
+    host.time.emuStart();
+    const num_ticks = sys.exec(frame_time_us);
+    host.prof.pushMicroSeconds(.EMU, host.time.emuEnd());
+    host.gfx.draw(.{
+        .display = sys.displayInfo(),
+        .status = .{
+            .name = "Pacman",
+            .num_ticks = num_ticks,
+            .frame_stats = host.prof.stats(.FRAME),
+            .emu_stats = host.prof.stats(.EMU),
+        },
+    });
 }
 
 export fn cleanup() void {
     host.gfx.shutdown();
+    host.prof.shutdown();
     host.audio.shutdown();
 }
 
@@ -65,17 +74,17 @@ fn keyToInput(key: sapp.Keycode) Pacman.Input {
 
 export fn input(ev: [*c]const sapp.Event) void {
     switch (ev.*.type) {
-        .KEY_DOWN => state.sys.setInput(keyToInput(ev.*.key_code)),
-        .KEY_UP => state.sys.clearInput(keyToInput(ev.*.key_code)),
+        .KEY_DOWN => sys.setInput(keyToInput(ev.*.key_code)),
+        .KEY_UP => sys.clearInput(keyToInput(ev.*.key_code)),
         else => {},
     }
 }
 
 pub fn main() void {
-    const display_info = Pacman.displayInfo(null);
+    const display = Pacman.displayInfo(null);
     const border = host.gfx.DEFAULT_BORDER;
-    const width = 2 * display_info.view.width + border.left + border.right;
-    const height = 3 * display_info.view.height + border.top + border.bottom;
+    const width = 2 * display.view.width + border.left + border.right;
+    const height = 3 * display.view.height + border.top + border.bottom;
     sapp.run(.{
         .init_cb = init,
         .frame_cb = frame,

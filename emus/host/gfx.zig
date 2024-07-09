@@ -3,9 +3,11 @@ const assert = std.debug.assert;
 const sokol = @import("sokol");
 const sg = sokol.gfx;
 const sapp = sokol.app;
+const sdtx = sokol.debugtext;
 const sglue = sokol.glue;
 const slog = sokol.log;
 const chipz = @import("chipz");
+const prof = @import("prof.zig");
 const shaders = @import("shaders.zig");
 
 const DisplayInfo = chipz.common.glue.DisplayInfo;
@@ -29,13 +31,29 @@ pub const DEFAULT_BORDER = Border{
 
 pub const Options = struct {
     border: Border = DEFAULT_BORDER,
-    display_info: DisplayInfo,
+    display: DisplayInfo,
     pixel_aspect: Dim = .{ .width = 1, .height = 1 },
 };
+
+pub const Status = struct {
+    name: []const u8,
+    num_ticks: u32,
+    frame_stats: prof.Stats,
+    emu_stats: prof.Stats,
+};
+
+const DrawOptions = struct {
+    display: DisplayInfo,
+    status: ?Status = null,
+};
+
+const DrawFunc = *const fn () void;
+const DrawFuncs = std.BoundedArray(DrawFunc, 32);
 
 const state = struct {
     var valid = false;
     var border: Border = DEFAULT_BORDER;
+    var drawFuncs: DrawFuncs = .{};
     const fb = struct {
         var img: sg.Image = .{};
         var pal_img: sg.Image = .{};
@@ -93,6 +111,7 @@ const gfx_verts_flipped_rot = [_]f32{
 // zig fmt: on
 
 pub fn init(opts: Options) void {
+    state.valid = true;
     sg.setup(.{
         .buffer_pool_size = 32,
         .image_pool_size = 128,
@@ -102,21 +121,23 @@ pub fn init(opts: Options) void {
         .environment = sglue.environment(),
         .logger = .{ .func = slog.func },
     });
+    var desc = sdtx.Desc{};
+    desc.fonts[0] = sdtx.fontOric();
+    sdtx.setup(desc);
 
-    state.valid = true;
     state.border = opts.border;
-    state.display.orientation = opts.display_info.orientation;
-    state.fb.dim = opts.display_info.fb.dim;
-    if (opts.display_info.fb.buffer) |buf| {
+    state.display.orientation = opts.display.orientation;
+    state.fb.dim = opts.display.fb.dim;
+    if (opts.display.fb.buffer) |buf| {
         state.fb.paletted = buf == .Palette8;
     }
     state.offscreen.pixel_aspect = opts.pixel_aspect;
-    state.offscreen.view = opts.display_info.view;
+    state.offscreen.view = opts.display.view;
 
     // create optional palette texture
     if (state.fb.paletted) {
         var pal_buf = [_]u32{0} ** 256;
-        std.mem.copyForwards(u32, &pal_buf, opts.display_info.palette.?);
+        std.mem.copyForwards(u32, &pal_buf, opts.display.palette.?);
         state.fb.pal_img = sg.makeImage(.{
             .width = 256,
             .height = 1,
@@ -172,6 +193,15 @@ pub fn init(opts: Options) void {
     initImagesAndPass();
 }
 
+pub fn shutdown() void {
+    sdtx.shutdown();
+    sg.shutdown();
+}
+
+pub fn addDrawFunc(func: DrawFunc) void {
+    state.drawFuncs.appendAssumeCapacity(func);
+}
+
 fn asF32(val: anytype) f32 {
     return @floatFromInt(val);
 }
@@ -213,23 +243,27 @@ fn dimEqual(d0: Dim, d1: Dim) bool {
     return (d0.width == d1.width) and (d0.height == d1.height);
 }
 
-pub fn draw(display_info: DisplayInfo) void {
+pub fn draw(opts: DrawOptions) void {
     assert(state.valid);
-    assert((display_info.fb.dim.width > 0) and (display_info.fb.dim.height > 0));
-    assert(display_info.fb.buffer != null);
-    assert((display_info.view.width > 0) and (display_info.view.height > 0));
+    assert((opts.display.fb.dim.width > 0) and (opts.display.fb.dim.height > 0));
+    assert(opts.display.fb.buffer != null);
+    assert((opts.display.view.width > 0) and (opts.display.view.height > 0));
 
-    state.offscreen.view = display_info.view;
+    state.offscreen.view = opts.display.view;
+
+    if (opts.status) |status| {
+        drawStatusBar(status);
+    }
 
     // check if emulator framebuffer size has changed, if yes recreate backing resources
-    if (!dimEqual(display_info.fb.dim, state.fb.dim)) {
-        state.fb.dim = display_info.fb.dim;
+    if (!dimEqual(opts.display.fb.dim, state.fb.dim)) {
+        state.fb.dim = opts.display.fb.dim;
         initImagesAndPass();
     }
 
     // copy emulator pixels into framebuffer texture
     var img_data = sg.ImageData{};
-    img_data.subimage[0][0] = switch (display_info.fb.buffer.?) {
+    img_data.subimage[0][0] = switch (opts.display.fb.buffer.?) {
         .Palette8 => |pal_buf| sg.asRange(pal_buf),
         .Rgba8 => |rgba8_buf| sg.asRange(rgba8_buf),
     };
@@ -262,7 +296,7 @@ pub fn draw(display_info: DisplayInfo) void {
     sg.beginPass(.{ .action = state.display.pass_action, .swapchain = sglue.swapchain() });
     applyViewport(
         displayDim,
-        display_info.view,
+        opts.display.view,
         state.offscreen.pixel_aspect,
         state.border,
     );
@@ -276,12 +310,12 @@ pub fn draw(display_info: DisplayInfo) void {
     });
     sg.draw(0, 4, 1);
     sg.applyViewport(0, 0, displayDim.width, displayDim.height, true);
+    sdtx.draw();
+    for (state.drawFuncs.slice()) |drawFunc| {
+        drawFunc();
+    }
     sg.endPass();
     sg.commit();
-}
-
-pub fn shutdown() void {
-    sg.shutdown();
 }
 
 // called at init time and when the emulator framebuffer size changes
@@ -327,4 +361,20 @@ fn initImagesAndPass() void {
     var atts_desc: sg.AttachmentsDesc = .{};
     atts_desc.colors[0].image = state.offscreen.img;
     state.offscreen.attachments = sg.makeAttachments(atts_desc);
+}
+
+fn drawStatusBar(status: Status) void {
+    const w = sapp.widthf();
+    const h = sapp.heightf();
+    sdtx.canvas(w, h);
+    sdtx.color3b(255, 255, 255);
+    sdtx.pos(1.0, (h / 8.0) - 1.5);
+    sdtx.print("sys:{s} frame:{d:.2}ms emu:{d:.2}ms (min:{d:.2}ms max:{d:.2}ms) ticks:{}", .{
+        status.name,
+        status.frame_stats.avg_val,
+        status.emu_stats.avg_val,
+        status.emu_stats.min_val,
+        status.emu_stats.max_val,
+        status.num_ticks,
+    });
 }

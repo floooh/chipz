@@ -1,28 +1,36 @@
 const stm = @import("sokol").time;
 
 const state = struct {
-    var cur_frame_time: f64 = 0;
-    var last_time_stamp: u64 = 0;
     var start_time: u64 = 0;
+    var frame_lap: u64 = 0;
+    var emu_start: u64 = 0;
 };
 
 pub fn init() void {
     stm.setup();
     state.start_time = stm.now();
-    state.last_time_stamp = state.start_time;
+    state.frame_lap = state.start_time;
 }
 
 // return frame time in microseconds
 pub fn frameTime() u32 {
-    state.cur_frame_time = stm.us(stm.laptime(&state.last_time_stamp));
+    var frame_time = stm.us(stm.laptime(&state.frame_lap));
     // prevent death spiral on host systems which are too slow to
     // run the emulator in realtime, and also during debugging
-    if (state.cur_frame_time < 1000) {
-        state.cur_frame_time = 1000;
-    } else if (state.cur_frame_time > 24000) {
-        state.cur_frame_time = 24000;
+    if (frame_time < 1000) {
+        frame_time = 1000;
+    } else if (frame_time > 24000) {
+        frame_time = 24000;
     }
-    return @intFromFloat(state.cur_frame_time);
+    return @intFromFloat(frame_time);
+}
+
+pub fn emuStart() void {
+    state.emu_start = stm.now();
+}
+
+pub fn emuEnd() u32 {
+    return @intFromFloat(stm.us(stm.since(state.emu_start)));
 }
 
 // return true if time since start is after provided time
