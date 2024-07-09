@@ -1,4 +1,7 @@
 # chipz
+
+[![build](https://github.com/floooh/chipz/actions/workflows/main.yml/badge.svg)](https://github.com/floooh/chipz/actions/workflows/main.yml)
+
 [EXPERIMENTAL] like chips but in zig
 
 ## Usage
