@@ -1,0 +1,22 @@
+name: build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{matrix.os}}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: goto-bus-stop/setup-zig@v2
+      - name: prepare-linux
+        if: runner.os == 'Linux'
+        run: |
+            sudo apt-get update
+            sudo apt-get install libglu1-mesa-dev mesa-common-dev xorg-dev libasound-dev
+      - name: build-native
+        run: zig build --summary all
+#      - name: build-web
+#        run: zig build --summary all -Dtarget=wasm32-emscripten
