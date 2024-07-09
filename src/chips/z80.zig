@@ -66,7 +66,7 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
     return struct {
         const Self = @This();
 
-        // pin constants
+        // pin bit masks
         pub const ABUS = maskm(Bus, &P.ABUS);
         pub const A0 = mask(Bus, P.ABUS[0]);
         pub const A1 = mask(Bus, P.ABUS[1]);
