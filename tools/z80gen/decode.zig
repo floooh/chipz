@@ -3,7 +3,6 @@ const ops = @import("ops.zig");
 pub fn decode() void {
     decodeMain();
     decodeED();
-    decodeCB();
 }
 
 fn decodeMain() void {
@@ -208,5 +207,3 @@ fn decodeED() void {
         }
     }
 }
-
-fn decodeCB() void {}
