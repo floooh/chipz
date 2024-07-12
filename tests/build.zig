@@ -13,7 +13,12 @@ pub const Options = struct {
 
 pub fn build(b: *Build, opts: Options) void {
     // regular test tools
-    const tests = .{ "z80test", "z80zex", "z80int", "z80timing" };
+    const tests = .{
+        "z80test",
+        "z80zex",
+        "z80int",
+        "z80timing",
+    };
     inline for (tests) |name| {
         const exe = b.addExecutable(.{
             .name = name,
@@ -30,11 +35,15 @@ pub fn build(b: *Build, opts: Options) void {
     }
 
     // unit tests
-    const unit_tests = [_][]const u8{ "memory", "ay3891" };
+    const unit_tests = [_][]const u8{
+        "memory",
+        "ay3891",
+        "z80ctc",
+    };
     const test_step = b.step("test", "Run unit tests");
-    for (unit_tests) |name| {
+    inline for (unit_tests) |name| {
         const unit_test = b.addTest(.{
-            .name = name,
+            .name = name ++ ".test",
             .root_source_file = b.path(b.fmt("{s}/{s}.test.zig", .{ opts.src_dir, name })),
             .target = opts.target,
         });

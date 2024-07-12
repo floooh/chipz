@@ -1,4 +1,5 @@
 //! Z80 CTC emulation
+const assert = @import("std").debug.assert;
 const bitutils = @import("common").bitutils;
 const mask = bitutils.mask;
 const maskm = bitutils.maskm;
@@ -36,6 +37,10 @@ pub const DefaultPins = Pins{
 };
 
 pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
+    assert(P.CS[1] == P.CS[0] + 1);
+    assert(P.ZCTO[1] == P.ZCTO[0] + 1);
+    assert(P.ZCTO[2] == P.ZCTO[1] + 1);
+
     return struct {
         const Self = @This();
 
@@ -74,19 +79,32 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
         // control register bits
         pub const CTRL = struct {
             pub const EI: u8 = 1 << 7; // 1: interrupts enabled, 0: interrupts disabled
+
             pub const MODE: u8 = 1 << 6; // 1: counter mode, 0: timer mode
+            pub const MODE_COUNTER: u8 = MODE;
+            pub const MODE_TIMER: u8 = 0;
+
             pub const PRESCALER: u8 = 1 << 5; // 1: prescaler 256, 0: prescaler 16
+            pub const PRESCALER_256: u8 = PRESCALER;
+            pub const PRESCALER_16: u8 = 0;
+
             pub const EDGE: u8 = 1 << 4; // 1: edge rising, 0: edge falling
+            pub const EDGE_RISING: u8 = EDGE;
+            pub const EDGE_FALLING: u8 = 0;
+
             pub const TRIGGER: u8 = 1 << 3; // 1: CLK/TRG pulse starts timer, 0: load constant starts timer
+            pub const TRIGGER_WAIT: u8 = TRIGGER;
+            pub const TRIGGER_AUTO: u8 = 0;
+
             pub const CONST_FOLLOWS: u8 = 1 << 2; // 1: time constant follows, 0: no time constant follows
             pub const RESET: u8 = 1 << 1; // 1: software reset, 0: continue operation
             pub const CONTROL: u8 = 1 << 0; // 1: control word, 0: vector
         };
 
         pub const IRQ = struct {
-            pub const NEEDED: u8 = 1 << 0;
-            pub const REQUESTED: u8 = 1 << 1;
-            pub const SERVICED: u8 = 1 << 2;
+            pub const INT_NEEDED: u8 = 1 << 0;
+            pub const INT_REQUESTED: u8 = 1 << 1;
+            pub const INT_SERVICED: u8 = 1 << 2;
         };
 
         pub const NUM_CHANNELS = 4;
@@ -98,7 +116,7 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
             prescaler: u8 = 0,
             int_vector: u8 = 0,
             // helpers
-            tigger_edge: bool = false,
+            trigger_edge: bool = false,
             waiting_for_trigger: bool = false,
             ext_trigger: bool = false,
             prescaler_mask: u8 = 0,
@@ -113,6 +131,140 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
 
         pub inline fn setData(bus: Bus, data: u8) Bus {
             return (bus & ~DBUS) | (@as(Bus, data) << P.DBUS[0]);
+        }
+
+        pub fn init() Self {
+            var self: Self = .{};
+            self.reset();
+            return self;
+        }
+
+        pub fn reset(self: *Self) void {
+            for (&self.chn) |*chn| {
+                chn.control = CTRL.RESET;
+                chn.constant = 0;
+                chn.down_counter = 0;
+                chn.waiting_for_trigger = false;
+                chn.trigger_edge = false;
+                chn.prescaler_mask = 0x0F;
+                chn.irq_state = 0;
+            }
+        }
+
+        pub fn tick(self: *Self, in_bus: Bus) Bus {
+            var bus = in_bus;
+            // catch io requests
+            switch (bus & (CE | IORQ | RD | M1)) {
+                CE | IORQ | RD => bus = self.ioRead(bus),
+                CE | IORQ => bus = self.ioWrite(bus),
+                else => {},
+            }
+            bus = self._tick(bus);
+            bus = self.irq(bus);
+            return bus;
+        }
+
+        fn ioRead(self: *const Self, bus: Bus) Bus {
+            const chn_idx: usize = (bus >> P.CS[0]) & 3;
+            const data = self.chn[chn_idx].down_counter;
+            return setData(bus, data);
+        }
+
+        fn ioWrite(self: *Self, in_bus: Bus) Bus {
+            var bus = in_bus;
+            const data = getData(bus);
+            const chn_id: usize = (bus >> P.CS[0]) & 3;
+            var chn = self.chn[chn_id];
+            if (chn.control & CTRL.CONST_FOLLOWS != 0) {
+                // timer constant following control word
+                chn.control &= ~(CTRL.CONST_FOLLOW | CTRL.RESET);
+                chn.constant = data;
+                if (chn.control & CTRL.MODE == CTRL.MODE_TIMER) {
+                    if (chn.control & CTRL.TRIGGER == CTRL.TRIGGER_WAIT) {
+                        chn.waiting_for_trigger = true;
+                    } else {
+                        chn.down_counter = chn.constant;
+                    }
+                } else {
+                    chn.down_counter = chn.constant;
+                }
+            } else if (data & CTRL.CONTROL != 0) {
+                // a control word
+                const old_control = chn.control;
+                chn.control = data;
+                chn.trigger_edge = data & CTRL.EDGE == CTRL.EDGE_RISING;
+                if (chn.control & CTRL.PRESCALER == CTRL.PRESCALER_16) {
+                    chn.prescaler_mask = 0x0F;
+                } else {
+                    chn.prescaler_mask = 0xFF;
+                }
+                // changing the Trigger Slope triggers an 'active edge'
+                if (((old_control ^ chn.control) & CTRL.EDGE) != 0) {
+                    bus = activeEdge(chn, bus, chn_id);
+                }
+            } else {
+                // the interrupt vector for the entire CTC must be written
+                // to channel 0, the vectors for the following channels
+                // are then computed from the base vector plus 2 bytes per channel
+                if (0 == chn_id) {
+                    for (0..NUM_CHANNELS) |i| {
+                        self.chn[i].int_vector = (data & 0xF8) + 2 * i;
+                    }
+                }
+            }
+            return bus;
+        }
+
+        fn _tick(bus: Bus) Bus {
+            // FIXME
+            return bus;
+        }
+
+        fn irq(bus: Bus) Bus {
+            // FIXME:
+            return bus;
+        }
+
+        // Issue an 'active edge' on a channel, this happens when a CLKTRG pin
+        // is triggered, or when reprogramming the Z80CTC_CTRL_EDGE control bit.
+        //
+        // This results in:
+        // - if the channel is in timer mode and waiting for trigger,
+        //   the waiting flag is cleared and timing starts
+        // - if the channel is in counter mode, the counter decrements
+        //
+        fn activeEdge(chn: *Channel, in_bus: Bus, chn_id: usize) Bus {
+            var bus = in_bus;
+            if (chn.control & CTRL.MODE == CTRL.MODE_COUNTER) {
+                // counter mode
+                chn.down_counter -%= 1;
+                if (0 == chn.down_counter) {
+                    bus = counterZero(chn, bus, chn_id);
+                }
+            } else if (chn.waiting_for_trigger) {
+                // timer mode and waiting for trigger?
+                chn.waiting_for_trigger = false;
+                chn.down_counter = chn.constant;
+            }
+        }
+
+        // called when the downcounter reaches zero, request interrupt,
+        // trigger ZCTO pin and reload downcounter
+        //
+        fn counterZero(chn: *Channel, in_bus: Bus, chn_id: usize) Bus {
+            var bus = in_bus;
+            // down counter has reached zero, trigger interrupt and ZCTO pin
+            if (chn.ctrl & CTRL.EI != 0) {
+                chn.irq_state |= IRQ.INT_NEEDED;
+            }
+            // last channel doesn't have a ZCTO pin
+            if (chn_id < 3) {
+                // set the zcto pin
+                bus |= ZCTO0 << chn_id;
+            }
+            // reload the down counter
+            chn.down_counter = chn.constant;
+            return bus;
         }
     };
 }
