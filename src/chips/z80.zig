@@ -174,6 +174,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         de2: u16 = 0xFFFF,
         hl2: u16 = 0xFFFF,
 
+        pub fn init() Self {
+            return .{};
+        }
+
         pub fn prefetch(self: *Self, addr: u16) void {
             self.pc = addr;
             self.step = 0;

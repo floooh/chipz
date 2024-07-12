@@ -430,7 +430,7 @@ pub fn Namco(comptime sys: System) type {
 
         pub fn initInPlace(self: *Self, opts: Options) void {
             self.* = .{
-                .cpu = .{},
+                .cpu = Z80.init(),
                 .mem = Memory.init(.{
                     .junk_page = &self.junk_page,
                     .unmapped_page = &self.unmapped_page,

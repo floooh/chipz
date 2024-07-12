@@ -269,7 +269,7 @@ pub const Bombjack = struct {
     pub fn initInPlace(self: *Self, opts: Options) void {
         self.* = .{
             .main_board = .{
-                .cpu = .{},
+                .cpu = Z80.init(),
                 .vsync_count = VSYNC_PERIOD_4MHZ,
                 .mem = Memory.init(.{
                     .junk_page = &self.junk_page,
@@ -278,7 +278,7 @@ pub const Bombjack = struct {
                 .palette = std.mem.zeroes(@TypeOf(self.main_board.palette)),
             },
             .sound_board = .{
-                .cpu = .{},
+                .cpu = Z80.init(),
                 .psg0 = Psg0.init(.{
                     .tick_hz = PSG_FREQUENCY,
                     .sound_hz = @intCast(opts.audio.sample_rate),

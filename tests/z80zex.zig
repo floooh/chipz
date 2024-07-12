@@ -71,7 +71,7 @@ fn cpmBDOS() void {
 
 // run the currently configured test
 fn runTest() u64 {
-    cpu = Z80{};
+    cpu = Z80.init();
     cpu.setSP(0xF000);
     cpu.prefetch(0x0100);
     const bdos_call: Bus = Z80.setAddr(M1 | MREQ | RD, 0x0005);

@@ -151,7 +151,7 @@ fn copy(start_addr: u16, bytes: []const u8) void {
 fn init(bytes: []const u8) void {
     mem = std.mem.zeroes(@TypeOf(mem));
     bus = 0;
-    cpu = Z80{};
+    cpu = Z80.init();
     copy(0, bytes);
     cpu.prefetch(0);
 }
