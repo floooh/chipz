@@ -178,6 +178,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
             return .{};
         }
 
+        pub fn reset(self: *Self) void {
+            self.* = .{};
+        }
+
         pub fn prefetch(self: *Self, addr: u16) void {
             self.pc = addr;
             self.step = 0;
