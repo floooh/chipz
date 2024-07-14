@@ -174,10 +174,10 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
             var bus = in_bus;
             const data = getData(bus);
             const chn_id: usize = (bus >> P.CS[0]) & 3;
-            var chn = self.chn[chn_id];
+            var chn = &self.chn[chn_id];
             if (chn.control & CTRL.CONST_FOLLOWS != 0) {
                 // timer constant following control word
-                chn.control &= ~(CTRL.CONST_FOLLOW | CTRL.RESET);
+                chn.control &= ~(CTRL.CONST_FOLLOWS | CTRL.RESET);
                 chn.constant = data;
                 if (chn.control & CTRL.MODE == CTRL.MODE_TIMER) {
                     if (chn.control & CTRL.TRIGGER == CTRL.TRIGGER_WAIT) {
@@ -208,19 +208,21 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
                 // are then computed from the base vector plus 2 bytes per channel
                 if (0 == chn_id) {
                     for (0..NUM_CHANNELS) |i| {
-                        self.chn[i].int_vector = (data & 0xF8) + 2 * i;
+                        self.chn[i].int_vector = @truncate((data & 0xF8) + 2 * i);
                     }
                 }
             }
             return bus;
         }
 
-        fn _tick(bus: Bus) Bus {
+        fn _tick(self: *Self, bus: Bus) Bus {
+            _ = self; // autofix
             // FIXME
             return bus;
         }
 
-        fn irq(bus: Bus) Bus {
+        fn irq(self: *Self, bus: Bus) Bus {
+            _ = self; // autofix
             // FIXME:
             return bus;
         }
@@ -246,6 +248,7 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
                 chn.waiting_for_trigger = false;
                 chn.down_counter = chn.constant;
             }
+            return bus;
         }
 
         // called when the downcounter reaches zero, request interrupt,
@@ -254,13 +257,13 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
         fn counterZero(chn: *Channel, in_bus: Bus, chn_id: usize) Bus {
             var bus = in_bus;
             // down counter has reached zero, trigger interrupt and ZCTO pin
-            if (chn.ctrl & CTRL.EI != 0) {
+            if (chn.control & CTRL.EI != 0) {
                 chn.irq_state |= IRQ.INT_NEEDED;
             }
             // last channel doesn't have a ZCTO pin
             if (chn_id < 3) {
                 // set the zcto pin
-                bus |= ZCTO0 << chn_id;
+                bus |= ZCTO0 << @truncate(chn_id);
             }
             // reload the down counter
             chn.down_counter = chn.constant;
