@@ -290,7 +290,7 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
                     }
                     // interrupt ackowledge from CPU (M1|IORQ): put interrupt vector
                     // on data bus, clear INT pin and go into "serviced" state.
-                    if ((chn.irq_state & IRQ.INT_REQUESTED) != 0 and (bus & (M1 | IORQ)) == IORQ | M1) {
+                    if ((chn.irq_state & IRQ.INT_REQUESTED) != 0 and (bus & (M1 | IORQ)) == M1 | IORQ) {
                         chn.irq_state = (chn.irq_state & ~IRQ.INT_REQUESTED) | IRQ.INT_SERVICED;
                         bus = setData(bus, chn.int_vector) & ~INT;
                     }
