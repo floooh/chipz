@@ -242,8 +242,60 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
             return bus;
         }
 
-        fn irq(self: *Self, bus: Bus) Bus {
-            _ = self; // autofix
+        fn irq(self: *Self, in_bus: Bus) Bus {
+            var bus = in_bus;
+            for (&self.chn) |*chn| {
+                // on RETI, only the highest priority interrupt that's currently being
+                // serviced resets its state so that IEIO enables interrupt handling
+                // on downstream devices, this must be allowed to happen even if a higher
+                // priority device has entered interrupt handling
+                //
+                if ((bus & RETI) != 0 and (chn.irq_state & IRQ.INT_SERVICED) != 0) {
+                    chn.irq_state &= ~IRQ.INT_SERVICED;
+                    bus &= ~RETI;
+                }
+
+                // Also see: https://github.com/floooh/emu-info/blob/master/z80/z80-interrupts.pdf
+                //
+                // Especially the timing Figure 7 and Figure 7 timing diagrams!
+                //
+                // - set status of IEO pin depending on IEI pin and current
+                //   channel's interrupt request/acknowledge status, this
+                //   'ripples' to the next channel and downstream interrupt
+                //   controllers
+                //
+                // - the IEO pin will be set to inactive (interrupt disabled)
+                //   when: (1) the IEI pin is inactive, or (2) the IEI pin is
+                //   active and and an interrupt has been requested
+                //
+                // - if an interrupt has been requested but not ackowledged by
+                //   the CPU because interrupts are disabled, the RETI state
+                //   must be passed to downstream devices. If a RETI is
+                //   received in the interrupt-requested state, the IEIO
+                //   pin will be set to active, so that downstream devices
+                //   get a chance to decode the RETI
+                //
+                // - NOT IMPLEMENTED: "All channels are inhibited from changing
+                //   their interrupt request status when M1 is active - about two
+                //   clock cycles earlier than IORQ".
+                //
+                if (chn.irq_state != 0 and (bus & IEIO) != 0) {
+                    // inhibit interrupt handling on downstream devices for the
+                    // entire duration of interrupt servicing
+                    bus &= ~IEIO;
+                    // set INT pint active until the CPU acknowledges the interrupt
+                    if ((chn.irq_state & IRQ.INT_NEEDED) != 0) {
+                        chn.irq_state = (chn.irq_state & ~IRQ.INT_NEEDED) | IRQ.INT_REQUESTED;
+                        bus |= INT;
+                    }
+                    // interrupt ackowledge from CPU (M1|IORQ): put interrupt vector
+                    // on data bus, clear INT pin and go into "serviced" state.
+                    if ((chn.irq_state & IRQ.INT_REQUESTED) != 0 and (bus & (M1 | IORQ)) == IORQ | M1) {
+                        chn.irq_state = (chn.irq_state & ~IRQ.INT_REQUESTED) | IRQ.INT_SERVICED;
+                        bus = setData(bus, chn.int_vector) & ~INT;
+                    }
+                }
+            }
             return bus;
         }
 
