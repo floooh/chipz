@@ -153,13 +153,12 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
 
         pub fn tick(self: *Self, in_bus: Bus) Bus {
             var bus = in_bus;
-            // catch io requests
+            bus = self._tick(bus);
             switch (bus & (CE | IORQ | RD | M1)) {
                 CE | IORQ | RD => bus = self.ioRead(bus),
                 CE | IORQ => bus = self.ioWrite(bus),
                 else => {},
             }
-            bus = self._tick(bus);
             bus = self.irq(bus);
             return bus;
         }
@@ -175,12 +174,12 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
             const data = getData(bus);
             const chn_id: usize = (bus >> P.CS[0]) & 3;
             var chn = &self.chn[chn_id];
-            if (chn.control & CTRL.CONST_FOLLOWS != 0) {
+            if ((chn.control & CTRL.CONST_FOLLOWS) != 0) {
                 // timer constant following control word
                 chn.control &= ~(CTRL.CONST_FOLLOWS | CTRL.RESET);
                 chn.constant = data;
-                if (chn.control & CTRL.MODE == CTRL.MODE_TIMER) {
-                    if (chn.control & CTRL.TRIGGER == CTRL.TRIGGER_WAIT) {
+                if ((chn.control & CTRL.MODE) == CTRL.MODE_TIMER) {
+                    if ((chn.control & CTRL.TRIGGER) == CTRL.TRIGGER_WAIT) {
                         chn.waiting_for_trigger = true;
                     } else {
                         chn.down_counter = chn.constant;
@@ -188,12 +187,12 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
                 } else {
                     chn.down_counter = chn.constant;
                 }
-            } else if (data & CTRL.CONTROL != 0) {
+            } else if ((data & CTRL.CONTROL) != 0) {
                 // a control word
                 const old_control = chn.control;
                 chn.control = data;
                 chn.trigger_edge = data & CTRL.EDGE == CTRL.EDGE_RISING;
-                if (chn.control & CTRL.PRESCALER == CTRL.PRESCALER_16) {
+                if ((chn.control & CTRL.PRESCALER) == CTRL.PRESCALER_16) {
                     chn.prescaler_mask = 0x0F;
                 } else {
                     chn.prescaler_mask = 0xFF;
@@ -215,15 +214,36 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
             return bus;
         }
 
-        fn _tick(self: *Self, bus: Bus) Bus {
-            _ = self; // autofix
-            // FIXME
+        fn _tick(self: *Self, in_bus: Bus) Bus {
+            var bus = in_bus & ~(ZCTO0 | ZCTO1 | ZCTO2);
+            for (&self.chn, 0..) |*chn, chn_id| {
+                // check if externally triggered
+                if (chn.waiting_for_trigger or (chn.control & CTRL.MODE) == CTRL.MODE_COUNTER) {
+                    const trg = 0 != (bus & (CLKTRG0 << @truncate(chn_id)));
+                    if (trg != chn.ext_trigger) {
+                        chn.ext_trigger = trg;
+                        // rising/falling edge trigger
+                        if (chn.trigger_edge == trg) {
+                            bus = activeEdge(chn, bus, chn_id);
+                        }
+                    }
+                } else if ((chn.control & (CTRL.MODE | CTRL.RESET | CTRL.CONST_FOLLOWS)) == CTRL.MODE_TIMER) {
+                    // handle timer mode down-counting
+                    chn.prescaler -%= 1;
+                    if (0 == (chn.prescaler & chn.prescaler_mask)) {
+                        // prescaler has reached zero, tick the down-counter
+                        chn.down_counter -%= 1;
+                        if (0 == chn.down_counter) {
+                            bus = counterZero(chn, bus, chn_id);
+                        }
+                    }
+                }
+            }
             return bus;
         }
 
         fn irq(self: *Self, bus: Bus) Bus {
             _ = self; // autofix
-            // FIXME:
             return bus;
         }
 
@@ -237,7 +257,7 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
         //
         fn activeEdge(chn: *Channel, in_bus: Bus, chn_id: usize) Bus {
             var bus = in_bus;
-            if (chn.control & CTRL.MODE == CTRL.MODE_COUNTER) {
+            if ((chn.control & CTRL.MODE) == CTRL.MODE_COUNTER) {
                 // counter mode
                 chn.down_counter -%= 1;
                 if (0 == chn.down_counter) {
@@ -257,7 +277,7 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
         fn counterZero(chn: *Channel, in_bus: Bus, chn_id: usize) Bus {
             var bus = in_bus;
             // down counter has reached zero, trigger interrupt and ZCTO pin
-            if (chn.control & CTRL.EI != 0) {
+            if ((chn.control & CTRL.EI) != 0) {
                 chn.irq_state |= IRQ.INT_NEEDED;
             }
             // last channel doesn't have a ZCTO pin
