@@ -3,6 +3,7 @@ const assert = @import("std").debug.assert;
 const bitutils = @import("common").bitutils;
 const mask = bitutils.mask;
 const maskm = bitutils.maskm;
+const Z80IRQ = @import("z80irq.zig").Z80IRQ;
 
 /// Z80 CTC pin declarations
 pub const Pins = struct {
@@ -101,12 +102,6 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
             pub const CONTROL: u8 = 1 << 0; // 1: control word, 0: vector
         };
 
-        pub const IRQ = struct {
-            pub const INT_NEEDED: u8 = 1 << 0;
-            pub const INT_REQUESTED: u8 = 1 << 1;
-            pub const INT_SERVICED: u8 = 1 << 2;
-        };
-
         pub const NUM_CHANNELS = 4;
 
         pub const Channel = struct {
@@ -114,13 +109,12 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
             constant: u8 = 0,
             down_counter: u8 = 0,
             prescaler: u8 = 0,
-            int_vector: u8 = 0,
             // helpers
             trigger_edge: bool = false,
             waiting_for_trigger: bool = false,
             ext_trigger: bool = false,
             prescaler_mask: u8 = 0,
-            irq_state: u8 = 0,
+            irq: Z80IRQ(P, Bus) = .{},
         };
 
         chn: [NUM_CHANNELS]Channel = [_]Channel{.{}} ** NUM_CHANNELS,
@@ -147,7 +141,7 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
                 chn.waiting_for_trigger = false;
                 chn.trigger_edge = false;
                 chn.prescaler_mask = 0x0F;
-                chn.irq_state = 0;
+                chn.irq.reset();
             }
         }
 
@@ -207,7 +201,7 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
                 // are then computed from the base vector plus 2 bytes per channel
                 if (0 == chn_id) {
                     for (0..NUM_CHANNELS) |i| {
-                        self.chn[i].int_vector = @truncate((data & 0xF8) + 2 * i);
+                        self.chn[i].irq.setVector(@truncate((data & 0xF8) + 2 * i));
                     }
                 }
             }
@@ -245,56 +239,7 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
         fn irq(self: *Self, in_bus: Bus) Bus {
             var bus = in_bus;
             for (&self.chn) |*chn| {
-                // on RETI, only the highest priority interrupt that's currently being
-                // serviced resets its state so that IEIO enables interrupt handling
-                // on downstream devices, this must be allowed to happen even if a higher
-                // priority device has entered interrupt handling
-                //
-                if ((bus & RETI) != 0 and (chn.irq_state & IRQ.INT_SERVICED) != 0) {
-                    chn.irq_state &= ~IRQ.INT_SERVICED;
-                    bus &= ~RETI;
-                }
-
-                // Also see: https://github.com/floooh/emu-info/blob/master/z80/z80-interrupts.pdf
-                //
-                // Especially the timing Figure 7 and Figure 7 timing diagrams!
-                //
-                // - set status of IEO pin depending on IEI pin and current
-                //   channel's interrupt request/acknowledge status, this
-                //   'ripples' to the next channel and downstream interrupt
-                //   controllers
-                //
-                // - the IEO pin will be set to inactive (interrupt disabled)
-                //   when: (1) the IEI pin is inactive, or (2) the IEI pin is
-                //   active and and an interrupt has been requested
-                //
-                // - if an interrupt has been requested but not ackowledged by
-                //   the CPU because interrupts are disabled, the RETI state
-                //   must be passed to downstream devices. If a RETI is
-                //   received in the interrupt-requested state, the IEIO
-                //   pin will be set to active, so that downstream devices
-                //   get a chance to decode the RETI
-                //
-                // - NOT IMPLEMENTED: "All channels are inhibited from changing
-                //   their interrupt request status when M1 is active - about two
-                //   clock cycles earlier than IORQ".
-                //
-                if (chn.irq_state != 0 and (bus & IEIO) != 0) {
-                    // inhibit interrupt handling on downstream devices for the
-                    // entire duration of interrupt servicing
-                    bus &= ~IEIO;
-                    // set INT pint active until the CPU acknowledges the interrupt
-                    if ((chn.irq_state & IRQ.INT_NEEDED) != 0) {
-                        chn.irq_state = (chn.irq_state & ~IRQ.INT_NEEDED) | IRQ.INT_REQUESTED;
-                        bus |= INT;
-                    }
-                    // interrupt ackowledge from CPU (M1|IORQ): put interrupt vector
-                    // on data bus, clear INT pin and go into "serviced" state.
-                    if ((chn.irq_state & IRQ.INT_REQUESTED) != 0 and (bus & (M1 | IORQ)) == M1 | IORQ) {
-                        chn.irq_state = (chn.irq_state & ~IRQ.INT_REQUESTED) | IRQ.INT_SERVICED;
-                        bus = setData(bus, chn.int_vector) & ~INT;
-                    }
-                }
+                bus = chn.irq.tick(bus);
             }
             return bus;
         }
@@ -330,7 +275,7 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
             var bus = in_bus;
             // down counter has reached zero, trigger interrupt and ZCTO pin
             if ((chn.control & CTRL.EI) != 0) {
-                chn.irq_state |= IRQ.INT_NEEDED;
+                chn.irq.requestInt();
             }
             // last channel doesn't have a ZCTO pin
             if (chn_id < 3) {

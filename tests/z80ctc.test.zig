@@ -95,10 +95,10 @@ test "write int vector" {
     var bus = setData(CE | IORQ, 0xE0);
     bus = ctc.tick(bus);
     try expect(bus == setData(CE | IORQ, 0xE0));
-    try expect(ctc.chn[0].int_vector == 0xE0);
-    try expect(ctc.chn[1].int_vector == 0xE2);
-    try expect(ctc.chn[2].int_vector == 0xE4);
-    try expect(ctc.chn[3].int_vector == 0xE6);
+    try expect(ctc.chn[0].irq.vector == 0xE0);
+    try expect(ctc.chn[1].irq.vector == 0xE2);
+    try expect(ctc.chn[2].irq.vector == 0xE4);
+    try expect(ctc.chn[3].irq.vector == 0xE6);
 }
 
 test "timer" {
