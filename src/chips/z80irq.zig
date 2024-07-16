@@ -30,8 +30,12 @@ pub fn Z80IRQ(comptime P: anytype, comptime Bus: anytype) type {
             self.state = 0;
         }
 
-        pub fn requestInt(self: *Self) void {
+        pub fn request(self: *Self) void {
             self.state |= NEEDED;
+        }
+
+        pub fn clearRequest(self: *Self) void {
+            self.state &= ~NEEDED;
         }
 
         pub fn setVector(self: *Self, v: u8) void {

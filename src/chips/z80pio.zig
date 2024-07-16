@@ -2,6 +2,7 @@
 const bitutils = @import("common").bitutils;
 const mask = bitutils.mask;
 const maskm = bitutils.maskm;
+const Z80IRQ = @import("z80irq").Z80IRQ;
 
 /// Z80 PIO pin declarations
 pub const Pins = struct {
@@ -87,5 +88,190 @@ pub fn Z80PIO(comptime P: Pins, comptime Bus: anytype) type {
         pub const PB5 = mask(Bus, P.PB[5]);
         pub const PB6 = mask(Bus, P.PB[6]);
         pub const PB7 = mask(Bus, P.PB[7]);
+
+        pub const PORT = struct {
+            pub const A = 0;
+            pub const B = 1;
+        };
+        pub const NUM_PORTS = 2;
+
+        // Operating Modes
+        //
+        // The operating mode of a port is established by writing a control word
+        // to the PIO in the following format:
+        //
+        //  D7 D6 D5 D4 D3 D2 D1 D0
+        // |M1|M0| x| x| 1| 1| 1| 1|
+        //
+        // D7,D6   are the mode word bits
+        // D3..D0  set to 1111 to indicate 'Set Mode'
+        //
+        pub const MODE = struct {
+            pub const OUTPUT: u2 = 0;
+            pub const INPUT: u2 = 1;
+            pub const BIDIRECTIONAL: u2 = 2;
+            pub const BITCONTROL: u2 = 3;
+        };
+
+        // Interrupt control word bits.
+        //
+        //  D7 D6 D5 D4 D3 D2 D1 D0
+        // |EI|AO|HL|MF| 0| 1| 1| 1|
+        //
+        // D7 (EI)             interrupt enabled (1=enabled, 0=disabled)
+        // D6 (AND/OR)         logical operation during port monitoring (only Mode 3, AND=1, OR=0)
+        // D5 (HIGH/LOW)       port data polarity during port monitoring (only Mode 3)
+        // D4 (MASK FOLLOWS)   if set, the next control word are the port monitoring mask (only Mode 3)
+        //
+        // (*) if an interrupt is pending when the enable flag is set, it will then be
+        //     enabled on the onto the CPU interrupt request line
+        // (*) setting bit D4 during any mode of operation will cause any pending
+        //     interrupt to be reset
+        //
+        // The interrupt enable flip-flop of a port may be set or reset
+        // without modifying the rest of the interrupt control word
+        // by the following command:
+        //
+        //  D7 D6 D5 D4 D3 D2 D1 D0
+        // |EI| x| x| x| 0| 0| 1| 1|
+        //
+        pub const INTCTRL = struct {
+            pub const EI: u8 = 1 << 7;
+            pub const ANDOR: u8 = 1 << 6;
+            pub const HILO: u8 = 1 << 5;
+            pub const MASK_FOLLOWS: u8 = 1 << 4;
+        };
+
+        pub const Expect = enum {
+            CTRL,
+            IO_SELECT,
+            INT_MASK,
+        };
+
+        pub const Port = struct {
+            input: u8 = 0, // data input register
+            output: u8 = 0, // data output register
+            mode: u2 = 0, // 2-bit mode control register (MODE.*)
+            io_select: u8 = 0, // input/output select register
+            int_control: u8 = 0, // interrupt control word (INTCTRL.*)
+            int_mask: u8 = 0, // interrupt control mask
+            // helpers
+            irq: Z80IRQ(P, Bus) = .{}, // interrupt daisy chain state
+            int_enabled: bool = false, // definitive interrupt enabled flag
+            expect: Expect = .CTRL, // expect control word, io_select or int_mask
+            expect_io_select: bool = false, // next control word will be io_select
+            expect_int_mask: bool = false, // next control word will be int_mask
+            bctrl_match: bool = false, // bitcontrol logic equation result
+        };
+
+        port: [NUM_PORTS]Port = [_]Port{.{}} ** NUM_PORTS,
+        reset_active: bool = false,
+
+        pub fn init() Self {
+            var self: Self = .{};
+            self.reset();
+            return self;
+        }
+
+        pub fn reset(self: *Self) void {
+            self.reset_active = false;
+            for (&self.port) |*port| {
+                port.mode = MODE.INPUT;
+                port.output = 0;
+                port.io_select = 0;
+                port.int_control &= ~INTCTRL.EI;
+                port.int_mask = 0xFF;
+                port.int_enabled = false;
+                port.expect_int_mask = false;
+                port.expect_io_select = false;
+                port.bctrl_match = false;
+                port.irq.reset();
+            }
+        }
+
+        // new control word received from CPU
+        fn writeCtrl(self: *Self, p: *Port, data: u8) void {
+            self.reset_active = false;
+            switch (p.expect) {
+                .IO_SELECT => {
+                    // followup io-select mask
+                    p.io_select = data;
+                    p.int_enabled = (p.int_control & INTCTRL.EI) != 0;
+                    p.expect = .CTRL;
+                },
+                .INT_MASK => {
+                    // followup interrupt mask
+                    p.int_mask = data;
+                    p.int_enabled = (p.int_control & INTCTRL.EI) != 0;
+                    p.expect = .CTRL;
+                },
+                .CTRL => {
+                    const ctrl = data & 0x0F;
+                    if ((ctrl & 1) == 0) {
+                        // set interrupt vector
+                        p.irq.setVector(data);
+                        // according to MAME setting the interrupt vector
+                        // also enables interrupts, but this doesn't seem to
+                        // be mentioned in the spec
+                        p.int_control |= INTCTRL.EI;
+                        p.int_enabled = true;
+                    } else if (ctrl == 0x0F) {
+                        // set operating mode (MODE.*)
+                        p.mode = @truncate(data >> 6);
+                        if (p.mode == MODE.BITCONTROL) {
+                            // next control word is the io-select mask
+                            p.expect = .IO_SELECT;
+                            // disable interrupt until io-select mask written
+                            p.int_enabled = false;
+                            p.bctrl_match = false;
+                        }
+                    } else if (ctrl == 0x07) {
+                        // set interrupt control word (INTCTRL.*)
+                        p.int_control = data & 0xF0;
+                        if ((data & INTCTRL.MASK_FOLLOWS) != 0) {
+                            // next control word is the interrupt control mask
+                            p.expect = .INT_MASK;
+                            // disable interrupt until mask is written
+                            p.int_enabled = false;
+                            // reset pending interrupt
+                            p.irq.clearRequest();
+                            p.bctrl_match = false;
+                        } else {
+                            p.int_enabled = (p.int_control & INTCTRL.EI) != 0;
+                        }
+                    } else if (ctrl == 0x03) {
+                        // only set interrupt enable bit
+                        p.int_control = (data & INTCTRL.EI) | (p.int_control & ~INTCTRL.EI);
+                        p.int_enabled = (p.int_control & INTCTRL.EI) != 0;
+                    }
+                },
+            }
+        }
+
+        // read control word back to CPU
+        fn readCtrl(self: *const Self) u8 {
+            // I haven't found documentation about what is
+            // returned when reading the control word, this
+            // is what MAME does
+            return (self.port[PORT.A].int_control & 0xC0) | (self.port[PORT.B].int_control >> 4);
+        }
+
+        // new data word received from CPU
+        fn writeData(p: *Port, data: u8) void {
+            switch (p.mode) {
+                MODE.OUTPUT, MODE.INPUT, MODE.BITCONTROL => p.output = data,
+                MODE.BIDIRECTIONAL => {}, // FIXME
+            }
+        }
+
+        // read port data back to CPU
+        fn readData(p: *Port) u8 {
+            return switch (p.mode) {
+                MODE.OUTPUT => p.output,
+                MODE.INPUT => p.input,
+                MODE.BIDIRECTIONAL => 0xFF, // FIXME
+                MODE.BITCONTROL => (p.input & p.io_select) | (p.output | ~p.io_select),
+            };
+        }
     };
 }

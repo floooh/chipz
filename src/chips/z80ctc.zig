@@ -275,7 +275,7 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
             var bus = in_bus;
             // down counter has reached zero, trigger interrupt and ZCTO pin
             if ((chn.control & CTRL.EI) != 0) {
-                chn.irq.requestInt();
+                chn.irq.request();
             }
             // last channel doesn't have a ZCTO pin
             if (chn_id < 3) {
