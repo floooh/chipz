@@ -238,7 +238,7 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
 
         fn irq(self: *Self, in_bus: Bus) Bus {
             var bus = in_bus;
-            for (&self.chn) |*chn| {
+            inline for (&self.chn) |*chn| {
                 bus = chn.irq.tick(bus);
             }
             return bus;

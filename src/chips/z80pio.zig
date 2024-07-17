@@ -164,8 +164,31 @@ pub fn Z80PIO(comptime P: Pins, comptime Bus: anytype) type {
             bctrl_match: bool = false, // bitcontrol logic equation result
         };
 
-        port: [NUM_PORTS]Port = [_]Port{.{}} ** NUM_PORTS,
+        ports: [NUM_PORTS]Port = [_]Port{.{}} ** NUM_PORTS,
         reset_active: bool = false,
+
+        pub inline fn getData(bus: Bus) u8 {
+            return @truncate(bus >> P.DBUS[0]);
+        }
+
+        pub inline fn setData(bus: Bus, data: u8) Bus {
+            return (bus & ~DBUS) | (@as(Bus, data) << P.DBUS[0]);
+        }
+
+        pub inline fn setPort(bus: Bus, comptime port: usize, data: u8) Bus {
+            return switch (port) {
+                PORT.A => (bus & ~PA) | (@as(bus, data) << P.PA[0]),
+                PORT.B => (bus & ~PB) | (@as(bus, data) << P.PB[0]),
+                else => unreachable,
+            };
+        }
+
+        pub inline fn getPort(bus: Bus, comptime port: usize) u8 {
+            return @truncate(bus >> switch (port) {
+                PORT.A => P.PA[0],
+                PORT.B => P.PB[0],
+            });
+        }
 
         pub fn init() Self {
             var self: Self = .{};
@@ -175,7 +198,7 @@ pub fn Z80PIO(comptime P: Pins, comptime Bus: anytype) type {
 
         pub fn reset(self: *Self) void {
             self.reset_active = false;
-            for (&self.port) |*port| {
+            for (&self.ports) |*port| {
                 port.mode = MODE.INPUT;
                 port.output = 0;
                 port.io_select = 0;
@@ -189,6 +212,61 @@ pub fn Z80PIO(comptime P: Pins, comptime Bus: anytype) type {
             }
         }
 
+        pub fn tick(self: *Self, in_bus: Bus) Bus {
+            var bus = in_bus;
+            // - OUTPUT MODE: On CPU write, the bus data is written to the output
+            //   register, and the ARDY/BRDY pins must be set until the ASTB/BSTB pins
+            //   changes from active to inactive. Strobe active=>inactive also an INT
+            //   if the interrupt enable flip-flop is set and this device has the
+            //   highest priority.
+            //
+            // - INPUT MODE (FIXME): When ASTB/BSTB goes active, data is loaded into the port's
+            //   input register. When ASTB/BSTB then goes from active to inactive, an
+            //   INT is generated is interrupt enable is set and this is the highest
+            //   priority interrupt device. ARDY/BRDY goes active on ASTB/BSTB going
+            //   inactive, and remains active until the CPU reads the input data.
+            //
+            // - BIDIRECTIONAL MODE: FIXME
+            //
+            // - BIT MODE: no handshake pins (ARDY/BRDY, ASTB/BSTB) are used. A CPU write
+            //   cycle latches the data into the output register. On a CPU read cycle,
+            //   the data returned to the CPU will be composed of output register data
+            //   from those port data lines assigned as outputs and input register data
+            //   from those port data lines assigned as inputs. The input register will
+            //   contain data which was present immediately prior to the falling edge of RD.
+            //   An interrupt will be generated if interrupts from the port are enabled and
+            //   the data on the port data lines satisfy the logical equation defined by
+            //   the 8-bit mask and 2-bit mask control registers
+            //
+
+            // handle io requests
+            const p = &self.ports[if ((bus & BASEL) != 0) PORT.A else PORT.B];
+            switch (bus & (CE | IORQ | RD | M1 | CDSEL)) {
+                CE | IORQ | RD | CDSEL => {
+                    // read control word
+                    bus = setData(bus, self.readCtrl());
+                },
+                CE | IORQ | RD => {
+                    // read data
+                    bus = setData(bus, readData(p));
+                },
+                CE | IORQ | CDSEL => {
+                    // write control word
+                    self.writeCtrl(p, getData(bus));
+                },
+                CE | IORQ => {
+                    // write data
+                    writeData(p, getData(bus));
+                },
+            }
+            // read port bits into PIO
+            self.readPorts(bus);
+            // update port bits
+            bus = self.setPortOutput(bus);
+            // handle interrupt protocol
+            bus = self.irq(bus);
+            return bus;
+        }
         // new control word received from CPU
         fn writeCtrl(self: *Self, p: *Port, data: u8) void {
             self.reset_active = false;
@@ -253,7 +331,7 @@ pub fn Z80PIO(comptime P: Pins, comptime Bus: anytype) type {
             // I haven't found documentation about what is
             // returned when reading the control word, this
             // is what MAME does
-            return (self.port[PORT.A].int_control & 0xC0) | (self.port[PORT.B].int_control >> 4);
+            return (self.ports[PORT.A].int_control & 0xC0) | (self.ports[PORT.B].int_control >> 4);
         }
 
         // new data word received from CPU
@@ -272,6 +350,64 @@ pub fn Z80PIO(comptime P: Pins, comptime Bus: anytype) type {
                 MODE.BIDIRECTIONAL => 0xFF, // FIXME
                 MODE.BITCONTROL => (p.input & p.io_select) | (p.output | ~p.io_select),
             };
+        }
+
+        // set port bits on the bus
+        fn setPortOutput(self: *const Self, in_bus: Bus) Bus {
+            var bus = in_bus; // autofix
+            inline for (&self.ports, 0..) |*p, pid| {
+                const data = switch (p.mode) {
+                    MODE.OUTPUT => p.output,
+                    MODE.INPIUT, MODE.BIDIRECTIONAL => 0xFF,
+                    MODE.BITCONTROL => p.io_select | (p.output & ~p.io_select),
+                };
+                bus = setPort(pid, bus, data);
+            }
+            return bus;
+        }
+
+        // read port bits from bus
+        fn readPorts(self: *Self, bus: Bus) void {
+            inline for (&self.ports, 0..) |*p, pid| {
+                const data = getPort(pid, bus);
+                // this only needs to be evaluated if either the port input
+                // or port state might have changed
+                if ((data != p.input) or ((bus & CE) != 0)) {
+                    switch (p.mode) {
+                        MODE.INPUT => {
+                            // FIXME: strobe/ready handshake and interrupt
+                            p.input = data;
+                        },
+                        MODE.BITCONTROL => {
+                            p.input = data;
+
+                            // check interrupt condition
+                            const imask = ~p.int_mask;
+                            const val = ((p.input & p.io_select) | (p.output & ~p.io_select)) & imask;
+                            const ictrl = p.int_control & 0x60;
+                            const match = switch (ictrl) {
+                                0 => val != imask,
+                                0x20 => val != 0,
+                                0x40 => val == 0,
+                                0x60 => val == imask,
+                                else => false,
+                            };
+                            if (!p.bctrl_match and match and p.int_enabled) {
+                                p.irq.request();
+                            }
+                            p.bctrl_match = match;
+                        },
+                    }
+                }
+            }
+        }
+
+        fn irq(self: *Self, in_bus: Bus) Bus {
+            var bus = in_bus;
+            inline for (&self.ports) |*p| {
+                bus = p.irq.tick(bus);
+            }
+            return bus;
         }
     };
 }
