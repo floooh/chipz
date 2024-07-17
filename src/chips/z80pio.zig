@@ -2,7 +2,7 @@
 const bitutils = @import("common").bitutils;
 const mask = bitutils.mask;
 const maskm = bitutils.maskm;
-const Z80IRQ = @import("z80irq").Z80IRQ;
+const Z80IRQ = @import("z80irq.zig").Z80IRQ;
 
 /// Z80 PIO pin declarations
 pub const Pins = struct {
@@ -197,7 +197,7 @@ pub fn Z80PIO(comptime P: Pins, comptime Bus: anytype) type {
         }
 
         pub fn reset(self: *Self) void {
-            self.reset_active = false;
+            self.reset_active = true;
             for (&self.ports) |*port| {
                 port.mode = MODE.INPUT;
                 port.output = 0;
