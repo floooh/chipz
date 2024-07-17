@@ -510,7 +510,7 @@ pub const Bombjack = struct {
                     if (pin(bus, WR)) bus |= Psg1.BDIR;
                     if (!pin(bus, A0)) bus |= Psg1.BC1;
                 },
-                A7 => {
+                A7 => { // PSG2
                     if (pin(bus, WR)) bus |= Psg2.BDIR;
                     if (!pin(bus, A0)) bus |= Psg2.BC1;
                 },
