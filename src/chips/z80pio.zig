@@ -175,18 +175,19 @@ pub fn Z80PIO(comptime P: Pins, comptime Bus: anytype) type {
             return (bus & ~DBUS) | (@as(Bus, data) << P.DBUS[0]);
         }
 
-        pub inline fn setPort(bus: Bus, comptime port: usize, data: u8) Bus {
+        pub inline fn setPort(comptime port: comptime_int, bus: Bus, data: u8) Bus {
             return switch (port) {
-                PORT.A => (bus & ~PA) | (@as(bus, data) << P.PA[0]),
-                PORT.B => (bus & ~PB) | (@as(bus, data) << P.PB[0]),
+                PORT.A => (bus & ~PA) | (@as(Bus, data) << P.PA[0]),
+                PORT.B => (bus & ~PB) | (@as(Bus, data) << P.PB[0]),
                 else => unreachable,
             };
         }
 
-        pub inline fn getPort(bus: Bus, comptime port: usize) u8 {
+        pub inline fn getPort(comptime port: comptime_int, bus: Bus) u8 {
             return @truncate(bus >> switch (port) {
                 PORT.A => P.PA[0],
                 PORT.B => P.PB[0],
+                else => unreachable,
             });
         }
 
@@ -240,7 +241,7 @@ pub fn Z80PIO(comptime P: Pins, comptime Bus: anytype) type {
             //
 
             // handle io requests
-            const p = &self.ports[if ((bus & BASEL) != 0) PORT.A else PORT.B];
+            const p = &self.ports[if ((bus & BASEL) != 0) PORT.B else PORT.A];
             switch (bus & (CE | IORQ | RD | M1 | CDSEL)) {
                 CE | IORQ | RD | CDSEL => {
                     // read control word
@@ -258,6 +259,7 @@ pub fn Z80PIO(comptime P: Pins, comptime Bus: anytype) type {
                     // write data
                     writeData(p, getData(bus));
                 },
+                else => {},
             }
             // read port bits into PIO
             self.readPorts(bus);
@@ -358,7 +360,7 @@ pub fn Z80PIO(comptime P: Pins, comptime Bus: anytype) type {
             inline for (&self.ports, 0..) |*p, pid| {
                 const data = switch (p.mode) {
                     MODE.OUTPUT => p.output,
-                    MODE.INPIUT, MODE.BIDIRECTIONAL => 0xFF,
+                    MODE.INPUT, MODE.BIDIRECTIONAL => 0xFF,
                     MODE.BITCONTROL => p.io_select | (p.output & ~p.io_select),
                 };
                 bus = setPort(pid, bus, data);
@@ -397,6 +399,7 @@ pub fn Z80PIO(comptime P: Pins, comptime Bus: anytype) type {
                             }
                             p.bctrl_match = match;
                         },
+                        else => {},
                     }
                 }
             }
