@@ -47,7 +47,7 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
 
         pub const Options = struct {
             tick_hz: u32, // frequency at which the tick function will be called
-            sound_hz: u32, // host sound frequence (number of samples per second)
+            sound_hz: u32, // host sound frequency (number of samples per second)
             volume: f32 = 1.0, // output volume (0..1)
             chip_select: u4 = 0, // optional chip-select
         };
