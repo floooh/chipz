@@ -87,29 +87,28 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
         const DCADJ_BUFLEN = 128;
 
         // registers
-        pub const Reg = enum(u4) {
-            PERIOD_A_FINE,
-            PERIOD_A_COARSE,
-            PERIOD_B_FINE,
-            PERIOD_B_COARSE,
-            PERIOD_C_FINE,
-            PERIOD_C_COARSE,
-            PERIOD_NOISE,
-            ENABLE,
-            AMP_A,
-            AMP_B,
-            AMP_C,
-            ENV_PERIOD_FINE,
-            ENV_PERIOD_COARSE,
-            ENV_SHAPE_CYCLE,
-            IO_PORT_A,
-            IO_PORT_B,
-
-            const NUM = 16;
+        pub const REG = struct {
+            pub const PERIOD_A_FINE: u4 = 0;
+            pub const PERIOD_A_COARSE: u4 = 1;
+            pub const PERIOD_B_FINE: u4 = 2;
+            pub const PERIOD_B_COARSE: u4 = 3;
+            pub const PERIOD_C_FINE: u4 = 4;
+            pub const PERIOD_C_COARSE: u4 = 5;
+            pub const PERIOD_NOISE: u4 = 6;
+            pub const ENABLE: u4 = 7;
+            pub const AMP_A: u4 = 8;
+            pub const AMP_B: u4 = 9;
+            pub const AMP_C: u4 = 10;
+            pub const ENV_PERIOD_FINE: u4 = 11;
+            pub const ENV_PERIOD_COARSE: u4 = 12;
+            pub const ENV_SHAPE_CYCLE: u4 = 13;
+            pub const IO_PORT_A: u4 = 14;
+            pub const IO_PORT_B: u4 = 15;
+            pub const NUM = 16;
         };
 
         // register bit widths
-        const RegMask = [Reg.NUM]u8{
+        const REGMASK = [REG.NUM]u8{
             0xFF, // REG.PERIOD_A_FINE
             0x0F, // REG.PERIOD_A_COARSE
             0xFF, // REG.PERIOD_B_FINE
@@ -182,7 +181,7 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
         cs_mask: u8 = 0, // hi: 4-bit chip-select (options.chip_select << 4)
         active: bool = false, // true if upper chip-select matches when writing address
         addr: u4 = 0, // current register index
-        regs: [Reg.NUM]u8 = [_]u8{0} ** Reg.NUM,
+        regs: [REG.NUM]u8 = [_]u8{0} ** REG.NUM,
         tone: [NUM_CHANNELS]Tone = [_]Tone{.{}} ** NUM_CHANNELS, // tone generator states (3 channels)
         noise: Noise = .{}, // noise generator state
         env: Envelope = .{}, // envelope generator state
@@ -210,17 +209,12 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
             };
         }
 
-        pub inline fn setReg(self: *Self, comptime r: Reg, data: u8) void {
-            const idx = @intFromEnum(r);
-            self.regs[idx] = data & RegMask[idx];
+        pub inline fn setReg(self: *Self, comptime r: comptime_int, data: u8) void {
+            self.regs[r] = data & REGMASK[r];
         }
 
-        pub inline fn reg(self: *const Self, comptime r: Reg) u8 {
-            return self.regs[@intFromEnum(r)];
-        }
-
-        inline fn reg16(self: *const Self, comptime r_hi: Reg, comptime r_lo: Reg) u16 {
-            return (@as(u16, self.regs[@intFromEnum(r_hi)]) << 8) | self.regs[@intFromEnum(r_lo)];
+        inline fn reg16(self: *const Self, comptime r_hi: comptime_int, comptime r_lo: comptime_int) u16 {
+            return (@as(u16, self.regs[r_hi]) << 8) | self.regs[r_lo];
         }
 
         pub fn init(opts: Options) Self {
@@ -322,7 +316,7 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
                         }
                     }
                 }
-                self.env.shape.state = env_shapes[self.reg(.ENV_SHAPE_CYCLE)][self.env.shape.counter];
+                self.env.shape.state = env_shapes[self.regs[REG.ENV_SHAPE_CYCLE]][self.env.shape.counter];
             }
 
             // generate sample
@@ -330,11 +324,11 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
             if (self.sample.counter <= 0) {
                 self.sample.counter += self.sample.period;
                 var sm: f32 = 0.0;
-                inline for (&self.tone, .{ Reg.AMP_A, Reg.AMP_B, Reg.AMP_C }) |chn, ampReg| {
+                inline for (&self.tone, .{ REG.AMP_A, REG.AMP_B, REG.AMP_C }) |chn, ampReg| {
                     const noise_enable: u1 = @truncate((self.noise.rng & 1) | chn.noise_disable);
                     const tone_enable: u1 = chn.phase | chn.tone_disable;
                     if ((tone_enable & noise_enable) != 0) {
-                        const amp = self.reg(ampReg);
+                        const amp = self.regs[ampReg];
                         if (0 == (amp & (1 << 4))) {
                             // fixed amplitude
                             sm += volumes[amp & 0x0F];
@@ -370,9 +364,9 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
         fn write(self: *Self, bus: Bus) void {
             const data = getData(bus);
             // update register content and dependent values
-            self.regs[self.addr] = data & RegMask[self.addr];
+            self.regs[self.addr] = data & REGMASK[self.addr];
             self.updateValues();
-            if (self.addr == @intFromEnum(Reg.ENV_SHAPE_CYCLE)) {
+            if (self.addr == REG.ENV_SHAPE_CYCLE) {
                 self.restartEnvelope();
             }
         }
@@ -391,22 +385,22 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
             // when in output mode the port A/B registers are mirrored on the port pins
             if (model != .AY38913) {
                 // port A exists only on AY38910 and AY38912
-                if ((self.reg(.ENABLE) & (1 << 6)) != 0) {
+                if ((self.regs[REG.ENABLE] & (1 << 6)) != 0) {
                     // port A is in output mode
-                    bus = setPort(.A, bus, self.reg(.IO_PORT_A));
+                    bus = setPort(.A, bus, self.regs[REG.IO_PORT_A]);
                 } else {
                     // port A is in input mode
-                    self.setReg(.IO_PORT_A, getPort(.A, bus));
+                    self.setReg(REG.IO_PORT_A, getPort(.A, bus));
                 }
             }
             if (model == .AY38910) {
                 // port B exists only on AY38910
-                if ((self.reg(.ENABLE) & (1 << 7)) != 0) {
+                if ((self.regs[REG.ENABLE] & (1 << 7)) != 0) {
                     // port B is in output mode
-                    bus = setPort(.B, bus, self.reg(.IO_PORT_B));
+                    bus = setPort(.B, bus, self.regs[REG.IO_PORT_B]);
                 } else {
                     // port B is in input mode
-                    self.setReg(.IO_PORT_B, getPort(.B, bus));
+                    self.setReg(REG.IO_PORT_B, getPort(.B, bus));
                 }
             }
             return bus;
@@ -419,21 +413,21 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
                 // "...Note also that due to the design technique used in the Tone Period
                 // count-down, the lowest period value is 000000000001 (divide by 1)
                 // and the highest period value is 111111111111 (divide by 4095)
-                chn.period = self.reg16(@enumFromInt(2 * i + 1), @enumFromInt(2 * i));
+                chn.period = self.reg16(2 * i + 1, 2 * i);
                 if (chn.period == 0) {
                     chn.period = 1;
                 }
                 // a set 'enabled bit' actually means 'disabled'
-                chn.tone_disable = @truncate((self.reg(.ENABLE) >> i) & 1);
-                chn.noise_disable = @truncate((self.reg(.ENABLE) >> (3 + i)) & 1);
+                chn.tone_disable = @truncate((self.regs[REG.ENABLE] >> i) & 1);
+                chn.noise_disable = @truncate((self.regs[REG.ENABLE] >> (3 + i)) & 1);
             }
             // update noise generator values
-            self.noise.period = self.reg(.PERIOD_NOISE);
+            self.noise.period = self.regs[REG.PERIOD_NOISE];
             if (self.noise.period == 0) {
                 self.noise.period = 1;
             }
             // update envelope generator values
-            self.env.period = self.reg16(.ENV_PERIOD_COARSE, .ENV_PERIOD_FINE);
+            self.env.period = self.reg16(REG.ENV_PERIOD_COARSE, REG.ENV_PERIOD_FINE);
             if (self.env.period == 0) {
                 self.env.period = 1;
             }
@@ -443,7 +437,7 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
         fn restartEnvelope(self: *Self) void {
             self.env.shape.holding = false;
             self.env.shape.counter = 0;
-            const cycle = self.reg(.ENV_SHAPE_CYCLE);
+            const cycle = self.regs[REG.ENV_SHAPE_CYCLE];
             self.env.shape.hold = 0 == (cycle & ENV.CONTINUE) and 0 != (cycle & ENV.HOLD);
         }
 
