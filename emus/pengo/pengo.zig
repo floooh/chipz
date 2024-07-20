@@ -2,9 +2,9 @@ const sokol = @import("sokol");
 const sapp = sokol.app;
 const slog = sokol.log;
 const host = @import("host");
-const Namco = @import("chipz").systems.namco.Namco;
+const namco = @import("chipz").systems.namco;
 
-const Pengo = Namco(.Pengo);
+const Pengo = namco.Type(.Pengo);
 
 var sys: Pengo = undefined;
 

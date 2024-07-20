@@ -12,7 +12,7 @@ const AudioOptions = common.glue.AudioOptions;
 const DisplayInfo = common.glue.DisplayInfo;
 
 // Z80 bus definitions (same for main and sound board)
-const CPU_PINS = chips.z80.Pins{
+const CPU_PINS = z80.Pins{
     .DBUS = .{ 0, 1, 2, 3, 4, 5, 6, 7 },
     .ABUS = .{ 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23 },
     .M1 = 24,
@@ -29,7 +29,7 @@ const CPU_PINS = chips.z80.Pins{
 };
 
 // bus definition for the first AY
-const PSG0_PINS = chips.ay3891.Pins{
+const PSG0_PINS = ay3891.Pins{
     .DBUS = CPU_PINS.DBUS,
     .BDIR = 35,
     .BC1 = 36,
@@ -38,7 +38,7 @@ const PSG0_PINS = chips.ay3891.Pins{
 };
 
 // bus definition for the second AY
-const PSG1_PINS = chips.ay3891.Pins{
+const PSG1_PINS = ay3891.Pins{
     .DBUS = CPU_PINS.DBUS,
     .BDIR = 37,
     .BC1 = 38,
@@ -47,7 +47,7 @@ const PSG1_PINS = chips.ay3891.Pins{
 };
 
 // bus definition for the third AY
-const PSG2_PINS = chips.ay3891.Pins{
+const PSG2_PINS = ay3891.Pins{
     .DBUS = CPU_PINS.DBUS,
     .BDIR = 39,
     .BC1 = 40,

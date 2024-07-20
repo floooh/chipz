@@ -81,7 +81,7 @@ const WR = Z80.WR;
 const RD = Z80.RD;
 const INT = Z80.INT;
 
-pub fn Namco(comptime sys: System) type {
+pub fn Type(comptime sys: System) type {
     return struct {
         const Self = @This();
 
