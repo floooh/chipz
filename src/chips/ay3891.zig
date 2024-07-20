@@ -4,6 +4,7 @@
 const bitutils = @import("common").bitutils;
 const mask = bitutils.mask;
 const maskm = bitutils.maskm;
+const dcadjust = @import("common").dcadjust;
 
 /// map chip pin names to bit positions
 ///
@@ -91,7 +92,6 @@ pub fn Type(comptime cfg: Config) type {
         // misc constants
         const NUM_CHANNELS = 3;
         const FIXEDPOINT_SCALE = 16; // error accumulation precision boost
-        const DCADJ_BUFLEN = 128;
 
         // registers
         pub const REG = struct {
@@ -177,11 +177,7 @@ pub fn Type(comptime cfg: Config) type {
             volume: f32 = 0.0,
             value: f32 = 0.0,
             ready: bool = false, // true if a new sample value is ready
-            dcadj: struct {
-                sum: f32 = 0.0,
-                pos: u32 = 0.0,
-                buf: [DCADJ_BUFLEN]f32 = [_]f32{0.0} ** DCADJ_BUFLEN,
-            } = .{},
+            dcadj: dcadjust.Type(.{ .buf_len = 128 }) = .{},
         };
 
         tick_count: u38 = 0, // tick counter for internal clock division
@@ -244,6 +240,7 @@ pub fn Type(comptime cfg: Config) type {
 
         pub fn reset(self: *Self) void {
             self.active = false;
+            self.sample.dcadjust.reset();
             self.addr = 0;
             self.tick_count = 0;
             for (&self.regs) |r| {
@@ -345,26 +342,12 @@ pub fn Type(comptime cfg: Config) type {
                         }
                     }
                 }
-                self.sample.value = dcadjust(self, sm) * self.sample.volume;
+                self.sample.value = self.sample.dcadj.put(sm) * self.sample.volume;
                 self.sample.ready = true;
             } else {
                 self.sample.ready = false;
             }
             return bus;
-        }
-
-        // DC adjustment filter from StSound, this moves an "offcenter"
-        // signal back to the zero-line (e.g. the volume-level output
-        // from the chip simulation which is >0.0 gets converted to
-        //a +/- sample value)
-        fn dcadjust(self: *Self, s: f32) f32 {
-            const pos = self.sample.dcadj.pos;
-            self.sample.dcadj.sum -= self.sample.dcadj.buf[pos];
-            self.sample.dcadj.sum += s;
-            self.sample.dcadj.buf[pos] = s;
-            self.sample.dcadj.pos = (pos + 1) & (DCADJ_BUFLEN - 1);
-            const div: f32 = @floatFromInt(DCADJ_BUFLEN);
-            return s - (self.sample.dcadj.sum / div);
         }
 
         // write from data bus to register
