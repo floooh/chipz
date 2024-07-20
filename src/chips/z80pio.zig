@@ -2,7 +2,7 @@
 const bitutils = @import("common").bitutils;
 const mask = bitutils.mask;
 const maskm = bitutils.maskm;
-const z80irg = @import("z80irq.zig");
+const z80irq = @import("z80irq.zig");
 
 /// Z80 PIO pin declarations
 pub const Pins = struct {
@@ -50,9 +50,9 @@ pub const Config = struct {
     bus: type,
 };
 
-pub fn Z80PIO(cfg: Config) type {
+pub fn Type(cfg: Config) type {
     const Bus = cfg.bus;
-    const Z80IRQ = z80irg.Z80IRQ(.{
+    const Z80IRQ = z80irq.Type(.{
         .pins = .{
             .DBUS = cfg.pins.DBUS,
             .M1 = cfg.pins.M1,

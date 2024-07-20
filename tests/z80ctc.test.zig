@@ -62,8 +62,8 @@ const Z80CTCPins = z80ctc.Pins{
 };
 
 const Bus = u64;
-const Z80 = z80.Z80(.{ .pins = Z80Pins, .bus = Bus });
-const Z80CTC = z80ctc.Z80CTC(.{ .pins = Z80CTCPins, .bus = Bus });
+const Z80 = z80.Type(.{ .pins = Z80Pins, .bus = Bus });
+const Z80CTC = z80ctc.Type(.{ .pins = Z80CTCPins, .bus = Bus });
 
 const setData = Z80.setData;
 const getData = Z80.getData;

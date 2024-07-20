@@ -12,7 +12,7 @@ const pin = chipz.common.bitutils.pin;
 
 const T = assert;
 const Bus = u64;
-const Z80 = z80.Z80(.{ .pins = z80.DefaultPins, .bus = Bus });
+const Z80 = z80.Type(.{ .pins = z80.DefaultPins, .bus = Bus });
 
 var cpu: Z80 = undefined;
 var bus: Bus = 0;

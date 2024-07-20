@@ -2,7 +2,7 @@ const expect = @import("std").testing.expect;
 const memory = @import("chipz").common.memory;
 
 const PAGE_SIZE = 4096;
-const Memory = memory.Memory(PAGE_SIZE);
+const Memory = memory.Type(.{ .page_size = PAGE_SIZE });
 const options = Memory.Options{
     .junk_page = &junk_page,
     .unmapped_page = &unmapped_page,
@@ -37,7 +37,7 @@ test "read/write unmapped" {
 }
 
 test "map ram page sized" {
-    var mem = [_]u8{0} ** memory.ADDR_RANGE;
+    var mem = [_]u8{0} ** Memory.ADDR_RANGE;
     var m = Memory.init(options);
     m.mapRAM(0x0000, 0x1000, mem[0..0x1000]);
     m.mapRAM(0x2000, 0x1000, mem[0x1000..0x2000]);
@@ -62,7 +62,7 @@ test "map ram page sized" {
 }
 
 test "map ram multi-page sized" {
-    var mem = [_]u8{0} ** memory.ADDR_RANGE;
+    var mem = [_]u8{0} ** Memory.ADDR_RANGE;
     var m = Memory.init(options);
     m.mapRAM(0x0000, 0x4000, mem[0..0x4000]);
     m.mapRAM(0x8000, 0x4000, mem[0x4000..0x8000]);
@@ -98,7 +98,7 @@ test "map rom" {
 }
 
 test "map separate" {
-    var mem = [_]u8{0} ** memory.ADDR_RANGE;
+    var mem = [_]u8{0} ** Memory.ADDR_RANGE;
     var m = Memory.init(options);
     m.mapRW(0xC000, rom.len, &rom, mem[0x1000 .. 0x1000 + rom.len]);
     try expect(m.rd(0xC023) == 0x23);
@@ -113,7 +113,7 @@ test "map separate" {
 }
 
 test "map / unmap" {
-    var mem = [_]u8{0} ** memory.ADDR_RANGE;
+    var mem = [_]u8{0} ** Memory.ADDR_RANGE;
     var m = Memory.init(options);
     m.mapRAM(0x0000, 0x1000, mem[0..0x1000]);
     m.wr(0x0000, 0x23);

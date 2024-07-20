@@ -1,4 +1,7 @@
-//! a paged memory implementation
+//! implements a paged memory system for emulators with up to 16 bits address range
+//!
+//! NOTE: all user-provided slices must reference host memory that outlives the Memory object!
+//!
 const std = @import("std");
 const assert = std.debug.assert;
 
@@ -13,23 +16,23 @@ const assert = std.debug.assert;
 /// - for unmapped memory, the read pointer points to a special
 ///   'unmapped page' which is filled with a user-provided 'unmapped value'
 ///   (typically 0xFF), and the write pointer points to the junk page
-const Page = struct {
+pub const Page = struct {
     read: [*]const u8,
     write: [*]u8,
 };
 
-pub const ADDR_RANGE = 0x10000;
-pub const ADDR_MASK = ADDR_RANGE - 1;
+pub const Config = struct {
+    page_size: comptime_int,
+};
 
-/// implements a paged memory system for emulators with up to 16 bits address range
-///
-/// NOTE: all user-provided slices must reference host memory that outlives the Memory object!
-///
-pub fn Memory(comptime page_size: comptime_int) type {
-    assert(std.math.isPowerOfTwo(page_size));
+pub fn Type(comptime cfg: Config) type {
+    assert(std.math.isPowerOfTwo(cfg.page_size));
 
     return struct {
         const Self = @This();
+
+        pub const ADDR_RANGE = 0x10000;
+        pub const ADDR_MASK = ADDR_RANGE - 1;
 
         /// Memory init options
         pub const Options = struct {
@@ -41,8 +44,8 @@ pub fn Memory(comptime page_size: comptime_int) type {
             unmapped_page: []const u8,
         };
 
-        pub const PAGE_SIZE: usize = page_size;
-        pub const PAGE_SHIFT: usize = std.math.log2_int(u16, page_size);
+        pub const PAGE_SIZE: usize = cfg.page_size;
+        pub const PAGE_SHIFT: usize = std.math.log2_int(u16, cfg.page_size);
         pub const NUM_PAGES: usize = ADDR_RANGE / PAGE_SIZE;
         pub const PAGE_MASK: usize = PAGE_SIZE - 1;
 

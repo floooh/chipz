@@ -4,7 +4,7 @@ const chipz = @import("chipz");
 const z80pio = chipz.chips.z80pio;
 
 const Bus = u64;
-const Z80PIO = z80pio.Z80PIO(.{ .pins = z80pio.DefaultPins, .bus = Bus });
+const Z80PIO = z80pio.Type(.{ .pins = z80pio.DefaultPins, .bus = Bus });
 
 const setData = Z80PIO.setData;
 
@@ -54,4 +54,11 @@ test "set input/output mode" {
     // set port B to input...
     _ = pio.tick(setData(CE | IORQ | BASEL | CDSEL, (@as(u8, MODE.INPUT) << 6) | 0x0F));
     try expect(pio.ports[PORT.B].mode == MODE.INPUT);
+}
+
+test "set port A to bidirectional" {
+    var pio = Z80PIO.init();
+
+    _ = pio.tick(setData(CE | IORQ | CDSEL, (@as(u8, MODE.BIDIRECTIONAL) << 6) | 0x0F));
+    try expect(pio.ports[PORT.A].mode == MODE.BIDIRECTIONAL);
 }

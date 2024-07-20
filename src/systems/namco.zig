@@ -68,8 +68,8 @@ const Z80_PINS = z80.Pins{
 };
 
 // setup types
-const Z80 = z80.Z80(.{ .pins = Z80_PINS, .bus = Bus });
-const Memory = memory.Memory(0x400);
+const Z80 = z80.Type(.{ .pins = Z80_PINS, .bus = Bus });
+const Memory = memory.Type(.{ .page_size = 0x400 });
 
 const getAddr = Z80.getAddr;
 const getData = Z80.getData;

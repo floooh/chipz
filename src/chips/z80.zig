@@ -67,7 +67,7 @@ pub const Config = struct {
     bus: type,
 };
 
-pub fn Z80(comptime cfg: Config) type {
+pub fn Type(comptime cfg: Config) type {
     const Bus = cfg.bus;
     return struct {
         const Self = @This();

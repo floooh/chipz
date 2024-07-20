@@ -47,7 +47,7 @@ pub const Config = struct {
     bus: type,
 };
 
-pub fn AY3891(comptime cfg: Config) type {
+pub fn Type(comptime cfg: Config) type {
     return struct {
         const Self = @This();
         const Bus = cfg.bus;

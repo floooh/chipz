@@ -12,7 +12,7 @@ const z80 = chipz.chips.z80;
 const pin = chipz.common.bitutils.pin;
 
 const Bus = u64;
-const Z80 = z80.Z80(.{ .pins = z80.DefaultPins, .bus = Bus });
+const Z80 = z80.Type(.{ .pins = z80.DefaultPins, .bus = Bus });
 const CTRL = Z80.CTRL;
 const M1 = Z80.M1;
 const ABUS = Z80.ABUS;
