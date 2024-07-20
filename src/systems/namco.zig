@@ -50,6 +50,7 @@ pub const System = enum {
 };
 
 // bus wire definitions
+const Bus = u64;
 const Z80_PINS = z80.Pins{
     .DBUS = .{ 0, 1, 2, 3, 4, 5, 6, 7 },
     .ABUS = .{ 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23 },
@@ -67,7 +68,7 @@ const Z80_PINS = z80.Pins{
 };
 
 // setup types
-const Z80 = z80.Z80(Z80_PINS, u64);
+const Z80 = z80.Z80(.{ .pins = Z80_PINS, .bus = Bus });
 const Memory = memory.Memory(0x400);
 
 const getAddr = Z80.getAddr;
@@ -392,7 +393,7 @@ pub fn Namco(comptime sys: System) type {
             sample_buffer: [AUDIO.MAX_SAMPLES]f32,
         };
 
-        bus: u64 = 0,
+        bus: Bus = 0,
         cpu: Z80,
         in0: u8 = 0, // inverted bits (active-low)
         in1: u8 = 0, // inverted bits (active-low)
@@ -475,7 +476,7 @@ pub fn Namco(comptime sys: System) type {
         }
 
         /// execute a single clock cycle
-        pub fn tick(self: *Self, in_bus: u64) u64 {
+        pub fn tick(self: *Self, in_bus: Bus) Bus {
             var bus = in_bus;
 
             // update vscync counter and trigger interrupt

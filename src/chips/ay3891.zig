@@ -41,9 +41,16 @@ pub const Model = enum {
     AY38913, // no IO ports
 };
 
-pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) type {
+pub const Config = struct {
+    model: Model = .AY38910,
+    pins: Pins,
+    bus: type,
+};
+
+pub fn AY3891(comptime cfg: Config) type {
     return struct {
         const Self = @This();
+        const Bus = cfg.bus;
 
         pub const Options = struct {
             tick_hz: u32, // frequency at which the tick function will be called
@@ -53,33 +60,33 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
         };
 
         // pin bit masks
-        pub const DBUS = maskm(Bus, &P.DBUS);
-        pub const D0 = mask(Bus, P.DBUS[0]);
-        pub const D1 = mask(Bus, P.DBUS[1]);
-        pub const D2 = mask(Bus, P.DBUS[2]);
-        pub const D3 = mask(Bus, P.DBUS[3]);
-        pub const D4 = mask(Bus, P.DBUS[4]);
-        pub const D5 = mask(Bus, P.DBUS[5]);
-        pub const D6 = mask(Bus, P.DBUS[6]);
-        pub const D7 = mask(Bus, P.DBUS[7]);
-        pub const BDIR = mask(Bus, P.BDIR);
-        pub const BC1 = mask(Bus, P.BC1);
-        pub const IOA = maskm(Bus, &P.IOA);
-        pub const IOA0 = mask(Bus, P.IOA[0]);
-        pub const IOA1 = mask(Bus, P.IOA[1]);
-        pub const IOA2 = mask(Bus, P.IOA[2]);
-        pub const IOA3 = mask(Bus, P.IOA[3]);
-        pub const IOA4 = mask(Bus, P.IOA[4]);
-        pub const IOA5 = mask(Bus, P.IOA[5]);
-        pub const IOA6 = mask(Bus, P.IOA[6]);
-        pub const IOB = maskm(Bus, &P.IOB);
-        pub const IOB0 = mask(Bus, P.IOB[0]);
-        pub const IOB1 = mask(Bus, P.IOB[1]);
-        pub const IOB2 = mask(Bus, P.IOB[2]);
-        pub const IOB3 = mask(Bus, P.IOB[3]);
-        pub const IOB4 = mask(Bus, P.IOB[4]);
-        pub const IOB5 = mask(Bus, P.IOB[5]);
-        pub const IOB6 = mask(Bus, P.IOB[6]);
+        pub const DBUS = maskm(Bus, &cfg.pins.DBUS);
+        pub const D0 = mask(Bus, cfg.pins.DBUS[0]);
+        pub const D1 = mask(Bus, cfg.pins.DBUS[1]);
+        pub const D2 = mask(Bus, cfg.pins.DBUS[2]);
+        pub const D3 = mask(Bus, cfg.pins.DBUS[3]);
+        pub const D4 = mask(Bus, cfg.pins.DBUS[4]);
+        pub const D5 = mask(Bus, cfg.pins.DBUS[5]);
+        pub const D6 = mask(Bus, cfg.pins.DBUS[6]);
+        pub const D7 = mask(Bus, cfg.pins.DBUS[7]);
+        pub const BDIR = mask(Bus, cfg.pins.BDIR);
+        pub const BC1 = mask(Bus, cfg.pins.BC1);
+        pub const IOA = maskm(Bus, &cfg.pins.IOA);
+        pub const IOA0 = mask(Bus, cfg.pins.IOA[0]);
+        pub const IOA1 = mask(Bus, cfg.pins.IOA[1]);
+        pub const IOA2 = mask(Bus, cfg.pins.IOA[2]);
+        pub const IOA3 = mask(Bus, cfg.pins.IOA[3]);
+        pub const IOA4 = mask(Bus, cfg.pins.IOA[4]);
+        pub const IOA5 = mask(Bus, cfg.pins.IOA[5]);
+        pub const IOA6 = mask(Bus, cfg.pins.IOA[6]);
+        pub const IOB = maskm(Bus, &cfg.pins.IOB);
+        pub const IOB0 = mask(Bus, cfg.pins.IOB[0]);
+        pub const IOB1 = mask(Bus, cfg.pins.IOB[1]);
+        pub const IOB2 = mask(Bus, cfg.pins.IOB[2]);
+        pub const IOB3 = mask(Bus, cfg.pins.IOB[3]);
+        pub const IOB4 = mask(Bus, cfg.pins.IOB[4]);
+        pub const IOB5 = mask(Bus, cfg.pins.IOB[5]);
+        pub const IOB6 = mask(Bus, cfg.pins.IOB[6]);
 
         // misc constants
         const NUM_CHANNELS = 3;
@@ -188,24 +195,24 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
         sample: Sample = .{}, // sample generator state
 
         pub inline fn getData(bus: Bus) u8 {
-            return @truncate(bus >> P.DBUS[0]);
+            return @truncate(bus >> cfg.pins.DBUS[0]);
         }
 
         pub inline fn setData(bus: Bus, data: u8) Bus {
-            return (bus & ~DBUS) | (@as(Bus, data) << P.DBUS[0]);
+            return (bus & ~DBUS) | (@as(Bus, data) << cfg.pins.DBUS[0]);
         }
 
         pub inline fn getPort(comptime port: Port, bus: Bus) u8 {
             return switch (port) {
-                .A => @truncate(bus >> P.IOA[0]),
-                .B => @truncate(bus >> P.IOB[0]),
+                .A => @truncate(bus >> cfg.pins.IOA[0]),
+                .B => @truncate(bus >> cfg.pins.IOB[0]),
             };
         }
 
         pub inline fn setPort(comptime port: Port, bus: Bus, data: u8) Bus {
             return switch (port) {
-                .A => (bus & ~IOA) | (@as(Bus, data) << P.IOA[0]),
-                .B => (bus & ~IOB) | (@as(Bus, data) << P.IOB[0]),
+                .A => (bus & ~IOA) | (@as(Bus, data) << cfg.pins.IOA[0]),
+                .B => (bus & ~IOB) | (@as(Bus, data) << cfg.pins.IOB[0]),
             };
         }
 
@@ -275,7 +282,7 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
                 else => {},
             }
             // handle port IO
-            if (model != .AY38913) {
+            if (cfg.model != .AY38913) {
                 bus = self.portIO(bus);
             }
 
@@ -383,7 +390,7 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
             // port A and B are in input or output mode. When in input mode,
             // the port bits are mirrored into the port A/B register, and
             // when in output mode the port A/B registers are mirrored on the port pins
-            if (model != .AY38913) {
+            if (cfg.model != .AY38913) {
                 // port A exists only on AY38910 and AY38912
                 if ((self.regs[REG.ENABLE] & (1 << 6)) != 0) {
                     // port A is in output mode
@@ -393,7 +400,7 @@ pub fn AY3891(comptime model: Model, comptime P: Pins, comptime Bus: anytype) ty
                     self.setReg(REG.IO_PORT_A, getPort(.A, bus));
                 }
             }
-            if (model == .AY38910) {
+            if (cfg.model == .AY38910) {
                 // port B exists only on AY38910
                 if ((self.regs[REG.ENABLE] & (1 << 7)) != 0) {
                     // port B is in output mode

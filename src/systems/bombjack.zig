@@ -12,7 +12,7 @@ const DisplayInfo = common.glue.DisplayInfo;
 const Bus = u64;
 
 // Z80 bus definitions (same for main and sound board)
-const CPU_BUS = chips.z80.Pins{
+const CPU_PINS = chips.z80.Pins{
     .DBUS = .{ 0, 1, 2, 3, 4, 5, 6, 7 },
     .ABUS = .{ 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23 },
     .M1 = 24,
@@ -29,8 +29,8 @@ const CPU_BUS = chips.z80.Pins{
 };
 
 // bus definition for the first AY
-const PSG0_BUS = chips.ay3891.Pins{
-    .DBUS = CPU_BUS.DBUS,
+const PSG0_PINS = chips.ay3891.Pins{
+    .DBUS = CPU_PINS.DBUS,
     .BDIR = 35,
     .BC1 = 36,
     .IOA = AY_PORT,
@@ -38,8 +38,8 @@ const PSG0_BUS = chips.ay3891.Pins{
 };
 
 // bus definition for the second AY
-const PSG1_BUS = chips.ay3891.Pins{
-    .DBUS = CPU_BUS.DBUS,
+const PSG1_PINS = chips.ay3891.Pins{
+    .DBUS = CPU_PINS.DBUS,
     .BDIR = 37,
     .BC1 = 38,
     .IOA = AY_PORT,
@@ -47,8 +47,8 @@ const PSG1_BUS = chips.ay3891.Pins{
 };
 
 // bus definition for the third AY
-const PSG2_BUS = chips.ay3891.Pins{
-    .DBUS = CPU_BUS.DBUS,
+const PSG2_PINS = chips.ay3891.Pins{
+    .DBUS = CPU_PINS.DBUS,
     .BDIR = 39,
     .BC1 = 40,
     .IOA = AY_PORT,
@@ -60,10 +60,10 @@ const AY_PORT = .{ 41, 42, 43, 44, 45, 46, 47, 48 };
 
 // type definitions
 const Memory = memory.Memory(0x0400);
-const Z80 = chips.z80.Z80(CPU_BUS, Bus);
-const Psg0 = chips.ay3891.AY3891(.AY38910, PSG0_BUS, Bus);
-const Psg1 = chips.ay3891.AY3891(.AY38910, PSG1_BUS, Bus);
-const Psg2 = chips.ay3891.AY3891(.AY38910, PSG2_BUS, Bus);
+const Z80 = chips.z80.Z80(.{ .pins = CPU_PINS, .bus = Bus });
+const Psg0 = chips.ay3891.AY3891(.{ .pins = PSG0_PINS, .bus = Bus });
+const Psg1 = chips.ay3891.AY3891(.{ .pins = PSG1_PINS, .bus = Bus });
+const Psg2 = chips.ay3891.AY3891(.{ .pins = PSG2_PINS, .bus = Bus });
 
 const getData = Z80.getData;
 const setData = Z80.setData;

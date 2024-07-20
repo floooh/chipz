@@ -14,7 +14,7 @@ const pinsAll = chipz.common.bitutils.pinsAll;
 
 const T = assert;
 const Bus = u64;
-const Z80 = z80.Z80(z80.DefaultPins, Bus);
+const Z80 = z80.Z80(.{ .pins = z80.DefaultPins, .bus = Bus });
 
 var cpu: Z80 = undefined;
 var bus: Bus = 0;

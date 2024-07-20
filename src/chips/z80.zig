@@ -62,50 +62,56 @@ const indirect_table = init: {
 };
 // zig fmt: on
 
-pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
+pub const Config = struct {
+    pins: Pins,
+    bus: type,
+};
+
+pub fn Z80(comptime cfg: Config) type {
+    const Bus = cfg.bus;
     return struct {
         const Self = @This();
 
         // pin bit masks
-        pub const ABUS = maskm(Bus, &P.ABUS);
-        pub const A0 = mask(Bus, P.ABUS[0]);
-        pub const A1 = mask(Bus, P.ABUS[1]);
-        pub const A2 = mask(Bus, P.ABUS[2]);
-        pub const A3 = mask(Bus, P.ABUS[3]);
-        pub const A4 = mask(Bus, P.ABUS[4]);
-        pub const A5 = mask(Bus, P.ABUS[5]);
-        pub const A6 = mask(Bus, P.ABUS[6]);
-        pub const A7 = mask(Bus, P.ABUS[7]);
-        pub const A8 = mask(Bus, P.ABUS[8]);
-        pub const A9 = mask(Bus, P.ABUS[9]);
-        pub const A10 = mask(Bus, P.AB[10]);
-        pub const A11 = mask(Bus, P.ABUS[11]);
-        pub const A12 = mask(Bus, P.ABUS[12]);
-        pub const A13 = mask(Bus, P.ABUS[13]);
-        pub const A14 = mask(Bus, P.ABUS[14]);
-        pub const A15 = mask(Bus, P.ABUS[15]);
-        pub const DBUS = maskm(Bus, &P.DBUS);
-        pub const D0 = mask(Bus, P.DBUS[0]);
-        pub const D1 = mask(Bus, P.DBUS[1]);
-        pub const D2 = mask(Bus, P.DBUS[2]);
-        pub const D3 = mask(Bus, P.DBUS[3]);
-        pub const D4 = mask(Bus, P.DBUS[4]);
-        pub const D5 = mask(Bus, P.DBUS[5]);
-        pub const D6 = mask(Bus, P.DBUS[6]);
-        pub const D7 = mask(Bus, P.DBUS[7]);
-        pub const M1 = mask(Bus, P.M1);
-        pub const MREQ = mask(Bus, P.MREQ);
-        pub const IORQ = mask(Bus, P.IORQ);
-        pub const RD = mask(Bus, P.RD);
-        pub const WR = mask(Bus, P.WR);
-        pub const RFSH = mask(Bus, P.RFSH);
-        pub const HALT = mask(Bus, P.HALT);
-        pub const WAIT = mask(Bus, P.WAIT);
-        pub const INT = mask(Bus, P.INT);
-        pub const NMI = mask(Bus, P.NMI);
-        pub const BUSRQ = mask(Bus, P.BUSRQ);
-        pub const BUSAK = mask(Bus, P.BUSAK);
-        pub const RETI = mask(Bus, P.RETI);
+        pub const ABUS = maskm(Bus, &cfg.pins.ABUS);
+        pub const A0 = mask(Bus, cfg.pins.ABUS[0]);
+        pub const A1 = mask(Bus, cfg.pins.ABUS[1]);
+        pub const A2 = mask(Bus, cfg.pins.ABUS[2]);
+        pub const A3 = mask(Bus, cfg.pins.ABUS[3]);
+        pub const A4 = mask(Bus, cfg.pins.ABUS[4]);
+        pub const A5 = mask(Bus, cfg.pins.ABUS[5]);
+        pub const A6 = mask(Bus, cfg.pins.ABUS[6]);
+        pub const A7 = mask(Bus, cfg.pins.ABUS[7]);
+        pub const A8 = mask(Bus, cfg.pins.ABUS[8]);
+        pub const A9 = mask(Bus, cfg.pins.ABUS[9]);
+        pub const A10 = mask(Bus, cfg.pins.AB[10]);
+        pub const A11 = mask(Bus, cfg.pins.ABUS[11]);
+        pub const A12 = mask(Bus, cfg.pins.ABUS[12]);
+        pub const A13 = mask(Bus, cfg.pins.ABUS[13]);
+        pub const A14 = mask(Bus, cfg.pins.ABUS[14]);
+        pub const A15 = mask(Bus, cfg.pins.ABUS[15]);
+        pub const DBUS = maskm(Bus, &cfg.pins.DBUS);
+        pub const D0 = mask(Bus, cfg.pins.DBUS[0]);
+        pub const D1 = mask(Bus, cfg.pins.DBUS[1]);
+        pub const D2 = mask(Bus, cfg.pins.DBUS[2]);
+        pub const D3 = mask(Bus, cfg.pins.DBUS[3]);
+        pub const D4 = mask(Bus, cfg.pins.DBUS[4]);
+        pub const D5 = mask(Bus, cfg.pins.DBUS[5]);
+        pub const D6 = mask(Bus, cfg.pins.DBUS[6]);
+        pub const D7 = mask(Bus, cfg.pins.DBUS[7]);
+        pub const M1 = mask(Bus, cfg.pins.M1);
+        pub const MREQ = mask(Bus, cfg.pins.MREQ);
+        pub const IORQ = mask(Bus, cfg.pins.IORQ);
+        pub const RD = mask(Bus, cfg.pins.RD);
+        pub const WR = mask(Bus, cfg.pins.WR);
+        pub const RFSH = mask(Bus, cfg.pins.RFSH);
+        pub const HALT = mask(Bus, cfg.pins.HALT);
+        pub const WAIT = mask(Bus, cfg.pins.WAIT);
+        pub const INT = mask(Bus, cfg.pins.INT);
+        pub const NMI = mask(Bus, cfg.pins.NMI);
+        pub const BUSRQ = mask(Bus, cfg.pins.BUSRQ);
+        pub const BUSAK = mask(Bus, cfg.pins.BUSAK);
+        pub const RETI = mask(Bus, cfg.pins.RETI);
 
         // control pin mask
         pub const CTRL = M1 | MREQ | IORQ | RD | WR | RFSH;
@@ -494,24 +500,24 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
         }
 
         pub inline fn setAddr(bus: Bus, addr: u16) Bus {
-            return (bus & ~ABUS) | (@as(Bus, addr) << P.ABUS[0]);
+            return (bus & ~ABUS) | (@as(Bus, addr) << cfg.pins.ABUS[0]);
         }
 
         pub inline fn getAddr(bus: Bus) u16 {
-            return @truncate(bus >> P.ABUS[0]);
+            return @truncate(bus >> cfg.pins.ABUS[0]);
         }
 
         inline fn setAddrData(bus: Bus, addr: u16, data: u8) Bus {
-            return (bus & ~(ABUS | DBUS)) | (@as(Bus, addr) << P.ABUS[0]) | (@as(Bus, data) << P.DBUS[0]);
+            return (bus & ~(ABUS | DBUS)) | (@as(Bus, addr) << cfg.pins.ABUS[0]) | (@as(Bus, data) << cfg.pins.DBUS[0]);
         }
 
         pub inline fn getData(bus: Bus) u8 {
-            return @truncate(bus >> P.DBUS[0]);
+            return @truncate(bus >> cfg.pins.DBUS[0]);
         }
         const gd = getData;
 
         pub inline fn setData(bus: Bus, data: u8) Bus {
-            return (bus & ~DBUS) | (@as(Bus, data) << P.DBUS[0]);
+            return (bus & ~DBUS) | (@as(Bus, data) << cfg.pins.DBUS[0]);
         }
 
         inline fn mrd(bus: Bus, addr: u16) Bus {
@@ -2988,10 +2994,10 @@ pub fn Z80(comptime P: Pins, comptime Bus: anytype) type {
                 bus = self.fetch(bus);
             }
             // track interrupt state
-            const nmi: u1 = @truncate(bus >> P.NMI);
+            const nmi: u1 = @truncate(bus >> cfg.pins.NMI);
             self.nmi |= (nmi ^ self.last_nmi) & nmi;    // keep track of nmi rising edge
             self.last_nmi = nmi;
-            self.int = @truncate(bus >> P.INT);
+            self.int = @truncate(bus >> cfg.pins.INT);
             return bus;
         }
         // zig fmt: on

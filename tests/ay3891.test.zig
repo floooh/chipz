@@ -2,10 +2,9 @@ const expect = @import("std").testing.expect;
 const expectApproxEqAbs = @import("std").testing.expectApproxEqAbs;
 const ay3891 = @import("chipz").chips.ay3891;
 
-const pins = ay3891.DefaultPins;
-const AY38910 = ay3891.AY3891(.AY38910, pins, u32);
-const AY38912 = ay3891.AY3891(.AY38912, pins, u32);
-const AY38913 = ay3891.AY3891(.AY38913, pins, u32);
+const AY38910 = ay3891.AY3891(.{ .model = .AY38910, .pins = ay3891.DefaultPins, .bus = u32 });
+const AY38912 = ay3891.AY3891(.{ .model = .AY38912, .pins = ay3891.DefaultPins, .bus = u32 });
+const AY38913 = ay3891.AY3891(.{ .model = .AY38913, .pins = ay3891.DefaultPins, .bus = u32 });
 
 const BDIR = AY38910.BDIR;
 const BC1 = AY38910.BC1;

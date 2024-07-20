@@ -3,17 +3,32 @@ const bitutils = @import("common").bitutils;
 const mask = bitutils.mask;
 const maskm = bitutils.maskm;
 
-pub fn Z80IRQ(comptime P: anytype, comptime Bus: anytype) type {
+pub const Pins = struct {
+    DBUS: [8]comptime_int,
+    M1: comptime_int,
+    IORQ: comptime_int,
+    INT: comptime_int,
+    RETI: comptime_int,
+    IEIO: comptime_int,
+};
+
+pub const Config = struct {
+    pins: Pins,
+    bus: type,
+};
+
+pub fn Z80IRQ(comptime cfg: Config) type {
+    const Bus = cfg.bus;
     return struct {
         const Self = @This();
 
         // pin bit masks
-        const DBUS = maskm(Bus, &P.DBUS);
-        const M1 = mask(Bus, P.M1);
-        const IORQ = mask(Bus, P.IORQ);
-        const INT = mask(Bus, P.INT);
-        const RETI = mask(Bus, P.RETI);
-        const IEIO = mask(Bus, P.IEIO);
+        const DBUS = maskm(Bus, &cfg.pins.DBUS);
+        const M1 = mask(Bus, cfg.pins.M1);
+        const IORQ = mask(Bus, cfg.pins.IORQ);
+        const INT = mask(Bus, cfg.pins.INT);
+        const RETI = mask(Bus, cfg.pins.RETI);
+        const IEIO = mask(Bus, cfg.pins.IEIO);
 
         const NEEDED: u8 = 1 << 0;
         const REQUESTED: u8 = 1 << 1;
@@ -23,7 +38,7 @@ pub fn Z80IRQ(comptime P: anytype, comptime Bus: anytype) type {
         vector: u8 = 0,
 
         inline fn setData(bus: Bus, data: u8) Bus {
-            return (bus & ~DBUS) | (@as(Bus, data) << P.DBUS[0]);
+            return (bus & ~DBUS) | (@as(Bus, data) << cfg.pins.DBUS[0]);
         }
 
         pub fn reset(self: *Self) void {

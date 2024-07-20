@@ -3,7 +3,7 @@ const assert = @import("std").debug.assert;
 const bitutils = @import("common").bitutils;
 const mask = bitutils.mask;
 const maskm = bitutils.maskm;
-const Z80IRQ = @import("z80irq.zig").Z80IRQ;
+const z80irq = @import("z80irq.zig");
 
 /// Z80 CTC pin declarations
 pub const Pins = struct {
@@ -37,45 +37,60 @@ pub const DefaultPins = Pins{
     .IEIO = 23,
 };
 
-pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
-    assert(P.CS[1] == P.CS[0] + 1);
-    assert(P.ZCTO[1] == P.ZCTO[0] + 1);
-    assert(P.ZCTO[2] == P.ZCTO[1] + 1);
+pub const Config = struct { pins: Pins, bus: type };
+
+pub fn Z80CTC(comptime cfg: Config) type {
+    assert(cfg.pins.CS[1] == cfg.pins.CS[0] + 1);
+    assert(cfg.pins.ZCTO[1] == cfg.pins.ZCTO[0] + 1);
+    assert(cfg.pins.ZCTO[2] == cfg.pins.ZCTO[1] + 1);
+
+    const Bus = cfg.bus;
+    const Z80IRQ = z80irq.Z80IRQ(.{
+        .pins = .{
+            .DBUS = cfg.pins.DBUS,
+            .M1 = cfg.pins.M1,
+            .IORQ = cfg.pins.IORQ,
+            .INT = cfg.pins.INT,
+            .RETI = cfg.pins.RETI,
+            .IEIO = cfg.pins.IEIO,
+        },
+        .bus = Bus,
+    });
 
     return struct {
         const Self = @This();
 
         // pin bit masks
-        pub const DBUS = maskm(Bus, &P.DBUS);
-        pub const D0 = mask(Bus, P.D[0]);
-        pub const D1 = mask(Bus, P.D[1]);
-        pub const D2 = mask(Bus, P.D[2]);
-        pub const D3 = mask(Bus, P.D[3]);
-        pub const D4 = mask(Bus, P.D[4]);
-        pub const D5 = mask(Bus, P.D[5]);
-        pub const D6 = mask(Bus, P.D[6]);
-        pub const D7 = mask(Bus, P.D[7]);
-        pub const M1 = mask(Bus, P.M1);
-        pub const IORQ = mask(Bus, P.IORQ);
-        pub const RD = mask(Bus, P.RD);
-        pub const INT = mask(Bus, P.INT);
-        pub const IEI = mask(Bus, P.IEI);
-        pub const IEO = mask(Bus, P.IEO);
-        pub const CE = mask(Bus, P.CE);
-        pub const CS = maskm(Bus, &P.CS);
-        pub const CS0 = mask(Bus, P.CS[0]);
-        pub const CS1 = mask(Bus, P.CS[1]);
-        pub const CLKTRG = maskm(Bus, &P.CLKTRG);
-        pub const CLKTRG0 = mask(Bus, P.CLKTRG[0]);
-        pub const CLKTRG1 = mask(Bus, P.CLKTRG[1]);
-        pub const CLKTRG2 = mask(Bus, P.CLKTRG[2]);
-        pub const CLKTRG3 = mask(Bus, P.CLKTRG[3]);
-        pub const ZCTO = maskm(Bus, &P.ZCTO);
-        pub const ZCTO0 = mask(Bus, P.ZCTO[0]);
-        pub const ZCTO1 = mask(Bus, P.ZCTO[1]);
-        pub const ZCTO2 = mask(Bus, P.ZCTO[2]);
-        pub const RETI = mask(Bus, P.RETI);
-        pub const IEIO = mask(Bus, P.IEIO);
+        pub const DBUS = maskm(Bus, &cfg.pins.DBUS);
+        pub const D0 = mask(Bus, cfg.pins.D[0]);
+        pub const D1 = mask(Bus, cfg.pins.D[1]);
+        pub const D2 = mask(Bus, cfg.pins.D[2]);
+        pub const D3 = mask(Bus, cfg.pins.D[3]);
+        pub const D4 = mask(Bus, cfg.pins.D[4]);
+        pub const D5 = mask(Bus, cfg.pins.D[5]);
+        pub const D6 = mask(Bus, cfg.pins.D[6]);
+        pub const D7 = mask(Bus, cfg.pins.D[7]);
+        pub const M1 = mask(Bus, cfg.pins.M1);
+        pub const IORQ = mask(Bus, cfg.pins.IORQ);
+        pub const RD = mask(Bus, cfg.pins.RD);
+        pub const INT = mask(Bus, cfg.pins.INT);
+        pub const IEI = mask(Bus, cfg.pins.IEI);
+        pub const IEO = mask(Bus, cfg.pins.IEO);
+        pub const CE = mask(Bus, cfg.pins.CE);
+        pub const CS = maskm(Bus, &cfg.pins.CS);
+        pub const CS0 = mask(Bus, cfg.pins.CS[0]);
+        pub const CS1 = mask(Bus, cfg.pins.CS[1]);
+        pub const CLKTRG = maskm(Bus, &cfg.pins.CLKTRG);
+        pub const CLKTRG0 = mask(Bus, cfg.pins.CLKTRG[0]);
+        pub const CLKTRG1 = mask(Bus, cfg.pins.CLKTRG[1]);
+        pub const CLKTRG2 = mask(Bus, cfg.pins.CLKTRG[2]);
+        pub const CLKTRG3 = mask(Bus, cfg.pins.CLKTRG[3]);
+        pub const ZCTO = maskm(Bus, &cfg.pins.ZCTO);
+        pub const ZCTO0 = mask(Bus, cfg.pins.ZCTO[0]);
+        pub const ZCTO1 = mask(Bus, cfg.pins.ZCTO[1]);
+        pub const ZCTO2 = mask(Bus, cfg.pins.ZCTO[2]);
+        pub const RETI = mask(Bus, cfg.pins.RETI);
+        pub const IEIO = mask(Bus, cfg.pins.IEIO);
 
         // control register bits
         pub const CTRL = struct {
@@ -114,17 +129,17 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
             waiting_for_trigger: bool = false,
             ext_trigger: bool = false,
             prescaler_mask: u8 = 0,
-            irq: Z80IRQ(P, Bus) = .{},
+            irq: Z80IRQ = .{},
         };
 
         chn: [NUM_CHANNELS]Channel = [_]Channel{.{}} ** NUM_CHANNELS,
 
         pub inline fn getData(bus: Bus) u8 {
-            return @truncate(bus >> P.DBUS[0]);
+            return @truncate(bus >> cfg.pins.DBUS[0]);
         }
 
         pub inline fn setData(bus: Bus, data: u8) Bus {
-            return (bus & ~DBUS) | (@as(Bus, data) << P.DBUS[0]);
+            return (bus & ~DBUS) | (@as(Bus, data) << cfg.pins.DBUS[0]);
         }
 
         pub fn init() Self {
@@ -158,7 +173,7 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
         }
 
         fn ioRead(self: *const Self, bus: Bus) Bus {
-            const chn_idx: usize = (bus >> P.CS[0]) & 3;
+            const chn_idx: usize = (bus >> cfg.pins.CS[0]) & 3;
             const data = self.chn[chn_idx].down_counter;
             return setData(bus, data);
         }
@@ -166,7 +181,7 @@ pub fn Z80CTC(comptime P: Pins, comptime Bus: anytype) type {
         fn ioWrite(self: *Self, in_bus: Bus) Bus {
             var bus = in_bus;
             const data = getData(bus);
-            const chn_id: usize = (bus >> P.CS[0]) & 3;
+            const chn_id: usize = (bus >> cfg.pins.CS[0]) & 3;
             var chn = &self.chn[chn_id];
             if ((chn.control & CTRL.CONST_FOLLOWS) != 0) {
                 // timer constant following control word

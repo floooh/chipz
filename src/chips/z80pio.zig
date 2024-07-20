@@ -2,7 +2,7 @@
 const bitutils = @import("common").bitutils;
 const mask = bitutils.mask;
 const maskm = bitutils.maskm;
-const Z80IRQ = @import("z80irq.zig").Z80IRQ;
+const z80irg = @import("z80irq.zig");
 
 /// Z80 PIO pin declarations
 pub const Pins = struct {
@@ -45,49 +45,67 @@ pub const DefaultPins = Pins{
     .IEIO = 36,
 };
 
-pub fn Z80PIO(comptime P: Pins, comptime Bus: anytype) type {
+pub const Config = struct {
+    pins: Pins,
+    bus: type,
+};
+
+pub fn Z80PIO(cfg: Config) type {
+    const Bus = cfg.bus;
+    const Z80IRQ = z80irg.Z80IRQ(.{
+        .pins = .{
+            .DBUS = cfg.pins.DBUS,
+            .M1 = cfg.pins.M1,
+            .IORQ = cfg.pins.IORQ,
+            .INT = cfg.pins.INT,
+            .RETI = cfg.pins.RETI,
+            .IEIO = cfg.pins.IEIO,
+        },
+        .bus = Bus,
+    });
+
     return struct {
         const Self = @This();
 
         // pin bit masks
-        pub const DBUS = maskm(Bus, &P.DBUS);
-        pub const D0 = mask(Bus, P.D[0]);
-        pub const D1 = mask(Bus, P.D[1]);
-        pub const D2 = mask(Bus, P.D[2]);
-        pub const D3 = mask(Bus, P.D[3]);
-        pub const D4 = mask(Bus, P.D[4]);
-        pub const D5 = mask(Bus, P.D[5]);
-        pub const D6 = mask(Bus, P.D[6]);
-        pub const D7 = mask(Bus, P.D[7]);
-        pub const M1 = mask(Bus, P.M1);
-        pub const IORQ = mask(Bus, P.IORQ);
-        pub const RD = mask(Bus, P.RD);
-        pub const INT = mask(Bus, P.INT);
-        pub const CE = mask(Bus, P.CE);
-        pub const BASEL = mask(Bus, P.BASEL);
-        pub const CDSEL = mask(Bus, P.CDSEL);
-        pub const ARDY = mask(Bus, P.ARDY);
-        pub const BRDY = mask(Bus, P.BRDY);
-        pub const ASTB = mask(Bus, P.ASTB);
-        pub const BSTB = mask(Bus, P.BSTB);
-        pub const PA = maskm(Bus, &P.PA);
-        pub const PA0 = mask(Bus, P.PA[0]);
-        pub const PA1 = mask(Bus, P.PA[1]);
-        pub const PA2 = mask(Bus, P.PA[2]);
-        pub const PA3 = mask(Bus, P.PA[3]);
-        pub const PA4 = mask(Bus, P.PA[4]);
-        pub const PA5 = mask(Bus, P.PA[5]);
-        pub const PA6 = mask(Bus, P.PA[6]);
-        pub const PA7 = mask(Bus, P.PA[7]);
-        pub const PB = maskm(Bus, &P.PB);
-        pub const PB0 = mask(Bus, P.PB[0]);
-        pub const PB1 = mask(Bus, P.PB[1]);
-        pub const PB2 = mask(Bus, P.PB[2]);
-        pub const PB3 = mask(Bus, P.PB[3]);
-        pub const PB4 = mask(Bus, P.PB[4]);
-        pub const PB5 = mask(Bus, P.PB[5]);
-        pub const PB6 = mask(Bus, P.PB[6]);
-        pub const PB7 = mask(Bus, P.PB[7]);
+        pub const DBUS = maskm(Bus, &cfg.pins.DBUS);
+        pub const D0 = mask(Bus, cfg.pins.D[0]);
+        pub const D1 = mask(Bus, cfg.pins.D[1]);
+        pub const D2 = mask(Bus, cfg.pins.D[2]);
+        pub const D3 = mask(Bus, cfg.pins.D[3]);
+        pub const D4 = mask(Bus, cfg.pins.D[4]);
+        pub const D5 = mask(Bus, cfg.pins.D[5]);
+        pub const D6 = mask(Bus, cfg.pins.D[6]);
+        pub const D7 = mask(Bus, cfg.pins.D[7]);
+        pub const M1 = mask(Bus, cfg.pins.M1);
+        pub const IORQ = mask(Bus, cfg.pins.IORQ);
+        pub const RD = mask(Bus, cfg.pins.RD);
+        pub const INT = mask(Bus, cfg.pins.INT);
+        pub const CE = mask(Bus, cfg.pins.CE);
+        pub const BASEL = mask(Bus, cfg.pins.BASEL);
+        pub const CDSEL = mask(Bus, cfg.pins.CDSEL);
+        pub const ARDY = mask(Bus, cfg.pins.ARDY);
+        pub const BRDY = mask(Bus, cfg.pins.BRDY);
+        pub const ASTB = mask(Bus, cfg.pins.ASTB);
+        pub const BSTB = mask(Bus, cfg.pins.BSTB);
+        pub const PA = maskm(Bus, &cfg.pins.PA);
+        pub const PA0 = mask(Bus, cfg.pins.PA[0]);
+        pub const PA1 = mask(Bus, cfg.pins.PA[1]);
+        pub const PA2 = mask(Bus, cfg.pins.PA[2]);
+        pub const PA3 = mask(Bus, cfg.pins.PA[3]);
+        pub const PA4 = mask(Bus, cfg.pins.PA[4]);
+        pub const PA5 = mask(Bus, cfg.pins.PA[5]);
+        pub const PA6 = mask(Bus, cfg.pins.PA[6]);
+        pub const PA7 = mask(Bus, cfg.pins.PA[7]);
+        pub const PB = maskm(Bus, &cfg.pins.PB);
+        pub const PB0 = mask(Bus, cfg.pins.PB[0]);
+        pub const PB1 = mask(Bus, cfg.pins.PB[1]);
+        pub const PB2 = mask(Bus, cfg.pins.PB[2]);
+        pub const PB3 = mask(Bus, cfg.pins.PB[3]);
+        pub const PB4 = mask(Bus, cfg.pins.PB[4]);
+        pub const PB5 = mask(Bus, cfg.pins.PB[5]);
+        pub const PB6 = mask(Bus, cfg.pins.PB[6]);
+        pub const PB7 = mask(Bus, cfg.pins.PB[7]);
 
         pub const PORT = struct {
             pub const A = 0;
@@ -156,7 +174,7 @@ pub fn Z80PIO(comptime P: Pins, comptime Bus: anytype) type {
             int_control: u8 = 0, // interrupt control word (INTCTRL.*)
             int_mask: u8 = 0, // interrupt control mask
             // helpers
-            irq: Z80IRQ(P, Bus) = .{}, // interrupt daisy chain state
+            irq: Z80IRQ = .{}, // interrupt daisy chain state
             int_enabled: bool = false, // definitive interrupt enabled flag
             expect: Expect = .CTRL, // expect control word, io_select or int_mask
             expect_io_select: bool = false, // next control word will be io_select
@@ -168,25 +186,25 @@ pub fn Z80PIO(comptime P: Pins, comptime Bus: anytype) type {
         reset_active: bool = false,
 
         pub inline fn getData(bus: Bus) u8 {
-            return @truncate(bus >> P.DBUS[0]);
+            return @truncate(bus >> cfg.pins.DBUS[0]);
         }
 
         pub inline fn setData(bus: Bus, data: u8) Bus {
-            return (bus & ~DBUS) | (@as(Bus, data) << P.DBUS[0]);
+            return (bus & ~DBUS) | (@as(Bus, data) << cfg.pins.DBUS[0]);
         }
 
         pub inline fn setPort(comptime port: comptime_int, bus: Bus, data: u8) Bus {
             return switch (port) {
-                PORT.A => (bus & ~PA) | (@as(Bus, data) << P.PA[0]),
-                PORT.B => (bus & ~PB) | (@as(Bus, data) << P.PB[0]),
+                PORT.A => (bus & ~PA) | (@as(Bus, data) << cfg.pins.PA[0]),
+                PORT.B => (bus & ~PB) | (@as(Bus, data) << cfg.pins.PB[0]),
                 else => unreachable,
             };
         }
 
         pub inline fn getPort(comptime port: comptime_int, bus: Bus) u8 {
             return @truncate(bus >> switch (port) {
-                PORT.A => P.PA[0],
-                PORT.B => P.PB[0],
+                PORT.A => cfg.pins.PA[0],
+                PORT.B => cfg.pins.PB[0],
                 else => unreachable,
             });
         }

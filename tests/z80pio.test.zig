@@ -4,7 +4,7 @@ const chipz = @import("chipz");
 const z80pio = chipz.chips.z80pio;
 
 const Bus = u64;
-const Z80PIO = z80pio.Z80PIO(z80pio.DefaultPins, Bus);
+const Z80PIO = z80pio.Z80PIO(.{ .pins = z80pio.DefaultPins, .bus = Bus });
 
 const setData = Z80PIO.setData;
 
