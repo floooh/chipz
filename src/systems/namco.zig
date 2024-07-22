@@ -40,6 +40,7 @@ const memory = common.memory;
 const clock = common.clock;
 const filter = common.filter;
 const pin = common.bitutils.pin;
+const cp = common.utils.cp;
 const AudioCallback = common.glue.AudioCallback;
 const AudioOptions = common.glue.AudioOptions;
 const DisplayInfo = common.glue.DisplayInfo;
@@ -763,10 +764,6 @@ pub fn Type(comptime sys: System) type {
                 self.mem.mapRAM(0x8400, 0x0400, self.ram.color[0..]);
                 self.mem.mapRAM(0x8800, 0x0800, self.ram.main[0..]);
             }
-        }
-
-        fn cp(src: []const u8, dst: []u8) void {
-            std.mem.copyForwards(u8, dst, src);
         }
 
         fn initSysRom(opts: Options) [MEMMAP.CPU_ROM_SIZE]u8 {

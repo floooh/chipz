@@ -9,6 +9,8 @@ const common = @import("common");
 const memory = common.memory;
 const clock = common.clock;
 const pin = common.bitutils.pin;
+const cp = common.utils.cp;
+const fillNoise = common.utils.fillNoise;
 const AudioCallback = common.glue.AudioCallback;
 const AudioOptions = common.glue.AudioOptions;
 const DisplayInfo = common.glue.DisplayInfo;
@@ -287,7 +289,7 @@ pub fn Type(comptime model: Model) type {
         mem: Memory,
 
         // memory buffers
-        ram: [8][0x4000]u8, // up to 8 16-KByte RAM banks
+        ram: [8][0x4000]u8,
         rom: Rom,
         ext_buf: [EXP.BUF_SIZE]u8,
         fb: [DISPLAY.FB_SIZE]u8 align(128),
@@ -303,8 +305,20 @@ pub fn Type(comptime model: Model) type {
                     .junk_page = &self.junk_page,
                     .unmapped_page = &self.unmapped_page,
                 }),
-                // FIXME: on KC85/2, /3 fill with noise
-                .ram = std.mem.zeroes(@TypeOf(self.ram)),
+                .ram = init: {
+                    var arr: [8][0x4000]u8 = undefined;
+                    if (model == .KC854) {
+                        // on KC85/4, RAM is filled with zeroes
+                        arr = std.mem.zeroes(@TypeOf(self.ram));
+                    } else {
+                        // on KC85/2, /3 RAM is filled with noise
+                        var x: u32 = 0x6D98302B; // seed for xorshift32
+                        inline for (0..8) |i| {
+                            x = fillNoise(&arr[i], x);
+                        }
+                    }
+                    break :init arr;
+                },
                 .rom = initRoms(opts),
                 .ext_buf = std.mem.zeroes(@TypeOf(self.ext_buf)),
                 .fb = std.mem.zeroes(@TypeOf(self.fb)),
@@ -347,10 +361,6 @@ pub fn Type(comptime model: Model) type {
                 .palette = &DISPLAY.PALETTE,
                 .orientation = .Landscape,
             };
-        }
-
-        fn cp(src: []const u8, dst: []u8) void {
-            std.mem.copyForwards(u8, dst, src);
         }
 
         fn initRoms(opts: Options) Rom {

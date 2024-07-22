@@ -7,6 +7,7 @@ const common = @import("common");
 const memory = common.memory;
 const clock = common.clock;
 const pin = common.bitutils.pin;
+const cp = common.utils.cp;
 const AudioCallback = common.glue.AudioCallback;
 const AudioOptions = common.glue.AudioOptions;
 const DisplayInfo = common.glue.DisplayInfo;
@@ -840,10 +841,6 @@ pub const Bombjack = struct {
             c = 0xFF000000 | (c & 0x00FF0000) | (g << 8) | r;
         }
         self.main_board.palette[pal_index] = c;
-    }
-
-    fn cp(src: []const u8, dst: []u8) void {
-        std.mem.copyForwards(u8, dst, src);
     }
 
     fn initMainRom(opts: Options) [5][0x2000]u8 {
