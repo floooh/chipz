@@ -45,8 +45,8 @@ const PIO_PINS = z80pio.Pins{
     .RD = CPU_PINS.RD,
     .INT = CPU_PINS.INT,
     .CE = 36,
-    .BASEL = CPU_PINS.A[0], // BASEL pin is directly connected to A0
-    .CDSEL = CPU_PINS.A[1], // CDSEL pin is directly connected to A1
+    .BASEL = CPU_PINS.ABUS[0], // BASEL pin is directly connected to A0
+    .CDSEL = CPU_PINS.ABUS[1], // CDSEL pin is directly connected to A1
     .ARDY = 37,
     .BRDY = 38,
     .ASTB = 39,
@@ -65,7 +65,7 @@ const CTC_PINS = z80ctc.Pins{
     .RD = CPU_PINS.RD,
     .INT = CPU_PINS.INT,
     .CE = 51,
-    .CS = .{ CPU_PINS.A[0], CPU_PINS.A[1] }, // CTC CS0/CS1 are directly connected to A0/A1
+    .CS = .{ CPU_PINS.ABUS[0], CPU_PINS.ABUS[1] }, // CTC CS0/CS1 are directly connected to A0/A1
     .CLKTRG = .{ 52, 53, 54, 55 },
     .ZCTO = .{ 56, 57, 58 },
     .RETI = CPU_PINS.RETI,
@@ -120,6 +120,49 @@ pub fn Type(comptime model: Model) type {
             pub const HEIGHT = 256;
             pub const FB_WIDTH = 512;
             pub const FB_HEIGHT = 256;
+            pub const FB_SIZE = FB_WIDTH * FB_HEIGHT;
+            pub const PALETTE = [_]u32{
+                // 16 foreground colors
+                0xFF000000, // black
+                0xFFFF0000, // blue
+                0xFF0000FF, // red
+                0xFFFF00FF, // magenta
+                0xFF00FF00, // green
+                0xFFFFFF00, // cyan
+                0xFF00FFFF, // yellow
+                0xFFFFFFFF, // white
+                0xFF000000, // black #2
+                0xFFFF00A0, // violet
+                0xFF00A0FF, // orange
+                0xFFA000FF, // purple
+                0xFFA0FF00, // blueish green
+                0xFFFFA000, // greenish blue
+                0xFF00FFA0, // yellow-green
+                0xFFFFFFFF, // white #2
+                // 8 background colors
+                0xFF000000, // black
+                0xFFA00000, // dark-blue
+                0xFF0000A0, // dark-red
+                0xFFA000A0, // dark-magenta
+                0xFF00A000, // dark-green
+                0xFFA0A000, // dark-cyan
+                0xFF00A0A0, // dark-yellow
+                0xFFA0A0A0, // gray
+                // padding to get next block at 2^N
+                0xFFFF00FF,
+                0xFFFF00FF,
+                0xFFFF00FF,
+                0xFFFF00FF,
+                0xFFFF00FF,
+                0xFFFF00FF,
+                0xFFFF00FF,
+                0xFFFF00FF,
+                // KC85/4 only: 4 extra HICOLOR colors
+                0xFF000000, // black
+                0xFF0000FF, // red
+                0xFFFFFF00, // cyan
+                0xFFFFFFFF, // white
+            };
         };
 
         // PIO output pins
@@ -186,7 +229,7 @@ pub fn Type(comptime model: Model) type {
             M027_DEVELOPMENT, // Assembler IDE (id = 0xFB)
         };
 
-        // KC85 expansion module state
+        // expansion module state
         pub const Module = struct {
             mod_type: ModuleType = .NONE,
             id: u8 = 0,
@@ -195,10 +238,36 @@ pub fn Type(comptime model: Model) type {
             size: u32 = 0,
         };
 
-        // KC85 expansion slot
+        // expansion system slot
         pub const Slot = struct {
-            slot: [EXP.NUM_SLOTS]Slot = [_]Slot{.{}} ** EXP.NUM_SLOTS,
+            addr: u8, // 0x0C (left slot) or 0x08 (right slot)
+            ctrl: u8 = 0, // current control byte
+            buf_offset: u32 = 0, // byte offset in expansion system memory buffer
+            mod: Module = .{}, // currently inserted module
+        };
+
+        // KC85 expansion system state
+        pub const Exp = struct {
+            slot: [EXP.NUM_SLOTS]Slot = .{
+                .{ .addr = 0x0C },
+                .{ .addr = 0x08 },
+            },
             buf_top: u32 = 0,
+        };
+
+        pub const Rom = switch (model) {
+            .KC852 => struct {
+                caos_e: [0x2000]u8, // 8 KB CAOS ROM at 0xE000,
+            },
+            .KC853 => struct {
+                basic: [0x2000]u8, // 8 KB BASIC ROM at 0xC000
+                caos_e: [0x2000]u8, // 8 KB CAOS ROM at 0xE000
+            },
+            .KC854 => struct {
+                basic: [0x2000]u8, // 8 KB BASIC ROM at 0xC000
+                caos_c: [0x1000]u8, // 4 KB CAOS ROM at 0xC000
+                caos_e: [0x2000]u8, // 8 KB CAOS ROM at 0xE000
+            },
         };
 
         // KC85 emulator state
@@ -209,10 +278,98 @@ pub fn Type(comptime model: Model) type {
         video: struct {
             h_tick: u16 = 0,
             v_count: u16 = 0,
-        },
+        } = .{},
         io84: u8 = 0, // KC85/4 only: byte latch at IO address 0x84
         io86: u8 = 0, // KC85/4 only: byte latch at IO address 0x86
         // FIXME: beepers
+        // FIXME: keyboard
+        exp: Exp = .{},
         mem: Memory,
+
+        // memory buffers
+        ram: [8][0x4000]u8, // up to 8 16-KByte RAM banks
+        rom: Rom,
+        ext_buf: [EXP.BUF_SIZE]u8,
+        fb: [DISPLAY.FB_SIZE]u8 align(128),
+        junk_page: [Memory.PAGE_SIZE]u8,
+        unmapped_page: [Memory.PAGE_SIZE]u8,
+
+        pub fn initInPlace(self: *Self, opts: Options) void {
+            self.* = .{
+                .cpu = Z80.init(),
+                .pio = Z80PIO.init(),
+                .ctc = Z80CTC.init(),
+                .mem = Memory.init(.{
+                    .junk_page = &self.junk_page,
+                    .unmapped_page = &self.unmapped_page,
+                }),
+                // FIXME: on KC85/2, /3 fill with noise
+                .ram = std.mem.zeroes(@TypeOf(self.ram)),
+                .rom = initRoms(opts),
+                .ext_buf = std.mem.zeroes(@TypeOf(self.ext_buf)),
+                .fb = std.mem.zeroes(@TypeOf(self.fb)),
+                .junk_page = std.mem.zeroes(@TypeOf(self.junk_page)),
+                .unmapped_page = [_]u8{0xFF} ** Memory.PAGE_SIZE,
+            };
+            // FIXME: on KC85/2 and /3 fill RAM with noise
+        }
+
+        pub fn exec(self: *Self, micro_seconds: u32) u32 {
+            const num_ticks = clock.microSecondsToTicks(FREQUENCY, micro_seconds);
+            var bus = self.bus;
+            for (0..num_ticks) |_| {
+                bus = self.tick(bus);
+            }
+            self.bus = bus;
+            return num_ticks;
+        }
+
+        pub fn tick(self: *Self, bus: Bus) Bus {
+            _ = self; // autofix
+            return bus;
+        }
+
+        pub fn displayInfo(selfOrNull: ?*const Self) DisplayInfo {
+            return .{
+                .fb = .{
+                    .dim = .{
+                        .width = DISPLAY.FB_WIDTH,
+                        .height = DISPLAY.FB_HEIGHT,
+                    },
+                    .buffer = if (selfOrNull) |self| .{ .Palette8 = &self.fb } else null,
+                },
+                .view = .{
+                    .x = 0,
+                    .y = 0,
+                    .width = DISPLAY.WIDTH,
+                    .height = DISPLAY.HEIGHT,
+                },
+                .palette = &DISPLAY.PALETTE,
+                .orientation = .Landscape,
+            };
+        }
+
+        fn cp(src: []const u8, dst: []u8) void {
+            std.mem.copyForwards(u8, dst, src);
+        }
+
+        fn initRoms(opts: Options) Rom {
+            var rom: Rom = undefined;
+            switch (model) {
+                .KC852 => {
+                    cp(opts.roms.caos22, &rom.caos_e);
+                },
+                .KC853 => {
+                    cp(opts.roms.kcbasic, &rom.basic);
+                    cp(opts.roms.caos31, &rom.caos_e);
+                },
+                .KC854 => {
+                    cp(opts.roms.kcbasic, &rom.basic);
+                    cp(opts.roms.caos42c, &rom.caos_c);
+                    cp(opts.roms.caos42e, &rom.caos_e);
+                },
+            }
+            return rom;
+        }
     };
 }

@@ -31,7 +31,6 @@ export fn init() void {
         },
     });
     host.gfx.init(.{
-        .border = host.gfx.DEFAULT_BORDER,
         .display = sys.displayInfo(),
         .pixel_aspect = .{ .width = 2, .height = 3 },
     });

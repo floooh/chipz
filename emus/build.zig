@@ -5,9 +5,10 @@ const OptimizeMode = std.builtin.OptimizeMode;
 const Module = Build.Module;
 
 const emulators = .{
-    "pacman",
-    "pengo",
-    "bombjack",
+    .{ .name = "pacman", .path = "pacman/pacman.zig" },
+    .{ .name = "pengo", .path = "pengo/pengo.zig" },
+    .{ .name = "bombjack", .path = "bombjack/bombjack.zig" },
+    .{ .name = "kc853", .path = "kc85/kc853.zig" },
 };
 
 pub const Options = struct {
@@ -33,10 +34,10 @@ pub fn build(b: *Build, opts: Options) void {
         },
     });
 
-    inline for (emulators) |name| {
+    inline for (emulators) |emu| {
         addEmulator(b, .{
-            .name = name,
-            .src = b.fmt("{s}/{s}/{s}.zig", .{ opts.src_dir, name, name }),
+            .name = emu.name,
+            .src = b.fmt("{s}/{s}", .{ opts.src_dir, emu.path }),
             .target = opts.target,
             .optimize = opts.optimize,
             .mod_chipz = opts.mod_chipz,
