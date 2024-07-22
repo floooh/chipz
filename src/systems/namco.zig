@@ -38,6 +38,7 @@ const z80 = @import("chips").z80;
 const common = @import("common");
 const memory = common.memory;
 const clock = common.clock;
+const filter = common.filter;
 const pin = common.bitutils.pin;
 const AudioCallback = common.glue.AudioCallback;
 const AudioOptions = common.glue.AudioOptions;
@@ -386,6 +387,11 @@ pub fn Type(comptime sys: System) type {
             sample_counter: i32,
             volume: f32,
             voices: [3]AudioVoice = [_]AudioVoice{.{}} ** 3,
+            filter: filter.Type(.{
+                .enable_dcadjust = false,
+                .enable_lowpass_filter = true,
+                .dcadjust_buf_len = 2,
+            }) = .{},
             num_samples: u32,
             sample_pos: u32,
             callback: AudioCallback,
@@ -918,7 +924,7 @@ pub fn Type(comptime sys: System) type {
                     }
                 }
                 sm *= snd.volume * 0.333333;
-                snd.sample_buffer[snd.sample_pos] = sm;
+                snd.sample_buffer[snd.sample_pos] = self.audio.filter.put(sm);
                 snd.sample_pos += 1;
                 if (snd.sample_pos == snd.num_samples) {
                     if (snd.callback) |cb| {

@@ -4,7 +4,7 @@
 const bitutils = @import("common").bitutils;
 const mask = bitutils.mask;
 const maskm = bitutils.maskm;
-const dcadjust = @import("common").dcadjust;
+const filter = @import("common").filter;
 
 /// map chip pin names to bit positions
 ///
@@ -46,6 +46,8 @@ pub const Config = struct {
     model: Model = .AY38910,
     pins: Pins,
     bus: type,
+    dcadjust_buf_len: u32 = 128,
+    enable_lowpass_filter: bool = true,
 };
 
 pub fn Type(comptime cfg: Config) type {
@@ -177,7 +179,11 @@ pub fn Type(comptime cfg: Config) type {
             volume: f32 = 0.0,
             value: f32 = 0.0,
             ready: bool = false, // true if a new sample value is ready
-            dcadj: dcadjust.Type(.{ .buf_len = 128 }) = .{},
+            filter: filter.Type(.{
+                .enable_dcadjust = true,
+                .enable_lowpass_filter = cfg.enable_lowpass_filter,
+                .dcadjust_buf_len = cfg.dcadjust_buf_len,
+            }) = .{},
         };
 
         tick_count: u38 = 0, // tick counter for internal clock division
@@ -240,7 +246,7 @@ pub fn Type(comptime cfg: Config) type {
 
         pub fn reset(self: *Self) void {
             self.active = false;
-            self.sample.dcadjust.reset();
+            self.sample.filter.reset();
             self.addr = 0;
             self.tick_count = 0;
             for (&self.regs) |r| {
@@ -342,7 +348,7 @@ pub fn Type(comptime cfg: Config) type {
                         }
                     }
                 }
-                self.sample.value = self.sample.dcadj.put(sm) * self.sample.volume;
+                self.sample.value = self.sample.filter.put(sm) * self.sample.volume;
                 self.sample.ready = true;
             } else {
                 self.sample.ready = false;
