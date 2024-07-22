@@ -116,6 +116,7 @@ pub fn Type(comptime model: Model) type {
         pub const FREQUENCY = if (model == .KC854) 1770000 else 1750000;
         pub const SCANLINE_TICKS = if (model == .KC854) 112 else 113;
         pub const NUM_SCANLINES = 312;
+        pub const IRM0_PAGE = 4;
 
         pub const DISPLAY = struct {
             pub const WIDTH = 320;
@@ -169,17 +170,17 @@ pub fn Type(comptime model: Model) type {
 
         // PIO output pins
         pub const PIO = struct {
-            pub const CAOS_ROM = Z80PIO.PA[0];
-            pub const RAM = Z80PIO.PA[1];
-            pub const IRM = Z80PIO.PA[2];
-            pub const RAM_RO = Z80PIO.PA[3];
-            pub const NMI = Z80PIO.PA[4]; // KC85/2,/3 only
-            pub const TAPE_LED = Z80PIO.PA[5];
-            pub const TAPE_MOTOR = Z80PIO.PA[6];
-            pub const BASIC_ROM = Z80PIO.PA[7];
-            pub const RAM8 = Z80PIO.PB[5];
-            pub const RAM8_RO = Z80PIO.PB[6];
-            pub const BLINK_ENABLED = Z80PIO.PB[7];
+            pub const CAOS_ROM = Z80PIO.PA0;
+            pub const RAM = Z80PIO.PA1;
+            pub const IRM = Z80PIO.PA2;
+            pub const RAM_RO = Z80PIO.PA3;
+            pub const NMI = Z80PIO.PA4; // KC85/2,/3 only
+            pub const TAPE_LED = Z80PIO.PA5;
+            pub const TAPE_MOTOR = Z80PIO.PA6;
+            pub const BASIC_ROM = Z80PIO.PA7;
+            pub const RAM8 = Z80PIO.PB5;
+            pub const RAM8_RO = Z80PIO.PB6;
+            pub const BLINK_ENABLED = Z80PIO.PB7;
 
             // IO bits which affect memory mapping
             pub const MEMORY_BITS = CAOS_ROM | RAM | IRM | RAM_RO | BASIC_ROM | RAM8 | RAM8_RO;
@@ -187,9 +188,9 @@ pub fn Type(comptime model: Model) type {
 
         // CTC output pins
         pub const CTC = struct {
-            pub const BEEPER1 = Z80CTC.ZCTO[0];
-            pub const BEEPER2 = Z80CTC.ZCTO[1];
-            pub const BLINK = Z80CTC.ZCTO[2];
+            pub const BEEPER1 = Z80CTC.ZCTO0;
+            pub const BEEPER2 = Z80CTC.ZCTO1;
+            pub const BLINK = Z80CTC.ZCTO2;
         };
 
         // KC85/4 IO address 0x84 latch
@@ -325,7 +326,15 @@ pub fn Type(comptime model: Model) type {
                 .junk_page = std.mem.zeroes(@TypeOf(self.junk_page)),
                 .unmapped_page = [_]u8{0xFF} ** Memory.PAGE_SIZE,
             };
-            // FIXME: on KC85/2 and /3 fill RAM with noise
+            // initial memory map
+            self.updateMemoryMap(PIO.RAM | PIO.RAM_RO | PIO.IRM | PIO.CAOS_ROM);
+            // execution starts at address 0xF000
+            self.cpu.prefetch(0xF000);
+        }
+
+        pub fn reset(self: *Self) void {
+            _ = self; // autofix
+            @panic("FIXME: kc85.reset");
         }
 
         pub fn exec(self: *Self, micro_seconds: u32) u32 {
@@ -338,8 +347,16 @@ pub fn Type(comptime model: Model) type {
             return num_ticks;
         }
 
-        pub fn tick(self: *Self, bus: Bus) Bus {
-            _ = self; // autofix
+        pub fn tick(self: *Self, in_bus: Bus) Bus {
+            var bus = self.cpu.tick(in_bus);
+            const addr = getAddr(bus);
+            if (pin(bus, MREQ)) {
+                if (pin(bus, RD)) {
+                    bus = setData(bus, self.mem.rd(addr));
+                } else if (pin(bus, WR)) {
+                    self.mem.wr(addr, getData(bus));
+                }
+            }
             return bus;
         }
 
@@ -380,6 +397,42 @@ pub fn Type(comptime model: Model) type {
                 },
             }
             return rom;
+        }
+
+        fn updateMemoryMap(self: *Self, bus: Bus) void {
+            self.mem.unmap(0x0000, 0x10000);
+            // all models have 16 KB builtin RAM at address 0x0000
+            if (pin(bus, PIO.RAM)) {
+                if (pin(bus, PIO.RAM_RO)) {
+                    self.mem.mapRAM(0x0000, 0x4000, &self.ram[0]);
+                } else {
+                    self.mem.mapROM(0x0000, 0x4000, &self.ram[0]);
+                }
+            }
+
+            // all models have 8 KBytes ROM at address 0xE000
+            if (pin(bus, PIO.CAOS_ROM)) {
+                self.mem.mapROM(0xE000, 0x2000, &self.rom.caos_e);
+            }
+
+            // KC85/3 and /4 have a BASIC ROM at address 0xC000
+            if (model != .KC852) {
+                if (pin(bus, PIO.BASIC_ROM)) {
+                    self.mem.mapROM(0xC000, 0x2000, &self.rom.basic);
+                }
+            }
+
+            // KC85/2 and /3 have fixed 16 KB video RAM at 0x8000
+            if (model != .KC854) {
+                if (pin(bus, PIO.IRM)) {
+                    self.mem.mapRAM(0x8000, 0x4000, &self.ram[IRM0_PAGE]);
+                }
+            }
+
+            // remaining KC85/4 specific memory mapping
+            if (model == .KC854) {
+                @panic("FIXME: KC85/4 memory mapping");
+            }
         }
     };
 }
