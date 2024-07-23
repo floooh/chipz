@@ -284,6 +284,7 @@ pub fn Type(comptime model: Model) type {
         } = .{},
         io84: u8 = 0, // KC85/4 only: byte latch at IO address 0x84
         io86: u8 = 0, // KC85/4 only: byte latch at IO address 0x86
+        flip_flops: Bus = 0,
         // FIXME: beepers
         // FIXME: keyboard
         exp: Exp = .{},
@@ -348,6 +349,8 @@ pub fn Type(comptime model: Model) type {
         }
 
         pub fn tick(self: *Self, in_bus: Bus) Bus {
+
+            // tick CPU and memory access
             var bus = self.cpu.tick(in_bus);
             const addr = getAddr(bus);
             if (pin(bus, MREQ)) {
@@ -357,6 +360,10 @@ pub fn Type(comptime model: Model) type {
                     self.mem.wr(addr, getData(bus));
                 }
             }
+
+            // tick video system (may set CTC CLKTRG0..3)
+            bus = self.tickVideo(bus);
+
             return bus;
         }
 
@@ -378,6 +385,75 @@ pub fn Type(comptime model: Model) type {
                 .palette = &DISPLAY.PALETTE,
                 .orientation = .Landscape,
             };
+        }
+
+        fn tickVideo(self: *Self, bus: Bus) Bus {
+            // every 2 CPU ticks, 8 pixels are decoded
+            if ((self.video.h_tick & 1) != 0) {
+                const x: u16 = self.video.h_tick >> 1;
+                const y: u16 = self.video.v_count;
+                if ((y < 256) and (x < 40)) {
+                    if (model == .KC854) {
+                        @panic("FIXME: KC85/4 video decoding");
+                    } else {
+                        // KC85/2 and KC85/3 pixel decoding
+                        const pixel_offset, const color_offset = if ((x & 0x20) == 0) .{
+                            // left 256x256 area
+                            x | (((y >> 2) & 0x3) << 5) | ((y & 0x3) << 7) | (((y >> 4) & 0xF) << 9),
+                            0x2800 + (x | (((y >> 2) & 0x3f) << 5)),
+                        } else .{
+                            // right 64x256 area
+                            0x2000 + ((x & 0x7) | (((y >> 4) & 0x3) << 3) | (((y >> 2) & 0x3) << 5) | ((y & 0x3) << 7) | (((y >> 6) & 0x3) << 9)),
+                            0x3000 + ((x & 0x7) | (((y >> 4) & 0x3) << 3) | (((y >> 2) & 0x3) << 5) | (((y >> 6) & 0x3) << 7)),
+                        };
+                        // FIXME: optionally implement display needling
+                        const color_bits = self.ram[IRM0_PAGE][color_offset];
+                        const fg_blank = blinkState(color_bits, self.flip_flops, bus);
+                        const pixel_bits = if (fg_blank) 0 else self.ram[IRM0_PAGE][pixel_offset];
+                        self.decode8Pixels(x, y, pixel_bits, color_bits);
+                    }
+                }
+            }
+            return self.updateRasterCounters(bus);
+        }
+
+        inline fn blinkState(color_bits: u8, flip_flops: Bus, bus: Bus) bool {
+            return (color_bits & (1 << 7) != 0) and (flip_flops & Z80CTC.ZCTO2 != 0) and (bus & Z80PIO.PB7 != 0);
+        }
+
+        inline fn decode8Pixels(self: *Self, x: usize, y: usize, pixel_bits: u8, color_bits: u8) void {
+            assert((x < 40) and (y < 256));
+            const off: usize = y * DISPLAY.FB_WIDTH + x * 8;
+            const bg = 0x10 | (color_bits & 0x07); // background color
+            const fg = (color_bits >> 3) & 0x0F; // foreground color
+            inline for (0..8) |i| {
+                self.fb[off + i] = if ((pixel_bits & (0x80 >> i)) != 0) fg else bg;
+            }
+        }
+
+        inline fn updateRasterCounters(self: *Self, in_bus: Bus) Bus {
+            var bus = in_bus;
+            self.video.h_tick +%= 1;
+            // feed '_h4' into CTC CLKTRG0 and 1, per scanline:
+            //   0..31 ticks lo
+            //  32..63 ticks hi
+            //  64..95 ticks lo
+            //  remainder: hi
+            if ((self.video.h_tick & 0x20) != 0) {
+                bus |= Z80CTC.CLKTRG0 | Z80CTC.CLKTRG1;
+            }
+            // vertical blanking interval (/BI) active for the last 56 scanlines
+            if ((self.video.v_count & 0x100) != 0) {
+                bus |= Z80CTC.CLKTRG2 | Z80CTC.CLKTRG3;
+            }
+            if (self.video.h_tick == SCANLINE_TICKS) {
+                self.video.h_tick = 0;
+                self.video.v_count +%= 1;
+                if (self.video.v_count == NUM_SCANLINES) {
+                    self.video.v_count = 0;
+                }
+            }
+            return bus;
         }
 
         fn initRoms(opts: Options) Rom {
