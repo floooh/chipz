@@ -1,3 +1,6 @@
+- Low debug performance may become a problem => investigate!
+
+
 ```zig
 const px: usize = 272 - self.sprite_coords[sprite_index * 2 + 1];
 ```
