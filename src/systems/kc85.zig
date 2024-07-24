@@ -9,6 +9,8 @@ const common = @import("common");
 const memory = common.memory;
 const clock = common.clock;
 const pin = common.bitutils.pin;
+const pins = common.bitutils.pins;
+const mask = common.bitutils.mask;
 const cp = common.utils.cp;
 const fillNoise = common.utils.fillNoise;
 const AudioCallback = common.glue.AudioCallback;
@@ -73,6 +75,10 @@ const CTC_PINS = z80ctc.Pins{
     .RETI = CPU_PINS.RETI,
     .IEIO = PIO_PINS.IEIO,
 };
+
+// KC85/4: IO84 and IO86 8-bit latches
+const IO84_PINS = [8]comptime_int{ 80, 81, 82, 83, 84, 85, 86, 87 };
+const IO86_PINS = [8]comptime_int{ 88, 89, 90, 91, 92, 93, 94, 95 };
 
 // NOTE: 64 bits isn't enough for the system bus
 const Bus = u128;
@@ -168,6 +174,12 @@ pub fn Type(comptime model: Model) type {
             };
         };
 
+        // general IO address decoding mask and pins
+        const IO = struct {
+            const MASK = Z80.M1 | Z80.IORQ | Z80.A7 | Z80.A6 | Z80.A5 | Z80.A4;
+            const PINS = Z80.IORQ | Z80.A7;
+        };
+
         // PIO output pins
         pub const PIO = struct {
             pub const CAOS_ROM = Z80PIO.PA0;
@@ -184,6 +196,10 @@ pub fn Type(comptime model: Model) type {
 
             // IO bits which affect memory mapping
             pub const MEMORY_BITS = CAOS_ROM | RAM | IRM | RAM_RO | BASIC_ROM | RAM8 | RAM8_RO;
+
+            // chip-enable mask and pins
+            pub const CE_MASK = IO.MASK | Z80.A3 | Z80.A2;
+            pub const CE_PINS = IO.PINS | Z80.A3;
         };
 
         // CTC output pins
@@ -191,35 +207,73 @@ pub fn Type(comptime model: Model) type {
             pub const BEEPER1 = Z80CTC.ZCTO0;
             pub const BEEPER2 = Z80CTC.ZCTO1;
             pub const BLINK = Z80CTC.ZCTO2;
+
+            // chip-enable mask and pins
+            pub const CE_MASK = IO.MASK | Z80.A3 | Z80.A2;
+            pub const CE_PINS = IO.PINS | Z80.A3 | Z80.A2;
         };
 
         // KC85/4 IO address 0x84 latch
         pub const IO84 = struct {
-            pub const SEL_VIEW_IMG = 1 << 0; // 0: display img0, 1: display img1
-            pub const SEL_CPU_COLOR = 1 << 1; // 0: access pixels, 1: access colors
-            pub const SEL_CPU_IMG = 1 << 2; // 0: access img 0, 1: access img 1
-            pub const HICOLOR = 1 << 3; // 0: hicolor mode off, 1: hicolor mode on
-            pub const SEL_RAM8 = 1 << 4; // select RAM8 block 0 or 1
+            // virtual pin masks
+            pub const P0 = mask(Bus, IO84_PINS[0]);
+            pub const P1 = mask(Bus, IO84_PINS[1]);
+            pub const P2 = mask(Bus, IO84_PINS[2]);
+            pub const P3 = mask(Bus, IO84_PINS[3]);
+            pub const P4 = mask(Bus, IO84_PINS[4]);
+            pub const P5 = mask(Bus, IO84_PINS[5]);
+            pub const P6 = mask(Bus, IO84_PINS[6]);
+            pub const P7 = mask(Bus, IO84_PINS[7]);
+
+            pub const SEL_VIEW_IMG = P0; // 0: display img0, 1: display img1
+            pub const SEL_CPU_COLOR = P1; // 0: access pixels, 1: access colors
+            pub const SEL_CPU_IMG = P2; // 0: access img 0, 1: access img 1
+            pub const HICOLOR = P3; // 0: hicolor mode off, 1: hicolor mode on
+            pub const SEL_RAM8 = P4; // select RAM8 block 0 or 1
 
             // latch bits which affect memory mapping
             pub const MEMORY_BITS = SEL_CPU_COLOR | SEL_CPU_IMG | SEL_RAM8;
+
+            // IO enable mask and pins
+            pub const MASK = IO.MASK | Z80.A3 | Z80.A2 | Z80.A1 | Z80.A0;
+            pub const PINS = IO.PINS | Z80.A2;
         };
 
         // KC85/4 IO address 0x86 latch
         pub const IO86 = struct {
-            pub const RAM4 = 1 << 0;
-            pub const RAM4_RO = 1 << 1;
-            pub const CAOS_ROM_C = 1 << 7;
+            // virtual pin masks
+            pub const P0 = mask(Bus, IO86_PINS[0]);
+            pub const P1 = mask(Bus, IO86_PINS[1]);
+            pub const P2 = mask(Bus, IO86_PINS[2]);
+            pub const P3 = mask(Bus, IO86_PINS[3]);
+            pub const P4 = mask(Bus, IO86_PINS[4]);
+            pub const P5 = mask(Bus, IO86_PINS[5]);
+            pub const P6 = mask(Bus, IO86_PINS[6]);
+            pub const P7 = mask(Bus, IO86_PINS[7]);
+
+            pub const RAM4 = P0;
+            pub const RAM4_RO = P1;
+            pub const CAOS_ROM_C = P7;
 
             // latch bits which affect memory mapping
             pub const MEMORY_BITS = RAM4 | RAM4_RO | CAOS_ROM_C;
+
+            // IO enable mask and pins
+            pub const MASK = IO.MASK | Z80.A3 | Z80.A2 | Z80.A1 | Z80.A0;
+            pub const PINS = IO.PINS | Z80.A2 | Z80.A1;
         };
 
         // expansion system constant
         pub const EXP = struct {
             pub const NUM_SLOTS = 2; // number of expansion slots in the base device
             pub const BUF_SIZE = NUM_SLOTS * 64 * 1024; // expansion system buffer size (64 KB per slot)
+
+            // IO enable mask and pins
+            pub const MASK = IO.MASK | Z80.A3 | Z80.A2 | Z80.A1 | Z80.A0;
+            pub const PINS = IO.PINS | Z80.A2 | Z80.A1;
         };
+
+        pub const ALL_MEMORY_BITS = PIO.MEMORY_BITS | if (model == .KC854) IO84.MEMORY_BITS | IO86.MEMORY_BITS else 0;
 
         // expansion module types
         pub const ModuleType = enum {
@@ -282,8 +336,6 @@ pub fn Type(comptime model: Model) type {
             h_tick: u16 = 0,
             v_count: u16 = 0,
         } = .{},
-        io84: u8 = 0, // KC85/4 only: byte latch at IO address 0x84
-        io86: u8 = 0, // KC85/4 only: byte latch at IO address 0x86
         flip_flops: Bus = 0,
         // FIXME: beepers
         // FIXME: keyboard
@@ -300,6 +352,8 @@ pub fn Type(comptime model: Model) type {
 
         pub fn initInPlace(self: *Self, opts: Options) void {
             self.* = .{
+                // init PIO port pins to high
+                .bus = Z80PIO.setPort(0, 0, 0xFF) | Z80PIO.setPort(1, 0, 0xFF),
                 .cpu = Z80.init(),
                 .pio = Z80PIO.init(),
                 .ctc = Z80CTC.init(),
@@ -328,7 +382,7 @@ pub fn Type(comptime model: Model) type {
                 .unmapped_page = [_]u8{0xFF} ** Memory.PAGE_SIZE,
             };
             // initial memory map
-            self.updateMemoryMap(PIO.RAM | PIO.RAM_RO | PIO.IRM | PIO.CAOS_ROM);
+            self.updateMemoryMap(self.bus, ALL_MEMORY_BITS);
             // execution starts at address 0xF000
             self.cpu.prefetch(0xF000);
         }
@@ -340,18 +394,17 @@ pub fn Type(comptime model: Model) type {
 
         pub fn exec(self: *Self, micro_seconds: u32) u32 {
             const num_ticks = clock.microSecondsToTicks(FREQUENCY, micro_seconds);
-            var bus = self.bus;
             for (0..num_ticks) |_| {
-                bus = self.tick(bus);
+                self.tick();
             }
-            self.bus = bus;
             return num_ticks;
         }
 
-        pub fn tick(self: *Self, in_bus: Bus) Bus {
+        pub fn tick(self: *Self) void {
+            var bus = self.bus;
 
             // tick CPU and memory access
-            var bus = self.cpu.tick(in_bus);
+            bus = self.cpu.tick(bus);
             const addr = getAddr(bus);
             if (pin(bus, MREQ)) {
                 if (pin(bus, RD)) {
@@ -364,7 +417,48 @@ pub fn Type(comptime model: Model) type {
             // tick video system (may set CTC CLKTRG0..3)
             bus = self.tickVideo(bus);
 
-            return bus;
+            // IO address decoding (fixme: replace with a switch?)
+            if (pins(bus, CTC.CE_MASK, CTC.CE_PINS)) {
+                bus |= Z80CTC.CE;
+            }
+            if (pins(bus, PIO.CE_MASK, PIO.CE_PINS)) {
+                bus |= Z80PIO.CE;
+            }
+
+            // tick the CTC and PIO
+            bus |= Z80CTC.IEIO;
+            bus = self.ctc.tick(bus);
+            bus = self.pio.tick(bus);
+
+            // FIXME: trigger audio and blink flip-flops
+            // FIXME: DOES THIS ACTUALLY MAKE SENSE?
+            self.flip_flops ^= bus & Z80CTC.CLKTRG;
+
+            // FIXME: tick beepers and update audio
+
+            // PIO output
+            if (model == .KC854) {
+                @panic("FIXME: KC85/4 PIO output");
+            } else {
+                // on KC85/2 and /3, PA4 is connected to NMI
+                if (pin(bus, PIO.NMI)) {
+                    bus &= ~Z80.NMI;
+                } else {
+                    bus |= Z80.NMI;
+                }
+            }
+
+            // KC85/4 IO latch 0x84 and 0x86
+            if (model == .KC854) {
+                @panic("FIXME: KC85/4 latches 84 and 86");
+            }
+
+            // update memory mapping if needed
+            const mem_update_bits = (self.bus ^ bus) & ALL_MEMORY_BITS;
+            if (mem_update_bits != 0) {
+                self.updateMemoryMap(bus, mem_update_bits);
+            }
+            self.bus = bus;
         }
 
         pub fn displayInfo(selfOrNull: ?*const Self) DisplayInfo {
@@ -475,33 +569,48 @@ pub fn Type(comptime model: Model) type {
             return rom;
         }
 
-        fn updateMemoryMap(self: *Self, bus: Bus) void {
-            self.mem.unmap(0x0000, 0x10000);
+        fn updateMemoryMap(self: *Self, bus: Bus, changed: Bus) void {
             // all models have 16 KB builtin RAM at address 0x0000
-            if (pin(bus, PIO.RAM)) {
-                if (pin(bus, PIO.RAM_RO)) {
-                    self.mem.mapRAM(0x0000, 0x4000, &self.ram[0]);
+            if (pin(changed, PIO.RAM)) {
+                if (pin(bus, PIO.RAM)) {
+                    if (pin(bus, PIO.RAM_RO)) {
+                        self.mem.mapRAM(0x0000, 0x4000, &self.ram[0]);
+                    } else {
+                        self.mem.mapROM(0x0000, 0x4000, &self.ram[0]);
+                    }
                 } else {
-                    self.mem.mapROM(0x0000, 0x4000, &self.ram[0]);
+                    self.mem.unmap(0x0000, 0x4000);
                 }
             }
 
             // all models have 8 KBytes ROM at address 0xE000
-            if (pin(bus, PIO.CAOS_ROM)) {
-                self.mem.mapROM(0xE000, 0x2000, &self.rom.caos_e);
+            if (pin(changed, PIO.CAOS_ROM)) {
+                if (pin(bus, PIO.CAOS_ROM)) {
+                    self.mem.mapROM(0xE000, 0x2000, &self.rom.caos_e);
+                } else {
+                    self.mem.unmap(0xE000, 0x2000);
+                }
             }
 
             // KC85/3 and /4 have a BASIC ROM at address 0xC000
             if (model != .KC852) {
-                if (pin(bus, PIO.BASIC_ROM)) {
-                    self.mem.mapROM(0xC000, 0x2000, &self.rom.basic);
+                if (pin(changed, PIO.BASIC_ROM)) {
+                    if (pin(bus, PIO.BASIC_ROM)) {
+                        self.mem.mapROM(0xC000, 0x2000, &self.rom.basic);
+                    } else {
+                        self.mem.unmap(0xC000, 0x2000);
+                    }
                 }
             }
 
             // KC85/2 and /3 have fixed 16 KB video RAM at 0x8000
             if (model != .KC854) {
-                if (pin(bus, PIO.IRM)) {
-                    self.mem.mapRAM(0x8000, 0x4000, &self.ram[IRM0_PAGE]);
+                if (pin(changed, PIO.IRM)) {
+                    if (pin(bus, PIO.IRM)) {
+                        self.mem.mapRAM(0x8000, 0x4000, &self.ram[IRM0_PAGE]);
+                    } else {
+                        self.mem.unmap(0x8000, 0x4000);
+                    }
                 }
             }
 

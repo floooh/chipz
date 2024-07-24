@@ -173,7 +173,7 @@ pub fn Type(comptime cfg: Config) type {
         }
 
         fn ioRead(self: *const Self, bus: Bus) Bus {
-            const chn_idx: usize = (bus >> cfg.pins.CS[0]) & 3;
+            const chn_idx: usize = @truncate((bus >> cfg.pins.CS[0]) & 3);
             const data = self.chn[chn_idx].down_counter;
             return setData(bus, data);
         }
@@ -181,7 +181,7 @@ pub fn Type(comptime cfg: Config) type {
         fn ioWrite(self: *Self, in_bus: Bus) Bus {
             var bus = in_bus;
             const data = getData(bus);
-            const chn_id: usize = (bus >> cfg.pins.CS[0]) & 3;
+            const chn_id: usize = @truncate((bus >> cfg.pins.CS[0]) & 3);
             var chn = &self.chn[chn_id];
             if ((chn.control & CTRL.CONST_FOLLOWS) != 0) {
                 // timer constant following control word
