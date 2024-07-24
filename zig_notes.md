@@ -1,5 +1,5 @@
 - Low debug performance may become a problem => investigate!
-
+  PS: release=safe is fast
 
 ```zig
 const px: usize = 272 - self.sprite_coords[sprite_index * 2 + 1];
