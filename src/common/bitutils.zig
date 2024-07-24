@@ -24,7 +24,7 @@ pub inline fn pin(bus: anytype, p: comptime_int) bool {
 
 /// test multiple pins against a mask
 pub inline fn pins(bus: anytype, m: comptime_int, p: comptime_int) bool {
-    return (bus & p) == m;
+    return (bus & m) == p;
 }
 
 /// test if all pins are set

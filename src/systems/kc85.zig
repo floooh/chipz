@@ -420,9 +420,13 @@ pub fn Type(comptime model: Model) type {
             // IO address decoding (fixme: replace with a switch?)
             if (pins(bus, CTC.CE_MASK, CTC.CE_PINS)) {
                 bus |= Z80CTC.CE;
+            } else {
+                bus &= ~Z80CTC.CE;
             }
             if (pins(bus, PIO.CE_MASK, PIO.CE_PINS)) {
                 bus |= Z80PIO.CE;
+            } else {
+                bus &= ~Z80PIO.CE;
             }
 
             // tick the CTC and PIO
