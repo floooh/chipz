@@ -8,6 +8,7 @@ const z80ctc = chips.z80ctc;
 const common = @import("common");
 const memory = common.memory;
 const clock = common.clock;
+const keybuf = common.keybuf;
 const pin = common.bitutils.pin;
 const pins = common.bitutils.pins;
 const mask = common.bitutils.mask;
@@ -86,6 +87,7 @@ const Memory = memory.Type(.{ .page_size = 0x0400 });
 const Z80 = z80.Type(.{ .pins = CPU_PINS, .bus = Bus });
 const Z80PIO = z80pio.Type(.{ .pins = PIO_PINS, .bus = Bus });
 const Z80CTC = z80ctc.Type(.{ .pins = CTC_PINS, .bus = Bus });
+const KeyBuf = keybuf.Type(.{ .num_slots = 4 });
 
 const getData = Z80.getData;
 const setData = Z80.setData;
@@ -263,6 +265,15 @@ pub fn Type(comptime model: Model) type {
             pub const PINS = IO.PINS | Z80.A2 | Z80.A1;
         };
 
+        // keyboard handler flags
+        pub const KBD = struct {
+            pub const TIMEOUT: u8 = 1 << 3;
+            pub const KEYREADY: u8 = 1 << 0;
+            pub const REPEAT: u8 = 1 << 4;
+            pub const SHORT_REPEAT_COUNT = 8;
+            pub const LONG_REPEAR_COUNT = 60;
+        };
+
         // expansion system constant
         pub const EXP = struct {
             pub const NUM_SLOTS = 2; // number of expansion slots in the base device
@@ -339,8 +350,9 @@ pub fn Type(comptime model: Model) type {
         flip_flops: Bus = 0,
         // FIXME: beepers
         // FIXME: keyboard
-        exp: Exp = .{},
         mem: Memory,
+        key_buf: KeyBuf,
+        exp: Exp = .{},
 
         // memory buffers
         ram: [8][0x4000]u8,
@@ -360,6 +372,10 @@ pub fn Type(comptime model: Model) type {
                 .mem = Memory.init(.{
                     .junk_page = &self.junk_page,
                     .unmapped_page = &self.unmapped_page,
+                }),
+                .key_buf = KeyBuf.init(.{
+                    // let keys stick for 2 PAL frames
+                    .sticky_time = 2 * (1000 / 50) * 1000,
                 }),
                 .ram = init: {
                     var arr: [8][0x4000]u8 = undefined;
@@ -397,6 +413,7 @@ pub fn Type(comptime model: Model) type {
             for (0..num_ticks) |_| {
                 self.tick();
             }
+            self.updateKeyboard(micro_seconds);
             return num_ticks;
         }
 
@@ -483,6 +500,14 @@ pub fn Type(comptime model: Model) type {
                 .palette = &DISPLAY.PALETTE,
                 .orientation = .Landscape,
             };
+        }
+
+        pub fn keyDown(self: *Self, key_code: u32) void {
+            self.key_buf.keyDown(key_code, 0);
+        }
+
+        pub fn keyUp(self: *Self, key_code: u32) void {
+            self.key_buf.keyUp(key_code);
         }
 
         fn tickVideo(self: *Self, bus: Bus) Bus {
@@ -621,6 +646,76 @@ pub fn Type(comptime model: Model) type {
             // remaining KC85/4 specific memory mapping
             if (model == .KC854) {
                 @panic("FIXME: KC85/4 memory mapping");
+            }
+        }
+
+        // this is a simplified version of the PIO-B interrupt service routine
+        // which is normally triggered when the serial keyboard hardware
+        // sends a new pulse (for details, see
+        // https://github.com/floooh/yakc/blob/master/misc/kc85_3_kbdint.md )
+        //
+        // we ignore the whole tricky serial decoding and patch the
+        // keycode directly into the right memory locations.
+        //
+        fn updateKeyboard(self: *Self, micro_seconds: u32) void {
+            self.key_buf.update(micro_seconds);
+
+            // don't do anything if interrupts are currently disabled,
+            // IX might point to the wrong base address!
+            if (self.cpu.iff1 == 0) {
+                return;
+            }
+
+            // get first valid key code from key buffer
+            var key_code: u8 = 0;
+            for (self.key_buf.slots) |slot| {
+                if (slot.key != 0) {
+                    key_code = @truncate(slot.key);
+                    break;
+                }
+            }
+
+            const ix = self.cpu.IX();
+            const ix_key_status = ix +% 0x8;
+            const ix_key_repeat = ix +% 0xA;
+            const ix_key_code = ix +% 0xD;
+            if (0 == key_code) {
+                // if keycode is 0, this basically means the CTC3 timeout was hit
+                self.mem.wr(ix_key_status, self.mem.rd(ix_key_status) | KBD.TIMEOUT); // set the CTC3 timeout bit
+                self.mem.wr(ix_key_code, 0); // clear current keycode
+            } else {
+                // a valid key code has been received, clear the timeout bit
+                self.mem.wr(ix_key_status, self.mem.rd(ix_key_status) & ~KBD.TIMEOUT);
+
+                // check for key-repeat
+                if (key_code != self.mem.rd(ix_key_code)) {
+                    // no key repeat
+                    self.mem.wr(ix_key_code, key_code);
+                    self.mem.wr(ix_key_status, self.mem.rd(ix_key_status) & ~KBD.REPEAT);
+                    self.mem.wr(ix_key_status, self.mem.rd(ix_key_status) | KBD.KEYREADY);
+                    self.mem.wr(ix_key_repeat, 0);
+                } else {
+                    // handle key repeat
+                    self.mem.wr(ix_key_repeat, self.mem.rd(ix_key_repeat) +% 1);
+                    if ((self.mem.rd(ix_key_repeat) & KBD.REPEAT) != 0) {
+                        // this is a followup (short) key repeat
+                        if (self.mem.rd(ix_key_repeat) < KBD.SHORT_REPEAT_COUNT) {
+                            // wait some more...
+                            return;
+                        }
+                    } else {
+                        // this is the first (long) key repeat
+                        if (self.mem.rd(ix_key_repeat) < KBD.LONG_REPEAR_COUNT) {
+                            // wait some more...
+                            return;
+                        }
+                        // first key repeat pause over, set first-key-repeat flag
+                        self.mem.wr(ix_key_status, self.mem.rd(ix_key_status) | KBD.REPEAT);
+                    }
+                    // key repeat triggered, set the key-ready flags and reset repeat-count
+                    self.mem.wr(ix_key_status, self.mem.rd(ix_key_status) | KBD.KEYREADY);
+                    self.mem.wr(ix_key_repeat, 0);
+                }
             }
         }
     };
