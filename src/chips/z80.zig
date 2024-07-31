@@ -62,12 +62,12 @@ const indirect_table = init: {
 };
 // zig fmt: on
 
-pub const Config = struct {
+pub const TypeConfig = struct {
     pins: Pins,
     bus: type,
 };
 
-pub fn Type(comptime cfg: Config) type {
+pub fn Type(comptime cfg: TypeConfig) type {
     const Bus = cfg.bus;
     return struct {
         const Self = @This();

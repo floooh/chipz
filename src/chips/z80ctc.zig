@@ -37,9 +37,9 @@ pub const DefaultPins = Pins{
     .IEIO = 23,
 };
 
-pub const Config = struct { pins: Pins, bus: type };
+pub const TypeConfig = struct { pins: Pins, bus: type };
 
-pub fn Type(comptime cfg: Config) type {
+pub fn Type(comptime cfg: TypeConfig) type {
     assert(cfg.pins.CS[1] == cfg.pins.CS[0] + 1);
     assert(cfg.pins.ZCTO[1] == cfg.pins.ZCTO[0] + 1);
     assert(cfg.pins.ZCTO[2] == cfg.pins.ZCTO[1] + 1);

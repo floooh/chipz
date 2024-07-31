@@ -532,7 +532,7 @@ pub const Bombjack = struct {
             bus &= ~(PSG0.BDIR | PSG0.BC1 | PSG1.BDIR | PSG1.BC1 | PSG2.BDIR | PSG2.BC1);
 
             if (board.psg0.sample.ready) {
-                const s = board.psg0.sample.value + board.psg1.sample.value + board.psg2.sample.value;
+                const s = board.psg0.sample.out + board.psg1.sample.out + board.psg2.sample.out;
                 self.audio.sample_buffer[self.audio.sample_pos] = s * self.audio.volume;
                 self.audio.sample_pos += 1;
                 if (self.audio.sample_pos == self.audio.num_samples) {

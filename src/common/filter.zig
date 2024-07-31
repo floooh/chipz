@@ -4,13 +4,13 @@ const std = @import("std");
 const assert = std.debug.assert;
 const isPowerOfTwo = std.math.isPowerOfTwo;
 
-pub const Config = struct {
+pub const TypeConfig = struct {
     enable_dcadjust: bool,
     enable_lowpass_filter: bool,
     dcadjust_buf_len: u32,
 };
 
-pub fn Type(cfg: Config) type {
+pub fn Type(cfg: TypeConfig) type {
     assert(isPowerOfTwo(cfg.dcadjust_buf_len));
     return struct {
         const Self = @This();

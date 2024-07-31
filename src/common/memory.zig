@@ -21,11 +21,11 @@ pub const Page = struct {
     write: [*]u8,
 };
 
-pub const Config = struct {
+pub const TypeConfig = struct {
     page_size: comptime_int,
 };
 
-pub fn Type(comptime cfg: Config) type {
+pub fn Type(comptime cfg: TypeConfig) type {
     assert(std.math.isPowerOfTwo(cfg.page_size));
 
     return struct {

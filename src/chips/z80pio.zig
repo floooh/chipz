@@ -45,12 +45,12 @@ pub const DefaultPins = Pins{
     .IEIO = 36,
 };
 
-pub const Config = struct {
+pub const TypeConfig = struct {
     pins: Pins,
     bus: type,
 };
 
-pub fn Type(cfg: Config) type {
+pub fn Type(cfg: TypeConfig) type {
     const Bus = cfg.bus;
     const Z80IRQ = z80irq.Type(.{
         .pins = .{

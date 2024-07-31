@@ -42,7 +42,7 @@ pub const Model = enum {
     AY38913, // no IO ports
 };
 
-pub const Config = struct {
+pub const TypeConfig = struct {
     model: Model = .AY38910,
     pins: Pins,
     bus: type,
@@ -50,7 +50,7 @@ pub const Config = struct {
     enable_lowpass_filter: bool = true,
 };
 
-pub fn Type(comptime cfg: Config) type {
+pub fn Type(comptime cfg: TypeConfig) type {
     return struct {
         const Self = @This();
         const Bus = cfg.bus;
@@ -177,7 +177,7 @@ pub fn Type(comptime cfg: Config) type {
             period: i32 = 0,
             counter: i32 = 0,
             volume: f32 = 0.0,
-            value: f32 = 0.0,
+            out: f32 = 0.0, // output sample value
             ready: bool = false, // true if a new sample value is ready
             filter: filter.Type(.{
                 .enable_dcadjust = true,
@@ -186,7 +186,7 @@ pub fn Type(comptime cfg: Config) type {
             }) = .{},
         };
 
-        tick_count: u38 = 0, // tick counter for internal clock division
+        tick_count: u32 = 0, // tick counter for internal clock division
         cs_mask: u8 = 0, // hi: 4-bit chip-select (options.chip_select << 4)
         active: bool = false, // true if upper chip-select matches when writing address
         addr: u4 = 0, // current register index
@@ -329,6 +329,7 @@ pub fn Type(comptime cfg: Config) type {
                 self.env.shape.state = env_shapes[self.regs[REG.ENV_SHAPE_CYCLE]][self.env.shape.counter];
             }
 
+            // FIXME: add some oversampling for anti-aliasing(?)
             // generate sample
             self.sample.counter -= FIXEDPOINT_SCALE;
             if (self.sample.counter <= 0) {
@@ -348,7 +349,7 @@ pub fn Type(comptime cfg: Config) type {
                         }
                     }
                 }
-                self.sample.value = self.sample.filter.put(sm) * self.sample.volume;
+                self.sample.out = self.sample.filter.put(sm) * self.sample.volume;
                 self.sample.ready = true;
             } else {
                 self.sample.ready = false;
