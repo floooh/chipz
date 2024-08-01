@@ -88,6 +88,7 @@ const Z80 = z80.Type(.{ .pins = CPU_PINS, .bus = Bus });
 const Z80PIO = z80pio.Type(.{ .pins = PIO_PINS, .bus = Bus });
 const Z80CTC = z80ctc.Type(.{ .pins = CTC_PINS, .bus = Bus });
 const KeyBuf = keybuf.Type(.{ .num_slots = 4 });
+const Beeper = common.beeper.Type(.{});
 
 const getData = Z80.getData;
 const setData = Z80.setData;
@@ -323,6 +324,19 @@ pub fn Type(comptime model: Model) type {
             buf_top: u32 = 0,
         };
 
+        // audio constants
+        const AUDIO = struct {
+            const MAX_SAMPLES = 256;
+        };
+
+        pub const Audio = struct {
+            volume: f32,
+            num_samples: u32,
+            sample_pos: u32,
+            callback: AudioCallback,
+            sample_buffer: [AUDIO.MAX_SAMPLES]f32,
+        };
+
         pub const Rom = switch (model) {
             .KC852 => struct {
                 caos_e: [0x2000]u8, // 8 KB CAOS ROM at 0xE000,
@@ -348,8 +362,7 @@ pub fn Type(comptime model: Model) type {
             v_count: u16 = 0,
         } = .{},
         flip_flops: Bus = 0,
-        // FIXME: beepers
-        // FIXME: keyboard
+        beeper: [2]Beeper,
         mem: Memory,
         key_buf: KeyBuf,
         exp: Exp = .{},
@@ -357,18 +370,25 @@ pub fn Type(comptime model: Model) type {
         // memory buffers
         ram: [8][0x4000]u8,
         rom: Rom,
+        audio: Audio,
         ext_buf: [EXP.BUF_SIZE]u8,
         fb: [DISPLAY.FB_SIZE]u8 align(128),
         junk_page: [Memory.PAGE_SIZE]u8,
         unmapped_page: [Memory.PAGE_SIZE]u8,
 
         pub fn initInPlace(self: *Self, opts: Options) void {
+            const beeper_opts: Beeper.Options = .{
+                .tick_hz = FREQUENCY,
+                .sound_hz = @intCast(opts.audio.sample_rate),
+                .base_volume = 0.5,
+            };
             self.* = .{
                 // init PIO port pins to high
                 .bus = Z80PIO.setPort(0, 0, 0xFF) | Z80PIO.setPort(1, 0, 0xFF),
                 .cpu = Z80.init(),
                 .pio = Z80PIO.init(),
                 .ctc = Z80CTC.init(),
+                .beeper = .{ Beeper.init(beeper_opts), Beeper.init(beeper_opts) },
                 .mem = Memory.init(.{
                     .junk_page = &self.junk_page,
                     .unmapped_page = &self.unmapped_page,
@@ -392,6 +412,13 @@ pub fn Type(comptime model: Model) type {
                     break :init arr;
                 },
                 .rom = initRoms(opts),
+                .audio = .{
+                    .num_samples = opts.audio.num_samples,
+                    .sample_pos = 0,
+                    .volume = opts.audio.volume,
+                    .callback = opts.audio.callback,
+                    .sample_buffer = std.mem.zeroes([AUDIO.MAX_SAMPLES]f32),
+                },
                 .ext_buf = std.mem.zeroes(@TypeOf(self.ext_buf)),
                 .fb = std.mem.zeroes(@TypeOf(self.fb)),
                 .junk_page = std.mem.zeroes(@TypeOf(self.junk_page)),
@@ -450,10 +477,24 @@ pub fn Type(comptime model: Model) type {
             bus |= Z80CTC.IEIO;
             bus = self.ctc.tick(bus);
             bus = self.pio.tick(bus);
+            self.flip_flops ^= bus;
 
-            // FIXME: trigger audio and blink flip-flops
-            // FIXME: DOES THIS ACTUALLY MAKE SENSE?
-            self.flip_flops ^= bus & Z80CTC.CLKTRG;
+            // tick beepers
+            self.beeper[0].set((self.flip_flops & CTC.BEEPER1) != 0);
+            self.beeper[1].set((self.flip_flops & CTC.BEEPER2) != 0);
+            _ = self.beeper[0].tick();
+            if (self.beeper[1].tick()) {
+                // new audio sample ready
+                const s = self.beeper[0].sample.out + self.beeper[1].sample.out;
+                self.audio.sample_buffer[self.audio.sample_pos] = s * self.audio.volume;
+                self.audio.sample_pos += 1;
+                if (self.audio.sample_pos == self.audio.num_samples) {
+                    if (self.audio.callback) |cb| {
+                        cb(self.audio.sample_buffer[0..self.audio.num_samples]);
+                    }
+                    self.audio.sample_pos = 0;
+                }
+            }
 
             // FIXME: tick beepers and update audio
 
@@ -541,7 +582,7 @@ pub fn Type(comptime model: Model) type {
         }
 
         inline fn blinkState(color_bits: u8, flip_flops: Bus, bus: Bus) bool {
-            return (color_bits & (1 << 7) != 0) and (flip_flops & Z80CTC.ZCTO2 != 0) and (bus & Z80PIO.PB7 != 0);
+            return (color_bits & (1 << 7) != 0) and (flip_flops & CTC.BLINK != 0) and (bus & PIO.BLINK_ENABLED != 0);
         }
 
         inline fn decode8Pixels(self: *Self, x: usize, y: usize, pixel_bits: u8, color_bits: u8) void {

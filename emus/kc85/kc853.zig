@@ -10,12 +10,13 @@ const KC853 = kc85.Type(.KC853);
 var sys: KC853 = undefined;
 
 export fn init() void {
-    host.audio.init(.{ .disable_audio = true });
+    host.audio.init(.{});
     host.time.init();
     host.prof.init();
     sys.initInPlace(.{
         .audio = .{
             .sample_rate = host.audio.sampleRate(),
+            .volume = 0.5,
             .callback = host.audio.push,
         },
         .roms = .{
