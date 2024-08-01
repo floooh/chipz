@@ -496,8 +496,6 @@ pub fn Type(comptime model: Model) type {
                 }
             }
 
-            // FIXME: tick beepers and update audio
-
             // PIO output
             if (model == .KC854) {
                 @panic("FIXME: KC85/4 PIO output");
