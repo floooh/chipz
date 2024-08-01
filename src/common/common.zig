@@ -5,3 +5,4 @@ pub const clock = @import("clock.zig");
 pub const filter = @import("filter.zig");
 pub const utils = @import("utils.zig");
 pub const keybuf = @import("keybuf.zig");
+pub const beeper = @import("beeper.zig");
