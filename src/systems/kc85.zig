@@ -603,10 +603,14 @@ pub fn Type(comptime model: Model) type {
             //  remainder: hi
             if ((self.video.h_tick & 0x20) != 0) {
                 bus |= Z80CTC.CLKTRG0 | Z80CTC.CLKTRG1;
+            } else {
+                bus &= ~(Z80CTC.CLKTRG0 | Z80CTC.CLKTRG1);
             }
             // vertical blanking interval (/BI) active for the last 56 scanlines
             if ((self.video.v_count & 0x100) != 0) {
                 bus |= Z80CTC.CLKTRG2 | Z80CTC.CLKTRG3;
+            } else {
+                bus &= ~(Z80CTC.CLKTRG2 | Z80CTC.CLKTRG3);
             }
             if (self.video.h_tick == SCANLINE_TICKS) {
                 self.video.h_tick = 0;
