@@ -1,3 +1,4 @@
+const build_options = @import("build_options");
 const std = @import("std");
 const sokol = @import("sokol");
 const sapp = sokol.app;
@@ -5,9 +6,20 @@ const slog = sokol.log;
 const host = @import("host");
 const kc85 = @import("chipz").systems.kc85;
 
-const KC853 = kc85.Type(.KC853);
+const model: kc85.Model = switch (build_options.model) {
+    .KC852 => .KC852,
+    .KC853 => .KC853,
+    .KC854 => .KKC85,
+    else => @compileError("unknown KC85 model"),
+};
+const name = switch (model) {
+    .KC852 => "KC85/2",
+    .KC853 => "KC85/3",
+    .KC854 => "KC85/4",
+};
+const KC85 = kc85.Type(model);
 
-var sys: KC853 = undefined;
+var sys: KC85 = undefined;
 
 export fn init() void {
     host.audio.init(.{});
@@ -19,9 +31,15 @@ export fn init() void {
             .volume = 0.5,
             .callback = host.audio.push,
         },
-        .roms = .{
-            .caos31 = @embedFile("roms/caos31.853"),
-            .kcbasic = @embedFile("roms/basic_c0.853"),
+        .roms = switch (model) {
+            .KC852 => .{
+                .caos22 = @embedFile("roms/caos22.852"),
+            },
+            .KC853 => .{
+                .caos31 = @embedFile("roms/caos31.853"),
+                .kcbasic = @embedFile("roms/basic_c0.853"),
+            },
+            else => @panic("FIXME"),
         },
     });
     host.gfx.init(.{ .display = sys.displayInfo() });
@@ -36,7 +54,7 @@ export fn frame() void {
     host.gfx.draw(.{
         .display = sys.displayInfo(),
         .status = .{
-            .name = "KC85/3",
+            .name = name,
             .num_ticks = num_ticks,
             .frame_stats = host.prof.stats(.FRAME),
             .emu_stats = host.prof.stats(.EMU),
@@ -116,7 +134,7 @@ export fn input(ev: ?*const sapp.Event) void {
 }
 
 pub fn main() void {
-    const display = KC853.displayInfo(null);
+    const display = KC85.displayInfo(null);
     const border = host.gfx.DEFAULT_BORDER;
     const width = 2 * display.view.width + border.left + border.right;
     const height = 2 * display.view.height + border.top + border.bottom;
@@ -125,7 +143,7 @@ pub fn main() void {
         .frame_cb = frame,
         .event_cb = input,
         .cleanup_cb = cleanup,
-        .window_title = "KC85/3 (chipz)",
+        .window_title = name ++ "(chipz)",
         .width = width,
         .height = height,
         .icon = .{ .sokol_default = true },

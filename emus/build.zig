@@ -4,11 +4,19 @@ const ResolvedTarget = Build.ResolvedTarget;
 const OptimizeMode = std.builtin.OptimizeMode;
 const Module = Build.Module;
 
+const Model = enum {
+    NONE,
+    KC852,
+    KC853,
+    KC854,
+};
+
 const emulators = .{
-    .{ .name = "pacman", .path = "pacman/pacman.zig" },
-    .{ .name = "pengo", .path = "pengo/pengo.zig" },
-    .{ .name = "bombjack", .path = "bombjack/bombjack.zig" },
-    .{ .name = "kc853", .path = "kc85/kc853.zig" },
+    .{ .name = "pacman", .path = "pacman/pacman.zig", .model = .NONE },
+    .{ .name = "pengo", .path = "pengo/pengo.zig", .model = .NONE },
+    .{ .name = "bombjack", .path = "bombjack/bombjack.zig", .model = .NONE },
+    .{ .name = "kc852", .path = "kc85/kc85.zig", .model = .KC852 },
+    .{ .name = "kc853", .path = "kc85/kc85.zig", .model = .KC853 },
 };
 
 pub const Options = struct {
@@ -37,6 +45,7 @@ pub fn build(b: *Build, opts: Options) void {
     inline for (emulators) |emu| {
         addEmulator(b, .{
             .name = emu.name,
+            .model = emu.model,
             .src = b.fmt("{s}/{s}", .{ opts.src_dir, emu.path }),
             .target = opts.target,
             .optimize = opts.optimize,
@@ -49,6 +58,7 @@ pub fn build(b: *Build, opts: Options) void {
 
 const EmuOptions = struct {
     name: []const u8,
+    model: Model,
     src: []const u8,
     target: ResolvedTarget,
     optimize: OptimizeMode,
@@ -64,6 +74,11 @@ fn addEmulator(b: *Build, opts: EmuOptions) void {
         .target = opts.target,
         .optimize = opts.optimize,
     });
+    if (opts.model != .NONE) {
+        const options = b.addOptions();
+        options.addOption(Model, "model", opts.model);
+        exe.root_module.addOptions("build_options", options);
+    }
     exe.root_module.addImport("chipz", opts.mod_chipz);
     exe.root_module.addImport("host", opts.mod_host);
     exe.root_module.addImport("sokol", opts.mod_sokol);
