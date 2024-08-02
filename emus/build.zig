@@ -6,14 +6,20 @@ const Module = Build.Module;
 
 const Model = enum {
     NONE,
+
+    // Namco arcade machine models
+    Pacman,
+    Pengo,
+
+    // KC85 submodels
     KC852,
     KC853,
     KC854,
 };
 
 const emulators = .{
-    .{ .name = "pacman", .path = "pacman/pacman.zig", .model = .NONE },
-    .{ .name = "pengo", .path = "pengo/pengo.zig", .model = .NONE },
+    .{ .name = "pacman", .path = "namco/namco.zig", .model = .Pacman },
+    .{ .name = "pengo", .path = "namco/namco.zig", .model = .Pengo },
     .{ .name = "bombjack", .path = "bombjack/bombjack.zig", .model = .NONE },
     .{ .name = "kc852", .path = "kc85/kc85.zig", .model = .KC852 },
     .{ .name = "kc853", .path = "kc85/kc85.zig", .model = .KC853 },

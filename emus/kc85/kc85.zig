@@ -143,7 +143,7 @@ pub fn main() void {
         .frame_cb = frame,
         .event_cb = input,
         .cleanup_cb = cleanup,
-        .window_title = name ++ "(chipz)",
+        .window_title = name ++ " (chipz)",
         .width = width,
         .height = height,
         .icon = .{ .sokol_default = true },
