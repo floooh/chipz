@@ -4,7 +4,6 @@
 const bitutils = @import("common").bitutils;
 const mask = bitutils.mask;
 const maskm = bitutils.maskm;
-const filter = @import("common").filter;
 
 /// map chip pin names to bit positions
 ///
@@ -46,8 +45,6 @@ pub const TypeConfig = struct {
     model: Model = .AY38910,
     pins: Pins,
     bus: type,
-    dcadjust_buf_len: u32 = 128,
-    enable_lowpass_filter: bool = true,
 };
 
 pub fn Type(comptime cfg: TypeConfig) type {
@@ -58,7 +55,6 @@ pub fn Type(comptime cfg: TypeConfig) type {
         pub const Options = struct {
             tick_hz: u32, // frequency at which the tick function will be called
             sound_hz: u32, // host sound frequency (number of samples per second)
-            volume: f32 = 1.0, // output volume (0..1)
             chip_select: u4 = 0, // optional chip-select
         };
 
@@ -176,14 +172,8 @@ pub fn Type(comptime cfg: TypeConfig) type {
         pub const Sample = struct {
             period: i32 = 0,
             counter: i32 = 0,
-            volume: f32 = 0.0,
             out: f32 = 0.0, // output sample value
             ready: bool = false, // true if a new sample value is ready
-            filter: filter.Type(.{
-                .enable_dcadjust = true,
-                .enable_lowpass_filter = cfg.enable_lowpass_filter,
-                .dcadjust_buf_len = cfg.dcadjust_buf_len,
-            }) = .{},
         };
 
         tick_count: u32 = 0, // tick counter for internal clock division
@@ -236,7 +226,6 @@ pub fn Type(comptime cfg: TypeConfig) type {
                 .sample = .{
                     .period = sample_period,
                     .counter = sample_period,
-                    .volume = opts.volume,
                 },
             };
             self.updateValues();
@@ -246,7 +235,6 @@ pub fn Type(comptime cfg: TypeConfig) type {
 
         pub fn reset(self: *Self) void {
             self.active = false;
-            self.sample.filter.reset();
             self.addr = 0;
             self.tick_count = 0;
             for (&self.regs) |r| {
@@ -349,7 +337,7 @@ pub fn Type(comptime cfg: TypeConfig) type {
                         }
                     }
                 }
-                self.sample.out = self.sample.filter.put(sm) * self.sample.volume;
+                self.sample.out = sm;
                 self.sample.ready = true;
             } else {
                 self.sample.ready = false;

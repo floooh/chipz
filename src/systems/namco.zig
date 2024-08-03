@@ -41,8 +41,7 @@ const clock = common.clock;
 const filter = common.filter;
 const pin = common.bitutils.pin;
 const cp = common.utils.cp;
-const AudioCallback = common.glue.AudioCallback;
-const AudioOptions = common.glue.AudioOptions;
+const audio = common.audio;
 const DisplayInfo = common.glue.DisplayInfo;
 
 /// the emulated arcade machine type
@@ -72,6 +71,7 @@ const Z80_PINS = z80.Pins{
 // setup types
 const Z80 = z80.Type(.{ .pins = Z80_PINS, .bus = Bus });
 const Memory = memory.Type(.{ .page_size = 0x400 });
+const Audio = audio.Type(.{ .num_voices = 3 });
 
 const getAddr = Z80.getAddr;
 const getData = Z80.getData;
@@ -89,7 +89,7 @@ pub fn Type(comptime sys: System) type {
 
         /// Namco system init options
         pub const Options = struct {
-            audio: AudioOptions,
+            audio: Audio.Options,
             roms: switch (sys) {
                 .Pacman => struct {
                     sys_0000_0FFF: []const u8,
@@ -155,7 +155,6 @@ pub fn Type(comptime sys: System) type {
 
         // audio system related constants
         const AUDIO = struct {
-            const MAX_SAMPLES = 256;
             const PERIOD = 32; // sound is ticked every 32 CPU ticks
             const OVERSAMPLE = 2;
             const SAMPLE_SCALE = 16;
@@ -373,31 +372,21 @@ pub fn Type(comptime sys: System) type {
             },
         };
 
-        const AudioVoice = struct {
-            frequency: u20 = 0, // frequency
-            counter: u20 = 0, // counter, top 5 bits are index into 32-byte wave table
-            waveform: u3 = 0, // waveform select
-            volume: u4 = 0, // 16 volume levels
-            sample: f32 = 0.0, // accumulated sample value
-            sample_div: f32 = 0.0, // oversampling divider
-        };
-
-        const Audio = struct {
+        // Namco WSG audio emulation
+        const WSG = struct {
+            const Voice = struct {
+                frequency: u20 = 0, // frequency
+                counter: u20 = 0, // counter, top 5 bits are index into 32-byte wave table
+                waveform: u3 = 0, // waveform select
+                volume: u4 = 0, // 16 volume levels
+                sample: f32 = 0.0, // accumulated sample value
+                sample_div: f32 = 0.0, // oversampling divider
+            };
             tick_counter: u32,
             sample_period: i32,
             sample_counter: i32,
-            volume: f32,
-            voices: [3]AudioVoice = [_]AudioVoice{.{}} ** 3,
-            filter: filter.Type(.{
-                .enable_dcadjust = false,
-                .enable_lowpass_filter = true,
-                .dcadjust_buf_len = 2,
-            }) = .{},
-            num_samples: u32,
-            sample_pos: u32,
-            callback: AudioCallback,
+            voices: [3]Voice = [_]Voice{.{}} ** 3,
             rom: [0x0200]u8,
-            sample_buffer: [AUDIO.MAX_SAMPLES]f32,
         };
 
         bus: Bus = 0,
@@ -428,7 +417,8 @@ pub fn Type(comptime sys: System) type {
             prom: [MEMMAP.PROM_SIZE]u8,
         },
 
-        audio: Audio, // audio emulation state
+        wsg: WSG,
+        audio: Audio,
         hw_colors: [32]u32, // 8-bit colors from pal_rom[0..32] decoded to RGBA8
         pal_map: [PALETTE_MAP_SIZE]u5, // indirect indices into hw_colors
         fb: [DISPLAY.FB_SIZE]u8 align(128), // framebuffer bytes are indices into hw_colors
@@ -458,7 +448,8 @@ pub fn Type(comptime sys: System) type {
                 .hw_colors = initHwColors(&self.rom.prom),
                 .pal_map = initPaletteMap(&self.rom.prom),
 
-                .audio = initAudio(opts),
+                .wsg = initWSG(opts),
+                .audio = Audio.init(opts.audio),
 
                 .fb = std.mem.zeroes(@TypeOf(self.fb)),
                 .junk_page = std.mem.zeroes(@TypeOf(self.junk_page)),
@@ -819,20 +810,14 @@ pub fn Type(comptime sys: System) type {
             return rom;
         }
 
-        fn initAudio(opts: Options) Audio {
-            assert(opts.audio.num_samples <= AUDIO.MAX_SAMPLES);
+        fn initWSG(opts: Options) WSG {
             assert(opts.audio.sample_rate > 0);
             const period: i32 = @divFloor(CPU_FREQUENCY * AUDIO.SAMPLE_SCALE, opts.audio.sample_rate);
             return .{
                 .tick_counter = AUDIO.PERIOD,
                 .sample_period = period,
                 .sample_counter = period,
-                .volume = opts.audio.volume,
-                .num_samples = opts.audio.num_samples,
-                .sample_pos = 0,
-                .callback = opts.audio.callback,
                 .rom = initSoundRom(opts),
-                .sample_buffer = std.mem.zeroes([AUDIO.MAX_SAMPLES]f32),
             };
         }
 
@@ -843,7 +828,7 @@ pub fn Type(comptime sys: System) type {
         }
 
         fn audioWrite(self: *Self, addr: u16, data: u8) void {
-            const snd = &self.audio;
+            const snd = &self.wsg;
             switch (addr) {
                 // zig fmt: off
                 AUDIO.ADDR_V1_FC0 => { snd.voices[0].counter = setNibble(snd.voices[0].counter, data, 0); },
@@ -889,7 +874,7 @@ pub fn Type(comptime sys: System) type {
         }
 
         fn tickAudio(self: *Self) void {
-            var snd = &self.audio;
+            var snd = &self.wsg;
             // tick sound system?
             snd.tick_counter -= 1;
             if (snd.tick_counter == 0) {
@@ -920,15 +905,7 @@ pub fn Type(comptime sys: System) type {
                         voice.sample_div = 0.0;
                     }
                 }
-                sm *= snd.volume * 0.333333;
-                snd.sample_buffer[snd.sample_pos] = self.audio.filter.put(sm);
-                snd.sample_pos += 1;
-                if (snd.sample_pos == snd.num_samples) {
-                    if (snd.callback) |cb| {
-                        cb(snd.sample_buffer[0..snd.num_samples]);
-                    }
-                    snd.sample_pos = 0;
-                }
+                self.audio.put(sm);
             }
         }
     };

@@ -8,8 +8,7 @@ const memory = common.memory;
 const clock = common.clock;
 const pin = common.bitutils.pin;
 const cp = common.utils.cp;
-const AudioCallback = common.glue.AudioCallback;
-const AudioOptions = common.glue.AudioOptions;
+const audio = common.audio;
 const DisplayInfo = common.glue.DisplayInfo;
 
 // Z80 bus definitions (same for main and sound board)
@@ -66,6 +65,7 @@ const Z80 = z80.Type(.{ .pins = CPU_PINS, .bus = Bus });
 const PSG0 = ay3891.Type(.{ .pins = PSG0_PINS, .bus = Bus });
 const PSG1 = ay3891.Type(.{ .pins = PSG1_PINS, .bus = Bus });
 const PSG2 = ay3891.Type(.{ .pins = PSG2_PINS, .bus = Bus });
+const Audio = audio.Type(.{ .num_voices = 3 });
 
 const getData = Z80.getData;
 const setData = Z80.setData;
@@ -84,7 +84,7 @@ pub const Bombjack = struct {
 
     // system init options
     pub const Options = struct {
-        audio: AudioOptions,
+        audio: Audio.Options,
         roms: struct {
             main_0000_1FFF: []const u8, // main-board ROM 0x0000..0x1FFF
             main_2000_3FFF: []const u8, // main-board ROM 0x2000..0x3FFF
@@ -136,11 +136,6 @@ pub const Bombjack = struct {
         const HEIGHT = 256;
         const FB_WIDTH = 256;
         const FB_HEIGHT = 288; // save space for sprites
-    };
-
-    // audio constants
-    const AUDIO = struct {
-        const MAX_SAMPLES = 256;
     };
 
     // joystick mask bits
@@ -239,14 +234,6 @@ pub const Bombjack = struct {
         mem: Memory,
     };
 
-    pub const Audio = struct {
-        volume: f32,
-        num_samples: u32,
-        sample_pos: u32,
-        callback: AudioCallback,
-        sample_buffer: [AUDIO.MAX_SAMPLES]f32,
-    };
-
     main_board: MainBoard,
     sound_board: SoundBoard,
     sound_latch: u8 = 0,
@@ -284,17 +271,14 @@ pub const Bombjack = struct {
                 .psg0 = PSG0.init(.{
                     .tick_hz = PSG_FREQUENCY,
                     .sound_hz = @intCast(opts.audio.sample_rate),
-                    .volume = 0.3,
                 }),
                 .psg1 = PSG1.init(.{
                     .tick_hz = PSG_FREQUENCY,
                     .sound_hz = @intCast(opts.audio.sample_rate),
-                    .volume = 0.3,
                 }),
                 .psg2 = PSG2.init(.{
                     .tick_hz = PSG_FREQUENCY,
                     .sound_hz = @intCast(opts.audio.sample_rate),
-                    .volume = 0.3,
                 }),
                 .vsync_count = VSYNC_PERIOD_3MHZ,
                 .mem = Memory.init(.{
@@ -302,13 +286,7 @@ pub const Bombjack = struct {
                     .unmapped_page = &self.unmapped_page,
                 }),
             },
-            .audio = .{
-                .num_samples = opts.audio.num_samples,
-                .sample_pos = 0,
-                .volume = opts.audio.volume,
-                .callback = opts.audio.callback,
-                .sample_buffer = std.mem.zeroes([AUDIO.MAX_SAMPLES]f32),
-            },
+            .audio = Audio.init(opts.audio),
             .ram = .{
                 .main = std.mem.zeroes(@TypeOf(self.ram.main)),
                 .sound = std.mem.zeroes(@TypeOf(self.ram.sound)),
@@ -532,15 +510,7 @@ pub const Bombjack = struct {
             bus &= ~(PSG0.BDIR | PSG0.BC1 | PSG1.BDIR | PSG1.BC1 | PSG2.BDIR | PSG2.BC1);
 
             if (board.psg0.sample.ready) {
-                const s = board.psg0.sample.out + board.psg1.sample.out + board.psg2.sample.out;
-                self.audio.sample_buffer[self.audio.sample_pos] = s * self.audio.volume;
-                self.audio.sample_pos += 1;
-                if (self.audio.sample_pos == self.audio.num_samples) {
-                    if (self.audio.callback) |cb| {
-                        cb(self.audio.sample_buffer[0..self.audio.num_samples]);
-                    }
-                    self.audio.sample_pos = 0;
-                }
+                self.audio.put(board.psg0.sample.out + board.psg1.sample.out + board.psg2.sample.out);
             }
         }
 

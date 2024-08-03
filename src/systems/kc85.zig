@@ -13,10 +13,10 @@ const pin = common.bitutils.pin;
 const pins = common.bitutils.pins;
 const mask = common.bitutils.mask;
 const cp = common.utils.cp;
+const audio = common.audio;
 const fillNoise = common.utils.fillNoise;
-const AudioCallback = common.glue.AudioCallback;
-const AudioOptions = common.glue.AudioOptions;
 const DisplayInfo = common.glue.DisplayInfo;
+const Beeper = common.Beeper;
 
 // KC85 models
 pub const Model = enum {
@@ -88,7 +88,7 @@ const Z80 = z80.Type(.{ .pins = CPU_PINS, .bus = Bus });
 const Z80PIO = z80pio.Type(.{ .pins = PIO_PINS, .bus = Bus });
 const Z80CTC = z80ctc.Type(.{ .pins = CTC_PINS, .bus = Bus });
 const KeyBuf = keybuf.Type(.{ .num_slots = 4 });
-const Beeper = common.beeper.Type(.{});
+const Audio = audio.Type(.{ .num_voices = 2 });
 
 const getData = Z80.getData;
 const setData = Z80.setData;
@@ -104,7 +104,7 @@ pub fn Type(comptime model: Model) type {
 
         // runtime options
         pub const Options = struct {
-            audio: AudioOptions,
+            audio: Audio.Options,
             // FIXME: patch callback
             roms: switch (model) {
                 .KC852 => struct {
@@ -324,19 +324,6 @@ pub fn Type(comptime model: Model) type {
             buf_top: u32 = 0,
         };
 
-        // audio constants
-        const AUDIO = struct {
-            const MAX_SAMPLES = 256;
-        };
-
-        pub const Audio = struct {
-            volume: f32,
-            num_samples: u32,
-            sample_pos: u32,
-            callback: AudioCallback,
-            sample_buffer: [AUDIO.MAX_SAMPLES]f32,
-        };
-
         pub const Rom = switch (model) {
             .KC852 => struct {
                 caos_e: [0x2000]u8, // 8 KB CAOS ROM at 0xE000,
@@ -380,7 +367,6 @@ pub fn Type(comptime model: Model) type {
             const beeper_opts: Beeper.Options = .{
                 .tick_hz = FREQUENCY,
                 .sound_hz = @intCast(opts.audio.sample_rate),
-                .base_volume = 0.5,
             };
             self.* = .{
                 // init PIO port pins to high
@@ -412,13 +398,7 @@ pub fn Type(comptime model: Model) type {
                     break :init arr;
                 },
                 .rom = initRoms(opts),
-                .audio = .{
-                    .num_samples = opts.audio.num_samples,
-                    .sample_pos = 0,
-                    .volume = opts.audio.volume,
-                    .callback = opts.audio.callback,
-                    .sample_buffer = std.mem.zeroes([AUDIO.MAX_SAMPLES]f32),
-                },
+                .audio = Audio.init(opts.audio),
                 .ext_buf = std.mem.zeroes(@TypeOf(self.ext_buf)),
                 .fb = std.mem.zeroes(@TypeOf(self.fb)),
                 .junk_page = std.mem.zeroes(@TypeOf(self.junk_page)),
@@ -485,15 +465,7 @@ pub fn Type(comptime model: Model) type {
             _ = self.beeper[0].tick();
             if (self.beeper[1].tick()) {
                 // new audio sample ready
-                const s = self.beeper[0].sample.out + self.beeper[1].sample.out;
-                self.audio.sample_buffer[self.audio.sample_pos] = s * self.audio.volume;
-                self.audio.sample_pos += 1;
-                if (self.audio.sample_pos == self.audio.num_samples) {
-                    if (self.audio.callback) |cb| {
-                        cb(self.audio.sample_buffer[0..self.audio.num_samples]);
-                    }
-                    self.audio.sample_pos = 0;
-                }
+                self.audio.put(self.beeper[0].sample.out + self.beeper[1].sample.out);
             }
 
             // PIO output

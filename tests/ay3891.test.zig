@@ -17,10 +17,8 @@ test "init AY38910" {
     const ay = AY38910.init(.{
         .tick_hz = 3000000,
         .sound_hz = 44100,
-        .volume = 0.5,
     });
     try expect(ay.noise.rng == 1);
-    try expectApproxEqAbs(ay.sample.volume, 0.5, 0.001);
     try expect(ay.tone[0].period == 1);
     try expect(ay.tone[1].period == 1);
     try expect(ay.tone[2].period == 1);
@@ -30,10 +28,8 @@ test "init AY38912" {
     const ay = AY38912.init(.{
         .tick_hz = 3000000,
         .sound_hz = 44100,
-        .volume = 0.5,
     });
     try expect(ay.noise.rng == 1);
-    try expectApproxEqAbs(ay.sample.volume, 0.5, 0.001);
     try expect(ay.tone[0].period == 1);
     try expect(ay.tone[1].period == 1);
     try expect(ay.tone[2].period == 1);
@@ -43,10 +39,8 @@ test "init AY38913" {
     const ay = AY38913.init(.{
         .tick_hz = 3000000,
         .sound_hz = 44100,
-        .volume = 0.5,
     });
     try expect(ay.noise.rng == 1);
-    try expectApproxEqAbs(ay.sample.volume, 0.5, 0.001);
     try expect(ay.tone[0].period == 1);
     try expect(ay.tone[1].period == 1);
     try expect(ay.tone[2].period == 1);
