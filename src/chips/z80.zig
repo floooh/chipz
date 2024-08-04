@@ -2989,7 +2989,7 @@ pub fn Type(comptime cfg: TypeConfig) type {
                     // => overlapped: fetch first ISR instruction
                     INT_IM2_OVERLAPPED => { },
 
-                    else => unreachable(),
+                    else => unreachable,
                 }
                 bus = self.fetch(bus);
             }
