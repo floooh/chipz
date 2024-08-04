@@ -477,7 +477,8 @@ pub fn Type(comptime model: Model) type {
 
             // PIO output
             if (model == .KC854) {
-                @panic("FIXME: KC85/4 PIO output");
+                // FIXME
+                // @panic("FIXME: KC85/4 PIO output");
             } else {
                 // on KC85/2 and /3, PA4 is connected to NMI
                 if ((bus & PIO.NMI) == 0) {
@@ -534,11 +535,24 @@ pub fn Type(comptime model: Model) type {
         fn tickVideo(self: *Self, bus: Bus) Bus {
             // every 2 CPU ticks, 8 pixels are decoded
             if ((self.video.h_tick & 1) != 0) {
-                const x: u16 = self.video.h_tick >> 1;
-                const y: u16 = self.video.v_count;
+                const x: usize = self.video.h_tick >> 1;
+                const y: usize = self.video.v_count;
                 if ((y < 256) and (x < 40)) {
                     if (model == .KC854) {
-                        @panic("FIXME: KC85/4 video decoding");
+                        const irm_index: usize = if ((bus & IO84.SEL_VIEW_IMG) == 0) 0 else 2;
+                        const offset: usize = (x << 8) | y;
+                        const color_bits: u8 = self.ram[IRM0_PAGE + irm_index + 1][offset];
+                        if ((bus & IO84.HICOLOR) != 0) {
+                            // regular KC85/4 video mode
+                            const fg_blank = blinkState(color_bits, self.flip_flops, bus);
+                            const pixel_bits = if (fg_blank) 0 else self.ram[IRM0_PAGE + irm_index][offset];
+                            self.decode8Pixels(x, y, pixel_bits, color_bits);
+                        } else {
+                            // special per-pixel color mode
+                            const p0 = self.ram[IRM0_PAGE + irm_index][offset];
+                            const p1 = color_bits;
+                            self.decodeHicolor8Pixels(x, y, p0, p1);
+                        }
                     } else {
                         // KC85/2 and KC85/3 pixel decoding
                         const pixel_offset, const color_offset = if ((x & 0x20) == 0) .{
@@ -573,6 +587,27 @@ pub fn Type(comptime model: Model) type {
             inline for (0..8) |i| {
                 self.fb[off + i] = if ((pixel_bits & (0x80 >> i)) != 0) fg else bg;
             }
+        }
+
+        inline fn decodeHicolor8Pixels(self: *Self, x: usize, y: usize, p0: u8, p1: u8) void {
+            // KC85/4 "hicolor" mode
+            // Decode 8 pixels for the "HICOLOR" mode with 2-bits per-pixel color.
+            // p0 and p1 are the two bitplanes (taken from the pixel and color RAM
+            // bank). The color palette is hardwired.
+            //
+            // p0: 8 bits from first IRM page
+            // p1: 8 bits from second IRM page
+            //
+            assert((x < 40) and (y < 256));
+            const off: usize = y * DISPLAY.FB_WIDTH + x * 8;
+            self.fb[off + 0] = 0x20 | ((p0 >> 7) & 1) | ((p1 >> 6) & 2);
+            self.fb[off + 1] = 0x20 | ((p0 >> 6) & 1) | ((p1 >> 5) & 2);
+            self.fb[off + 2] = 0x20 | ((p0 >> 5) & 1) | ((p1 >> 4) & 2);
+            self.fb[off + 3] = 0x20 | ((p0 >> 4) & 1) | ((p1 >> 3) & 2);
+            self.fb[off + 4] = 0x20 | ((p0 >> 3) & 1) | ((p1 >> 2) & 2);
+            self.fb[off + 5] = 0x20 | ((p0 >> 2) & 1) | ((p1 >> 1) & 2);
+            self.fb[off + 6] = 0x20 | ((p0 >> 1) & 1) | ((p1 >> 0) & 2);
+            self.fb[off + 7] = 0x20 | ((p0 >> 0) & 1) | ((p1 << 1) & 2);
         }
 
         inline fn updateRasterCounters(self: *Self, in_bus: Bus) Bus {
