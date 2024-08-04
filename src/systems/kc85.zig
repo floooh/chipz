@@ -11,6 +11,7 @@ const clock = common.clock;
 const keybuf = common.keybuf;
 const pins = common.bitutils.pins;
 const mask = common.bitutils.mask;
+const maskm = common.bitutils.maskm;
 const cp = common.utils.cp;
 const audio = common.audio;
 const fillNoise = common.utils.fillNoise;
@@ -218,6 +219,7 @@ pub fn Type(comptime model: Model) type {
         // KC85/4 IO address 0x84 latch
         pub const IO84 = struct {
             // virtual pin masks
+            pub const P = maskm(Bus, &IO84_PINS);
             pub const P0 = mask(Bus, IO84_PINS[0]);
             pub const P1 = mask(Bus, IO84_PINS[1]);
             pub const P2 = mask(Bus, IO84_PINS[2]);
@@ -236,14 +238,19 @@ pub fn Type(comptime model: Model) type {
             // latch bits which affect memory mapping
             pub const MEMORY_BITS = SEL_CPU_COLOR | SEL_CPU_IMG | SEL_RAM8;
 
-            // IO enable mask and pins
-            pub const MASK = IO.MASK | Z80.A3 | Z80.A2 | Z80.A1 | Z80.A0;
-            pub const PINS = IO.PINS | Z80.A2;
+            // IO enable mask and pins (write-only)
+            pub const SEL_MASK = IO.MASK | Z80.WR | Z80.A3 | Z80.A2 | Z80.A1 | Z80.A0;
+            pub const SEL_PINS = IO.PINS | Z80.WR | Z80.A2;
+
+            pub inline fn set(bus: Bus, data: u8) Bus {
+                return (bus & ~P) | (@as(Bus, data) << IO84_PINS[0]);
+            }
         };
 
         // KC85/4 IO address 0x86 latch
         pub const IO86 = struct {
             // virtual pin masks
+            pub const P = maskm(Bus, &IO86_PINS);
             pub const P0 = mask(Bus, IO86_PINS[0]);
             pub const P1 = mask(Bus, IO86_PINS[1]);
             pub const P2 = mask(Bus, IO86_PINS[2]);
@@ -260,9 +267,13 @@ pub fn Type(comptime model: Model) type {
             // latch bits which affect memory mapping
             pub const MEMORY_BITS = RAM4 | RAM4_RO | CAOS_ROM_C;
 
-            // IO enable mask and pins
-            pub const MASK = IO.MASK | Z80.A3 | Z80.A2 | Z80.A1 | Z80.A0;
-            pub const PINS = IO.PINS | Z80.A2 | Z80.A1;
+            // IO enable mask and pins (write only)
+            pub const SEL_MASK = IO.MASK | Z80.WR | Z80.A3 | Z80.A2 | Z80.A1 | Z80.A0;
+            pub const SEL_PINS = IO.PINS | Z80.WR | Z80.A2 | Z80.A1;
+
+            pub inline fn set(bus: Bus, data: u8) Bus {
+                return (bus & ~P) | (@as(Bus, data) << IO86_PINS[0]);
+            }
         };
 
         // keyboard handler flags
@@ -405,7 +416,7 @@ pub fn Type(comptime model: Model) type {
                 .unmapped_page = [_]u8{0xFF} ** Memory.PAGE_SIZE,
             };
             // initial memory map
-            self.updateMemoryMap(self.bus, ALL_MEMORY_BITS);
+            self.updateMemoryMap(self.bus);
             // execution starts at address 0xF000
             self.cpu.prefetch(0xF000);
         }
@@ -476,13 +487,18 @@ pub fn Type(comptime model: Model) type {
 
             // KC85/4 IO latch 0x84 and 0x86
             if (model == .KC854) {
-                @panic("FIXME: KC85/4 latches 84 and 86");
+                if ((bus & IO84.SEL_MASK) == IO84.SEL_PINS) {
+                    bus = IO84.set(bus, getData(bus));
+                }
+                if ((bus & IO86.SEL_MASK) == IO86.SEL_PINS) {
+                    bus = IO86.set(bus, getData(bus));
+                }
             }
 
             // update memory mapping if needed
             const mem_mapping_changed = (self.mem_mapping ^ bus) & ALL_MEMORY_BITS;
             if (mem_mapping_changed != 0) {
-                self.updateMemoryMap(bus, mem_mapping_changed);
+                self.updateMemoryMap(bus);
             }
             return bus;
         }
@@ -607,55 +623,76 @@ pub fn Type(comptime model: Model) type {
             return rom;
         }
 
-        fn updateMemoryMap(self: *Self, bus: Bus, changed: Bus) void {
+        fn updateMemoryMap(self: *Self, bus: Bus) void {
             self.mem_mapping = bus;
-            // all models have 16 KB builtin RAM at address 0x0000
-            if ((changed & PIO.RAM) != 0) {
-                if ((bus & PIO.RAM) != 0) {
-                    if ((bus & PIO.RAM_RO) != 0) {
-                        self.mem.mapRAM(0x0000, 0x4000, &self.ram[0]);
-                    } else {
-                        self.mem.mapROM(0x0000, 0x4000, &self.ram[0]);
-                    }
+            self.mem.unmap(0x0000, 0x10000);
+
+            // 0x0000..0x3FFF: all models have 16 KB builtin RAM at address 0x0000
+            if ((bus & PIO.RAM) != 0) {
+                if ((bus & PIO.RAM_RO) != 0) {
+                    self.mem.mapRAM(0x0000, 0x4000, &self.ram[0]);
                 } else {
-                    self.mem.unmap(0x0000, 0x4000);
+                    self.mem.mapROM(0x0000, 0x4000, &self.ram[0]);
                 }
             }
 
-            // all models have 8 KBytes ROM at address 0xE000
-            if ((changed & PIO.CAOS_ROM) != 0) {
-                if ((bus & PIO.CAOS_ROM) != 0) {
-                    self.mem.mapROM(0xE000, 0x2000, &self.rom.caos_e);
-                } else {
-                    self.mem.unmap(0xE000, 0x2000);
-                }
-            }
-
-            // KC85/3 and /4 have a BASIC ROM at address 0xC000
-            if (model != .KC852) {
-                if ((changed & PIO.BASIC_ROM) != 0) {
-                    if ((bus & PIO.BASIC_ROM) != 0) {
-                        self.mem.mapROM(0xC000, 0x2000, &self.rom.basic);
-                    } else {
-                        self.mem.unmap(0xC000, 0x2000);
-                    }
-                }
-            }
-
-            // KC85/2 and /3 have fixed 16 KB video RAM at 0x8000
-            if (model != .KC854) {
-                if ((changed & PIO.IRM) != 0) {
-                    if ((bus & PIO.IRM) != 0) {
-                        self.mem.mapRAM(0x8000, 0x4000, &self.ram[IRM0_PAGE]);
-                    } else {
-                        self.mem.unmap(0x8000, 0x4000);
-                    }
-                }
-            }
-
-            // remaining KC85/4 specific memory mapping
+            // 0x4000..0x7FFF
             if (model == .KC854) {
-                @panic("FIXME: KC85/4 memory mapping");
+                if ((bus & IO86.RAM4) != 0) {
+                    if ((bus & IO86.RAM4_RO) != 0) {
+                        self.mem.mapRAM(0x4000, 0x4000, &self.ram[1]);
+                    } else {
+                        self.mem.mapROM(0x4000, 0x4000, &self.ram[1]);
+                    }
+                }
+            }
+
+            // 0x8000..0xBFFF
+            if (model != .KC854) {
+                if ((bus & PIO.IRM) != 0) {
+                    self.mem.mapRAM(0x8000, 0x4000, &self.ram[IRM0_PAGE]);
+                }
+            } else {
+                // video memory is 4 banks, 2 for pixels, 2 for colors,
+                // the area at 0xA800 to 0xBFFF is always mapped to IRM0!
+                if ((bus & PIO.IRM) != 0) {
+                    const irm_index: usize = @truncate((bus >> IO84_PINS[1]) & 3);
+                    const irm = self.ram[IRM0_PAGE + irm_index][0..0x2800];
+                    // on the KC85, an access to IRM banks other than the
+                    // first is only possible for the first 10 KByte until
+                    // A800, memory access to the remaining 6 KBytes
+                    // (A800 to BFFF) is always forced to the first IRM bank
+                    // by the address decoder hardware (see KC85/4 service manual)
+                    self.mem.mapRAM(0x8000, 0x2800, irm);
+                    // always force access to 0xA800 and above to the first IRM bank
+                    self.mem.mapRAM(0xA800, 0x1800, self.ram[IRM0_PAGE][0x2800..]);
+                } else if ((bus & PIO.RAM8) != 0) {
+                    const ram8 = if ((bus & IO84.SEL_RAM8) != 0) &self.ram[3] else &self.ram[2];
+                    if ((bus & PIO.RAM8_RO) != 0) {
+                        self.mem.mapRAM(0x8000, 0x4000, ram8);
+                    } else {
+                        self.mem.mapROM(0x8000, 0x4000, ram8);
+                    }
+                }
+            }
+
+            // 0xC000..0xDFFF
+            if (model != .KC852) {
+                if ((bus & PIO.BASIC_ROM) != 0) {
+                    self.mem.mapROM(0xC000, 0x2000, &self.rom.basic);
+                }
+            }
+            if (model == .KC854) {
+                if ((bus & IO86.CAOS_ROM_C) != 0) {
+                    self.mem.mapROM(0xC000, 0x1000, &self.rom.caos_c);
+                }
+            }
+
+            // 0xE000..0xFFFF
+            if ((bus & PIO.CAOS_ROM) != 0) {
+                self.mem.mapROM(0xE000, 0x2000, &self.rom.caos_e);
+            } else {
+                self.mem.unmap(0xE000, 0x2000);
             }
         }
 
