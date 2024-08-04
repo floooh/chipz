@@ -6,7 +6,6 @@ const ay3891 = chips.ay3891;
 const common = @import("common");
 const memory = common.memory;
 const clock = common.clock;
-const pin = common.bitutils.pin;
 const cp = common.utils.cp;
 const audio = common.audio;
 const DisplayInfo = common.glue.DisplayInfo;
@@ -403,9 +402,9 @@ pub const Bombjack = struct {
         // In hardware, the address decoding is mostly implemented
         // with cascaded 1-in-4 and 1-in-8 decoder chips. We'll take
         // a little shortcut and just check for the expected address ranges.
-        if (pin(bus, MREQ)) {
+        if ((bus & MREQ) != 0) {
             const addr = getAddr(bus);
-            if (pin(bus, WR)) {
+            if ((bus & WR) != 0) {
                 // memory write access
                 const data = getData(bus);
                 switch (addr) {
@@ -417,7 +416,7 @@ pub const Bombjack = struct {
                     0xB800 => self.sound_latch = data,
                     else => {},
                 }
-            } else if (pin(bus, RD)) {
+            } else if ((bus & RD) != 0) {
                 // memory read access
                 bus = switch (addr) {
                     0xB000 => setData(bus, board.p1),
@@ -450,9 +449,9 @@ pub const Bombjack = struct {
         bus = board.cpu.tick(bus);
 
         // handle memory and IO requests
-        if (pin(bus, MREQ)) {
+        if ((bus & MREQ) != 0) {
             const addr = getAddr(bus);
-            if (pin(bus, RD)) {
+            if ((bus & RD) != 0) {
                 // special case: read and clear sound latch and NMI flip-flop
                 if (addr == 0x6000) {
                     bus = setData(bus, self.sound_latch);
@@ -462,11 +461,11 @@ pub const Bombjack = struct {
                     // regular memory read
                     bus = setData(bus, board.mem.rd(addr));
                 }
-            } else if (pin(bus, WR)) {
+            } else if ((bus & WR) != 0) {
                 // regular memory write
                 board.mem.wr(addr, getData(bus));
             }
-        } else if (pin(bus, IORQ)) {
+        } else if ((bus & IORQ) != 0) {
             // For IO address decoding, see schematics page 9 and 10:
             //
             // PSG1, PSG2 and PSG3 are selected through a
@@ -483,16 +482,16 @@ pub const Bombjack = struct {
             //
             switch (bus & (A7 | A4)) {
                 0 => { // PSG0
-                    if (pin(bus, WR)) bus |= PSG0.BDIR;
-                    if (!pin(bus, A0)) bus |= PSG0.BC1;
+                    if ((bus & WR) != 0) bus |= PSG0.BDIR;
+                    if ((bus & A0) == 0) bus |= PSG0.BC1;
                 },
                 A4 => { // PSG1
-                    if (pin(bus, WR)) bus |= PSG1.BDIR;
-                    if (!pin(bus, A0)) bus |= PSG1.BC1;
+                    if ((bus & WR) != 0) bus |= PSG1.BDIR;
+                    if ((bus & A0) == 0) bus |= PSG1.BC1;
                 },
                 A7 => { // PSG2
-                    if (pin(bus, WR)) bus |= PSG2.BDIR;
-                    if (!pin(bus, A0)) bus |= PSG2.BC1;
+                    if ((bus & WR) != 0) bus |= PSG2.BDIR;
+                    if ((bus & A0) == 0) bus |= PSG2.BC1;
                 },
                 else => {},
             }

@@ -9,7 +9,6 @@ const common = @import("common");
 const memory = common.memory;
 const clock = common.clock;
 const keybuf = common.keybuf;
-const pin = common.bitutils.pin;
 const pins = common.bitutils.pins;
 const mask = common.bitutils.mask;
 const cp = common.utils.cp;
@@ -431,10 +430,10 @@ pub fn Type(comptime model: Model) type {
             // tick CPU and memory access
             var bus = self.cpu.tick(in_bus);
             const addr = getAddr(bus);
-            if (pin(bus, MREQ)) {
-                if (pin(bus, RD)) {
+            if ((bus & MREQ) != 0) {
+                if ((bus & RD) != 0) {
                     bus = setData(bus, self.mem.rd(addr));
-                } else if (pin(bus, WR)) {
+                } else if ((bus & WR) != 0) {
                     self.mem.wr(addr, getData(bus));
                 }
             }
@@ -444,10 +443,10 @@ pub fn Type(comptime model: Model) type {
 
             // IO address decoding
             bus = (bus & ~(Z80CTC.CE | Z80PIO.CE | Z80.NMI)) | Z80CTC.IEIO;
-            if (pins(bus, CTC.CE_MASK, CTC.CE_PINS)) {
+            if ((bus & CTC.CE_MASK) == CTC.CE_PINS) {
                 bus |= Z80CTC.CE;
             }
-            if (pins(bus, PIO.CE_MASK, PIO.CE_PINS)) {
+            if ((bus & PIO.CE_MASK) == PIO.CE_PINS) {
                 bus |= Z80PIO.CE;
             }
 
@@ -470,7 +469,7 @@ pub fn Type(comptime model: Model) type {
                 @panic("FIXME: KC85/4 PIO output");
             } else {
                 // on KC85/2 and /3, PA4 is connected to NMI
-                if (!pin(bus, PIO.NMI)) {
+                if ((bus & PIO.NMI) == 0) {
                     bus |= Z80.NMI;
                 }
             }
@@ -611,9 +610,9 @@ pub fn Type(comptime model: Model) type {
         fn updateMemoryMap(self: *Self, bus: Bus, changed: Bus) void {
             self.mem_mapping = bus;
             // all models have 16 KB builtin RAM at address 0x0000
-            if (pin(changed, PIO.RAM)) {
-                if (pin(bus, PIO.RAM)) {
-                    if (pin(bus, PIO.RAM_RO)) {
+            if ((changed & PIO.RAM) != 0) {
+                if ((bus & PIO.RAM) != 0) {
+                    if ((bus & PIO.RAM_RO) != 0) {
                         self.mem.mapRAM(0x0000, 0x4000, &self.ram[0]);
                     } else {
                         self.mem.mapROM(0x0000, 0x4000, &self.ram[0]);
@@ -624,8 +623,8 @@ pub fn Type(comptime model: Model) type {
             }
 
             // all models have 8 KBytes ROM at address 0xE000
-            if (pin(changed, PIO.CAOS_ROM)) {
-                if (pin(bus, PIO.CAOS_ROM)) {
+            if ((changed & PIO.CAOS_ROM) != 0) {
+                if ((bus & PIO.CAOS_ROM) != 0) {
                     self.mem.mapROM(0xE000, 0x2000, &self.rom.caos_e);
                 } else {
                     self.mem.unmap(0xE000, 0x2000);
@@ -634,8 +633,8 @@ pub fn Type(comptime model: Model) type {
 
             // KC85/3 and /4 have a BASIC ROM at address 0xC000
             if (model != .KC852) {
-                if (pin(changed, PIO.BASIC_ROM)) {
-                    if (pin(bus, PIO.BASIC_ROM)) {
+                if ((changed & PIO.BASIC_ROM) != 0) {
+                    if ((bus & PIO.BASIC_ROM) != 0) {
                         self.mem.mapROM(0xC000, 0x2000, &self.rom.basic);
                     } else {
                         self.mem.unmap(0xC000, 0x2000);
@@ -645,8 +644,8 @@ pub fn Type(comptime model: Model) type {
 
             // KC85/2 and /3 have fixed 16 KB video RAM at 0x8000
             if (model != .KC854) {
-                if (pin(changed, PIO.IRM)) {
-                    if (pin(bus, PIO.IRM)) {
+                if ((changed & PIO.IRM) != 0) {
+                    if ((bus & PIO.IRM) != 0) {
                         self.mem.mapRAM(0x8000, 0x4000, &self.ram[IRM0_PAGE]);
                     } else {
                         self.mem.unmap(0x8000, 0x4000);

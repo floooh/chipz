@@ -3,7 +3,6 @@ const std = @import("std");
 const assert = std.debug.assert;
 const chipz = @import("chipz");
 const z80 = chipz.chips.z80;
-const pin = chipz.common.bitutils.pin;
 
 const Z80 = z80.Type(.{ .pins = z80.DefaultPins, .bus = u64 });
 
@@ -80,16 +79,16 @@ fn mem16(addr: u16) u16 {
 fn tick() void {
     bus = cpu.tick(bus);
     const addr = Z80.getAddr(bus);
-    if (pin(bus, MREQ)) {
-        if (pin(bus, RD)) {
+    if ((bus & MREQ) != 0) {
+        if ((bus & RD) != 0) {
             bus = Z80.setData(bus, mem[addr]);
-        } else if (pin(bus, WR)) {
+        } else if ((bus & WR) != 0) {
             mem[addr] = Z80.getData(bus);
         }
-    } else if (pin(bus, IORQ)) {
-        if (pin(bus, RD)) {
+    } else if ((bus & IORQ) != 0) {
+        if ((bus & RD) != 0) {
             bus = Z80.setData(bus, @truncate((Z80.getAddr(bus) & 0xFF) * 2));
-        } else if (pin(bus, WR)) {
+        } else if ((bus & WR) != 0) {
             out_port = Z80.getAddr(bus);
             out_byte = Z80.getData(bus);
         }

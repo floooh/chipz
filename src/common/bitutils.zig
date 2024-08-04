@@ -17,11 +17,6 @@ pub inline fn mask(comptime T: anytype, comptime b: comptime_int) T {
     return 1 << b;
 }
 
-/// test whether a single bit is set in an integer
-pub inline fn pin(bus: anytype, p: comptime_int) bool {
-    return (bus & p) != 0;
-}
-
 /// test multiple pins against a mask
 pub inline fn pins(bus: anytype, m: comptime_int, p: comptime_int) bool {
     return (bus & m) == p;

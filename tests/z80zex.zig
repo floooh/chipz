@@ -9,7 +9,6 @@ const assert = std.debug.assert;
 const print = std.debug.print;
 const chipz = @import("chipz");
 const z80 = chipz.chips.z80;
-const pin = chipz.common.bitutils.pin;
 
 const Bus = u64;
 const Z80 = z80.Type(.{ .pins = z80.DefaultPins, .bus = Bus });
@@ -29,11 +28,11 @@ var mem = [_]u8{0} ** 0x10000;
 
 fn tick(in_bus: Bus) Bus {
     var bus = cpu.tick(in_bus);
-    if (pin(bus, MREQ)) {
+    if ((bus & MREQ) != 0) {
         const addr = Z80.getAddr(bus);
-        if (pin(bus, RD)) {
+        if ((bus & RD) != 0) {
             bus = Z80.setData(bus, mem[addr]);
-        } else if (pin(bus, WR)) {
+        } else if ((bus & WR) != 0) {
             mem[addr] = Z80.getData(bus);
         }
     }

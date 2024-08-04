@@ -38,8 +38,6 @@ const z80 = @import("chips").z80;
 const common = @import("common");
 const memory = common.memory;
 const clock = common.clock;
-const filter = common.filter;
-const pin = common.bitutils.pin;
 const cp = common.utils.cp;
 const audio = common.audio;
 const DisplayInfo = common.glue.DisplayInfo;
@@ -492,8 +490,8 @@ pub fn Type(comptime sys: System) type {
             // tick the CPU
             bus = self.cpu.tick(bus);
             const addr = getAddr(bus) & MEMMAP.ADDR_MASK;
-            if (pin(bus, MREQ)) {
-                if (pin(bus, WR)) {
+            if ((bus & MREQ) != 0) {
+                if ((bus & WR) != 0) {
                     const data = getData(bus);
                     if (addr < MEMIO.BASE) {
                         // a regular memory write
@@ -518,7 +516,7 @@ pub fn Type(comptime sys: System) type {
                             },
                         }
                     }
-                } else if (pin(bus, RD)) {
+                } else if ((bus & RD) != 0) {
                     if (addr < MEMIO.BASE) {
                         // a regular memory read
                         bus = setData(bus, self.mem.rd(addr));
@@ -533,13 +531,13 @@ pub fn Type(comptime sys: System) type {
                         bus = setData(bus, data);
                     }
                 }
-            } else if (pin(bus, IORQ)) {
-                if (pin(bus, WR)) {
+            } else if ((bus & IORQ) != 0) {
+                if ((bus & WR) != 0) {
                     if ((addr & 0x00FF) == 0) {
                         // OUT to port 0: set interrupt vector latch
                         self.int_vector = getData(bus);
                     }
-                } else if (pin(bus, M1)) {
+                } else if ((bus & M1) != 0) {
                     // an interrupt machine cycle, set interrupt vector on data bus
                     // and clear the interrupt pin
                     bus = setData(bus, self.int_vector) & ~INT;

@@ -8,9 +8,8 @@
 const std = @import("std");
 const assert = std.debug.assert;
 const chipz = @import("chipz");
-const z80 = chipz.chips.z80;
-const pin = chipz.common.bitutils.pin;
 const pinsAll = chipz.common.bitutils.pinsAll;
+const z80 = chipz.chips.z80;
 
 const T = assert;
 const Bus = u64;
@@ -40,10 +39,10 @@ const WZH = Z80.WZH;
 fn tick() void {
     bus = cpu.tick(bus);
     const addr = Z80.getAddr(bus);
-    if (pin(bus, MREQ)) {
-        if (pin(bus, RD)) {
+    if ((bus & MREQ) != 0) {
+        if ((bus & RD) != 0) {
             bus = Z80.setData(bus, mem[addr]);
-        } else if (pin(bus, WR)) {
+        } else if ((bus & WR) != 0) {
             mem[addr] = Z80.getData(bus);
         }
     } else if (pinsAll(bus, M1 | IORQ)) {
@@ -57,10 +56,10 @@ fn tick() void {
 fn im0_tick() void {
     bus = cpu.tick(bus);
     const addr = Z80.getAddr(bus);
-    if (pin(bus, MREQ)) {
-        if (pin(bus, RD)) {
+    if ((bus & MREQ) != 0) {
+        if ((bus & RD) != 0) {
             bus = Z80.setData(bus, mem[addr]);
-        } else if (pin(bus, WR)) {
+        } else if ((bus & WR) != 0) {
             mem[addr] = Z80.getData(bus);
         }
     } else if (pinsAll(bus, M1 | IORQ)) {

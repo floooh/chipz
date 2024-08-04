@@ -3,7 +3,6 @@ const expect = std.testing.expect;
 const chipz = @import("chipz");
 const z80ctc = chipz.chips.z80ctc;
 const z80 = chipz.chips.z80;
-const pin = chipz.common.bitutils.pin;
 const pins = chipz.common.bitutils.pins;
 
 const BusDecl = .{
@@ -200,16 +199,16 @@ fn tick(in_bus: Bus) Bus {
     state.tick_count += 1;
     var bus = in_bus & ~CE;
     bus = state.cpu.tick(bus);
-    if (pin(bus, MREQ)) {
+    if ((bus & MREQ) != 0) {
         const addr = getAddr(bus);
-        if (pin(bus, RD)) {
+        if ((bus & RD) != 0) {
             const data = state.mem[addr];
             bus = setData(bus, data);
-        } else if (pin(bus, WR)) {
+        } else if ((bus & WR) != 0) {
             const data = getData(bus);
             state.mem[addr] = data;
         }
-    } else if (pin(bus, IORQ)) {
+    } else if ((bus & IORQ) != 0) {
         // just assume that each IO request is for the CTC
         // NOTE: CS0/CS1 are wired to A0/A1
         bus |= CE;

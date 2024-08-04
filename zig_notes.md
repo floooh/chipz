@@ -1,5 +1,8 @@
 - Low debug performance may become a problem => investigate!
-  PS: release=safe is fast
+  => release=safe is fast
+  => inline functions are also inlined in debug mode, but still
+     push/pop parameters on stack
+
 
 ```zig
 const px: usize = 272 - self.sprite_coords[sprite_index * 2 + 1];
