@@ -349,6 +349,7 @@ pub fn Type(comptime model: Model) type {
             v_count: u16 = 0,
         } = .{},
         flip_flops: Bus = 0,
+        mem_mapping: Bus = 0,
         beeper: [2]Beeper,
         mem: Memory,
         key_buf: KeyBuf,
@@ -417,18 +418,18 @@ pub fn Type(comptime model: Model) type {
 
         pub fn exec(self: *Self, micro_seconds: u32) u32 {
             const num_ticks = clock.microSecondsToTicks(FREQUENCY, micro_seconds);
+            var bus = self.bus;
             for (0..num_ticks) |_| {
-                self.tick();
+                bus = self.tick(bus);
             }
+            self.bus = bus;
             self.updateKeyboard(micro_seconds);
             return num_ticks;
         }
 
-        pub fn tick(self: *Self) void {
-            var bus = self.bus;
-
+        pub fn tick(self: *Self, in_bus: Bus) Bus {
             // tick CPU and memory access
-            bus = self.cpu.tick(bus);
+            var bus = self.cpu.tick(in_bus);
             const addr = getAddr(bus);
             if (pin(bus, MREQ)) {
                 if (pin(bus, RD)) {
@@ -441,20 +442,16 @@ pub fn Type(comptime model: Model) type {
             // tick video system (may set CTC CLKTRG0..3)
             bus = self.tickVideo(bus);
 
-            // IO address decoding (fixme: replace with a switch?)
+            // IO address decoding
+            bus = (bus & ~(Z80CTC.CE | Z80PIO.CE | Z80.NMI)) | Z80CTC.IEIO;
             if (pins(bus, CTC.CE_MASK, CTC.CE_PINS)) {
                 bus |= Z80CTC.CE;
-            } else {
-                bus &= ~Z80CTC.CE;
             }
             if (pins(bus, PIO.CE_MASK, PIO.CE_PINS)) {
                 bus |= Z80PIO.CE;
-            } else {
-                bus &= ~Z80PIO.CE;
             }
 
             // tick the CTC and PIO
-            bus |= Z80CTC.IEIO;
             bus = self.ctc.tick(bus);
             bus = self.pio.tick(bus);
             self.flip_flops ^= bus;
@@ -473,9 +470,7 @@ pub fn Type(comptime model: Model) type {
                 @panic("FIXME: KC85/4 PIO output");
             } else {
                 // on KC85/2 and /3, PA4 is connected to NMI
-                if (pin(bus, PIO.NMI)) {
-                    bus &= ~Z80.NMI;
-                } else {
+                if (!pin(bus, PIO.NMI)) {
                     bus |= Z80.NMI;
                 }
             }
@@ -486,11 +481,11 @@ pub fn Type(comptime model: Model) type {
             }
 
             // update memory mapping if needed
-            const mem_update_bits = (self.bus ^ bus) & ALL_MEMORY_BITS;
-            if (mem_update_bits != 0) {
-                self.updateMemoryMap(bus, mem_update_bits);
+            const mem_mapping_changed = (self.mem_mapping ^ bus) & ALL_MEMORY_BITS;
+            if (mem_mapping_changed != 0) {
+                self.updateMemoryMap(bus, mem_mapping_changed);
             }
-            self.bus = bus;
+            return bus;
         }
 
         pub fn displayInfo(selfOrNull: ?*const Self) DisplayInfo {
@@ -614,6 +609,7 @@ pub fn Type(comptime model: Model) type {
         }
 
         fn updateMemoryMap(self: *Self, bus: Bus, changed: Bus) void {
+            self.mem_mapping = bus;
             // all models have 16 KB builtin RAM at address 0x0000
             if (pin(changed, PIO.RAM)) {
                 if (pin(bus, PIO.RAM)) {

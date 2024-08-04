@@ -23,6 +23,7 @@ const emulators = .{
     .{ .name = "bombjack", .path = "bombjack/bombjack.zig", .model = .NONE },
     .{ .name = "kc852", .path = "kc85/kc85.zig", .model = .KC852 },
     .{ .name = "kc853", .path = "kc85/kc85.zig", .model = .KC853 },
+    //    .{ .name = "kc854", .path = "kc85/kc85.zig", .model = .KC854 },
 };
 
 pub const Options = struct {

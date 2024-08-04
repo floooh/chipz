@@ -9,8 +9,8 @@ const kc85 = @import("chipz").systems.kc85;
 const model: kc85.Model = switch (build_options.model) {
     .KC852 => .KC852,
     .KC853 => .KC853,
-    .KC854 => .KKC85,
-    else => @compileError("unknown KC85 model"),
+    .KC854 => .KC854,
+    else => @compileError("unsupported KC85 model"),
 };
 const name = switch (model) {
     .KC852 => "KC85/2",
@@ -39,7 +39,11 @@ export fn init() void {
                 .caos31 = @embedFile("roms/caos31.853"),
                 .kcbasic = @embedFile("roms/basic_c0.853"),
             },
-            else => @panic("FIXME"),
+            .KC854 => .{
+                .caos42c = @embedFile("roms/caos42c.854"),
+                .caos42e = @embedFile("roms/caos42e.854"),
+                .kcbasic = @embedFile("roms/basic_c0.853"),
+            },
         },
     });
     host.gfx.init(.{ .display = sys.displayInfo() });
