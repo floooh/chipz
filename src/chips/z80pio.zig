@@ -169,7 +169,7 @@ pub fn Type(cfg: TypeConfig) type {
         pub const Port = struct {
             input: u8 = 0, // data input register
             output: u8 = 0, // data output register
-            mode: u2 = 0, // 2-bit mode control register (MODE.*)
+            mode: u8 = 0, // 2-bit mode control register (MODE.*)
             io_select: u8 = 0, // input/output select register
             int_control: u8 = 0, // interrupt control word (INTCTRL.*)
             int_mask: u8 = 0, // interrupt control mask
@@ -184,6 +184,7 @@ pub fn Type(cfg: TypeConfig) type {
 
         ports: [NUM_PORTS]Port = [_]Port{.{}} ** NUM_PORTS,
         reset_active: bool = false,
+        port_output_or_ioselect_dirty: bool = true,
 
         pub inline fn getData(bus: Bus) u8 {
             return @truncate(bus >> cfg.pins.DBUS[0]);
@@ -217,6 +218,7 @@ pub fn Type(cfg: TypeConfig) type {
 
         pub fn reset(self: *Self) void {
             self.reset_active = true;
+            self.port_output_or_ioselect_dirty = true;
             for (&self.ports) |*port| {
                 port.mode = MODE.INPUT;
                 port.output = 0;
@@ -275,7 +277,7 @@ pub fn Type(cfg: TypeConfig) type {
                 },
                 CE | IORQ => {
                     // write data
-                    writeData(p, getData(bus));
+                    self.writeData(p, getData(bus));
                 },
                 else => {},
             }
@@ -285,6 +287,7 @@ pub fn Type(cfg: TypeConfig) type {
             bus = self.setPortOutput(bus);
             // handle interrupt protocol
             bus = self.irq(bus);
+            self.port_output_or_ioselect_dirty = false;
             return bus;
         }
         // new control word received from CPU
@@ -296,6 +299,7 @@ pub fn Type(cfg: TypeConfig) type {
                     p.io_select = data;
                     p.int_enabled = (p.int_control & INTCTRL.EI) != 0;
                     p.expect = .CTRL;
+                    self.port_output_or_ioselect_dirty = true;
                 },
                 .INT_MASK => {
                     // followup interrupt mask
@@ -355,10 +359,14 @@ pub fn Type(cfg: TypeConfig) type {
         }
 
         // new data word received from CPU
-        fn writeData(p: *Port, data: u8) void {
+        fn writeData(self: *Self, p: *Port, data: u8) void {
             switch (p.mode) {
-                MODE.OUTPUT, MODE.INPUT, MODE.BITCONTROL => p.output = data,
+                MODE.OUTPUT, MODE.INPUT, MODE.BITCONTROL => {
+                    p.output = data;
+                    self.port_output_or_ioselect_dirty = true;
+                },
                 MODE.BIDIRECTIONAL => {}, // FIXME
+                else => unreachable,
             }
         }
 
@@ -369,19 +377,23 @@ pub fn Type(cfg: TypeConfig) type {
                 MODE.INPUT => p.input,
                 MODE.BIDIRECTIONAL => 0xFF, // FIXME
                 MODE.BITCONTROL => (p.input & p.io_select) | (p.output | ~p.io_select),
+                else => unreachable,
             };
         }
 
         // set port bits on the bus
-        fn setPortOutput(self: *const Self, in_bus: Bus) Bus {
+        fn setPortOutput(self: *Self, in_bus: Bus) Bus {
             var bus = in_bus; // autofix
-            inline for (&self.ports, 0..) |*p, pid| {
-                const data = switch (p.mode) {
-                    MODE.OUTPUT => p.output,
-                    MODE.INPUT, MODE.BIDIRECTIONAL => 0xFF,
-                    MODE.BITCONTROL => p.io_select | (p.output & ~p.io_select),
-                };
-                bus = setPort(pid, bus, data);
+            if (self.port_output_or_ioselect_dirty) {
+                inline for (&self.ports, 0..) |*p, pid| {
+                    const data = switch (p.mode) {
+                        MODE.OUTPUT => p.output,
+                        MODE.INPUT, MODE.BIDIRECTIONAL => 0xFF,
+                        MODE.BITCONTROL => (getPort(pid, bus) & p.io_select) | (p.output & ~p.io_select),
+                        else => unreachable,
+                    };
+                    bus = setPort(pid, bus, data);
+                }
             }
             return bus;
         }
@@ -389,35 +401,28 @@ pub fn Type(cfg: TypeConfig) type {
         // read port bits from bus
         fn readPorts(self: *Self, bus: Bus) void {
             inline for (&self.ports, 0..) |*p, pid| {
-                const data = getPort(pid, bus);
-                // this only needs to be evaluated if either the port input
-                // or port state might have changed
-                if ((data != p.input) or ((bus & CE) != 0)) {
-                    switch (p.mode) {
-                        MODE.INPUT => {
-                            // FIXME: strobe/ready handshake and interrupt
-                            p.input = data;
-                        },
-                        MODE.BITCONTROL => {
-                            p.input = data;
-
-                            // check interrupt condition
-                            const imask = ~p.int_mask;
-                            const val = ((p.input & p.io_select) | (p.output & ~p.io_select)) & imask;
-                            const ictrl = p.int_control & 0x60;
-                            const match = switch (ictrl) {
-                                0 => val != imask,
-                                0x20 => val != 0,
-                                0x40 => val == 0,
-                                0x60 => val == imask,
-                                else => false,
-                            };
-                            if (!p.bctrl_match and match and p.int_enabled) {
-                                p.irq.request();
-                            }
-                            p.bctrl_match = match;
-                        },
-                        else => {},
+                if (p.mode == MODE.INPUT) {
+                    p.input = getPort(pid, bus);
+                } else if (p.mode == MODE.BITCONTROL) {
+                    const data = getPort(pid, bus);
+                    // only needs to be evaluated if port state or chip state changed
+                    if ((data != p.input) or ((bus & CE) != 0)) {
+                        p.input = data;
+                        // check interrupt condition
+                        const imask = ~p.int_mask;
+                        const val = ((p.input & p.io_select) | (p.output & ~p.io_select)) & imask;
+                        const ictrl = p.int_control & 0x60;
+                        const match = switch (ictrl) {
+                            0 => val != imask,
+                            0x20 => val != 0,
+                            0x40 => val == 0,
+                            0x60 => val == imask,
+                            else => false,
+                        };
+                        if (!p.bctrl_match and match and p.int_enabled) {
+                            p.irq.request();
+                        }
+                        p.bctrl_match = match;
                     }
                 }
             }
