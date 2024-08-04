@@ -193,6 +193,8 @@ pub fn Type(comptime model: Model) type {
             pub const TAPE_LED = Z80PIO.PA5;
             pub const TAPE_MOTOR = Z80PIO.PA6;
             pub const BASIC_ROM = Z80PIO.PA7;
+            pub const KC854_RESET_SOUND = Z80PIO.PB0;
+            pub const KC854_VOLUME = Z80PIO.PB1 | Z80PIO.PB2 | Z80PIO.PB3 | Z80PIO.PB4;
             pub const RAM8 = Z80PIO.PB5;
             pub const RAM8_RO = Z80PIO.PB6;
             pub const BLINK_ENABLED = Z80PIO.PB7;
@@ -359,7 +361,6 @@ pub fn Type(comptime model: Model) type {
             v_count: u16 = 0,
         } = .{},
         flip_flops: Bus = 0,
-        mem_mapping: Bus = 0,
         beeper: [2]Beeper,
         mem: Memory,
         key_buf: KeyBuf,
@@ -438,8 +439,11 @@ pub fn Type(comptime model: Model) type {
         }
 
         pub fn tick(self: *Self, in_bus: Bus) Bus {
+            var bus = in_bus;
+            const prev_bus = in_bus;
+
             // tick CPU and memory access
-            var bus = self.cpu.tick(in_bus);
+            bus = self.cpu.tick(bus);
             const addr = getAddr(bus);
             if ((bus & MREQ) != 0) {
                 if ((bus & RD) != 0) {
@@ -466,6 +470,25 @@ pub fn Type(comptime model: Model) type {
             bus = self.pio.tick(bus);
             self.flip_flops ^= bus;
 
+            // PIO output
+            if (model == .KC854) {
+                // update sound volume if it has changed
+                if (((prev_bus ^ bus) & PIO.KC854_VOLUME) != 0) {
+                    const vol: f32 = @as(f32, @floatFromInt((~bus >> PIO_PINS.PB[1]) & 0x0F)) / 15.0;
+                    self.beeper[0].setVolume(vol);
+                    self.beeper[1].setVolume(vol);
+                }
+                // PIO-B bit 0 cleared forces audio beeper flip-flops to low
+                if ((bus & PIO.KC854_RESET_SOUND) == 0) {
+                    self.flip_flops &= ~(CTC.BEEPER1 | CTC.BEEPER2);
+                }
+            } else {
+                // on KC85/2 and /3, PA4 is connected to NMI
+                if ((bus & PIO.NMI) == 0) {
+                    bus |= Z80.NMI;
+                }
+            }
+
             // tick beepers
             self.beeper[0].set((self.flip_flops & CTC.BEEPER1) != 0);
             self.beeper[1].set((self.flip_flops & CTC.BEEPER2) != 0);
@@ -473,17 +496,6 @@ pub fn Type(comptime model: Model) type {
             if (self.beeper[1].tick()) {
                 // new audio sample ready
                 self.audio.put(self.beeper[0].sample.out + self.beeper[1].sample.out);
-            }
-
-            // PIO output
-            if (model == .KC854) {
-                // FIXME
-                // @panic("FIXME: KC85/4 PIO output");
-            } else {
-                // on KC85/2 and /3, PA4 is connected to NMI
-                if ((bus & PIO.NMI) == 0) {
-                    bus |= Z80.NMI;
-                }
             }
 
             // KC85/4 IO latch 0x84 and 0x86
@@ -497,8 +509,7 @@ pub fn Type(comptime model: Model) type {
             }
 
             // update memory mapping if needed
-            const mem_mapping_changed = (self.mem_mapping ^ bus) & ALL_MEMORY_BITS;
-            if (mem_mapping_changed != 0) {
+            if (((prev_bus ^ bus) & ALL_MEMORY_BITS) != 0) {
                 self.updateMemoryMap(bus);
             }
             return bus;
@@ -659,7 +670,6 @@ pub fn Type(comptime model: Model) type {
         }
 
         fn updateMemoryMap(self: *Self, bus: Bus) void {
-            self.mem_mapping = bus;
             self.mem.unmap(0x0000, 0x10000);
 
             // 0x0000..0x3FFF: all models have 16 KB builtin RAM at address 0x0000
