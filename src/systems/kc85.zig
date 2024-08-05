@@ -293,8 +293,8 @@ pub fn Type(comptime model: Model) type {
             pub const BUF_SIZE = NUM_SLOTS * 64 * 1024; // expansion system buffer size (64 KB per slot)
 
             // IO enable mask and pins
-            pub const MASK = IO.MASK | Z80.A3 | Z80.A2 | Z80.A1 | Z80.A0;
-            pub const PINS = IO.PINS | Z80.A2 | Z80.A1;
+            pub const SEL_MASK = IO.MASK | Z80.A3 | Z80.A2 | Z80.A1 | Z80.A0;
+            pub const SEL_PINS = IO.PINS;
         };
 
         pub const ALL_MEMORY_BITS = PIO.MEMORY_BITS | if (model == .KC854) IO84.MEMORY_BITS | IO86.MEMORY_BITS else 0;
@@ -307,16 +307,50 @@ pub fn Type(comptime model: Model) type {
             M012_TEXOR, // TEXOR text editing (id = 0xFB)
             M022_16KBYTE, // 16 KB RAM expansion (id = 0xF4)
             M026_FORTH, // FORTH IDE (id = 0xFB)
-            M027_DEVELOPMENT, // Assembler IDE (id = 0xFB)
+            M027_DEV, // Assembler IDE (id = 0xFB)
+
+            pub fn name(t: Type) []const u8 {
+                return switch (t) {
+                    .NONE => "NONE",
+                    .M006_BASIC => "M006 BASIC",
+                    .M011_64KBYTE => "M011 64KBYTE",
+                    .M012_TEXTOR => "M012 TEXOR",
+                    .M022_16KBYTE => "M022 16KBYTE",
+                    .M026_FORTH => "M026 FORTH",
+                    .M027_DEV => "M027 DEV",
+                };
+            }
+
+            pub fn shortName(t: ModuleType) []const u8 {
+                return switch (t) {
+                    .NONE => "NONE",
+                    .M006_BASIC => "M006",
+                    .M011_64KBYTE => "M011",
+                    .M012_TEXTOR => "M012",
+                    .M022_16KBYTE => "M022",
+                    .M026_FORTH => "M026",
+                    .M027_DEV => "M027",
+                };
+            }
+
+            pub fn toModule(t: ModuleType) Module {
+                return switch (t) {
+                    .NONE => .{},
+                    .M006_BASIC => .{ .mod_type = t, .id = 0xFC, .writable = false, .addr_mask = 0xC0, .size = 16 * 1024 },
+                    .M011_64KBYTE => .{ .mod_type = t, .id = 0xF6, .writable = true, .addr_mask = 0xC0, .size = 64 * 1024 },
+                    .M022_16KBYTE => .{ .mod_type = t, .id = 0xF4, .writable = true, .addr_mask = 0xC0, .size = 16 * 1024 },
+                    .M012_TEXOR, .M026_FORTH, .M027_DEV => .{ .mod_type = t, .id = 0xFB, .writable = false, .addr_mask = 0xE0, .size = 8 * 1024 },
+                };
+            }
         };
 
         // expansion module state
         pub const Module = struct {
             mod_type: ModuleType = .NONE,
-            id: u8 = 0,
+            id: u8 = 0xFF,
             writable: bool = false,
             addr_mask: u8 = 0,
-            size: u32 = 0,
+            size: u17 = 0,
         };
 
         // expansion system slot
@@ -329,9 +363,11 @@ pub fn Type(comptime model: Model) type {
 
         // KC85 expansion system state
         pub const Exp = struct {
-            slot: [EXP.NUM_SLOTS]Slot = .{
-                .{ .addr = 0x0C },
+            // NOTE: order is important since it defines memory mapping priority
+            // (first slot has lowest priority)
+            slots: [EXP.NUM_SLOTS]Slot = .{
                 .{ .addr = 0x08 },
+                .{ .addr = 0x0C },
             },
             buf_top: u32 = 0,
         };
@@ -370,10 +406,10 @@ pub fn Type(comptime model: Model) type {
         ram: [8][0x4000]u8,
         rom: Rom,
         audio: Audio,
-        ext_buf: [EXP.BUF_SIZE]u8,
         fb: [DISPLAY.FB_SIZE]u8 align(128),
         junk_page: [Memory.PAGE_SIZE]u8,
         unmapped_page: [Memory.PAGE_SIZE]u8,
+        exp_buf: [EXP.BUF_SIZE]u8,
 
         pub fn initInPlace(self: *Self, opts: Options) void {
             const beeper_opts: Beeper.Options = .{
@@ -411,7 +447,7 @@ pub fn Type(comptime model: Model) type {
                 },
                 .rom = initRoms(opts),
                 .audio = Audio.init(opts.audio),
-                .ext_buf = std.mem.zeroes(@TypeOf(self.ext_buf)),
+                .exp_buf = std.mem.zeroes(@TypeOf(self.exp_buf)),
                 .fb = std.mem.zeroes(@TypeOf(self.fb)),
                 .junk_page = std.mem.zeroes(@TypeOf(self.junk_page)),
                 .unmapped_page = [_]u8{0xFF} ** Memory.PAGE_SIZE,
@@ -498,6 +534,19 @@ pub fn Type(comptime model: Model) type {
                 self.audio.put(self.beeper[0].sample.out + self.beeper[1].sample.out);
             }
 
+            // handle expansion system control at IO port 0x80
+            var exp_mem_dirty = false;
+            if ((bus & EXP.SEL_MASK) == EXP.SEL_PINS) {
+                const slot_addr: u8 = @truncate(bus >> CPU_PINS.ABUS[8]);
+                if ((bus & WR) != 0) {
+                    // write new slot control byte and optionally trigger a memory mapping
+                    exp_mem_dirty = self.expWriteCtrl(slot_addr, getData(bus));
+                } else if ((bus & RD) != 0) {
+                    // read module id from slot
+                    bus = setData(bus, self.expReadModuleId(slot_addr));
+                }
+            }
+
             // KC85/4 IO latch 0x84 and 0x86
             if (model == .KC854) {
                 if ((bus & IO84.SEL_MASK) == IO84.SEL_PINS) {
@@ -509,7 +558,7 @@ pub fn Type(comptime model: Model) type {
             }
 
             // update memory mapping if needed
-            if (((prev_bus ^ bus) & ALL_MEMORY_BITS) != 0) {
+            if (exp_mem_dirty or ((prev_bus ^ bus) & ALL_MEMORY_BITS) != 0) {
                 self.updateMemoryMap(bus);
             }
             return bus;
@@ -672,6 +721,10 @@ pub fn Type(comptime model: Model) type {
         fn updateMemoryMap(self: *Self, bus: Bus) void {
             self.mem.unmap(0x0000, 0x10000);
 
+            // mapping needs to happen in priority order, higher priority
+            // mappings will overwrite lower priority mappings
+            self.expUpdateMemoryMap();
+
             // 0x0000..0x3FFF: all models have 16 KB builtin RAM at address 0x0000
             if ((bus & PIO.RAM) != 0) {
                 if ((bus & PIO.RAM_RO) != 0) {
@@ -760,7 +813,7 @@ pub fn Type(comptime model: Model) type {
 
             // get first valid key code from key buffer
             var key_code: u8 = 0;
-            for (self.key_buf.slots) |slot| {
+            for (&self.key_buf.slots) |*slot| {
                 if (slot.key != 0) {
                     key_code = @truncate(slot.key);
                     break;
@@ -807,6 +860,139 @@ pub fn Type(comptime model: Model) type {
                     // key repeat triggered, set the key-ready flags and reset repeat-count
                     self.mem.wr(ix_key_status, self.mem.rd(ix_key_status) | KBD.KEYREADY);
                     self.mem.wr(ix_key_repeat, 0);
+                }
+            }
+        }
+
+        //*** EXPANSION SYSTEM ***
+        fn insertModule(self: *Self, slot_addr: u8, mod_type: ModuleType, opt_rom_data: ?[]const u8) !void {
+            if (mod_type == .NONE) {
+                return error.CannotInsertNoneModule;
+            }
+            if (self.slotByAddr(slot_addr)) |slot| {
+                slot.mod = ModuleType.toModule(mod_type);
+                try self.expAlloc(slot);
+                if (opt_rom_data) |rom_data| {
+                    if (rom_data.len != slot.mod.size) {
+                        return error.UnexpectedRomDataSize;
+                    }
+                    std.mem.copyForwards(u8, self.exp_buf[slot.buf_offset..], rom_data);
+                }
+                self.updateMemoryMap(self.bus);
+            } else {
+                return error.InvalidSlotAddr;
+            }
+        }
+
+        fn removeModule(self: *Self, slot_addr: u8) !void {
+            if (self.slotByAddr(slot_addr)) |slot| {
+                // if slot is not occupied this is a no-op
+                if (slot.mod.mod_type == .NONE) {
+                    assert(slot.mod.id == 0xFF);
+                    assert(slot.mod.size == 0);
+                    return;
+                }
+                self.expFree(slot);
+                slot.mod = .{};
+                self.updateMemoryMap(self.bus);
+            } else {
+                return error.InvalidSlotAddr;
+            }
+        }
+
+        pub fn insertRamModule(self: *Self, slot_addr: u8, mod_type: ModuleType) !void {
+            try self.removeModule(slot_addr);
+            try self.insertModule(slot_addr, mod_type, null);
+        }
+
+        pub fn insertRomModule(self: *Self, slot_addr: u8, mod_type: ModuleType, rom_data: []const u8) !void {
+            try self.removeModule(slot_addr);
+            try self.insertModule(slot_addr, mod_type, rom_data);
+        }
+
+        fn slotByAddr(self: *Self, slot_addr: u8) ?*Slot {
+            for (&self.exp.slots) |*slot| {
+                if (slot_addr == slot.addr) {
+                    return slot;
+                }
+            }
+            return null;
+        }
+
+        // allocate space in expansion buffer and initialize with zero
+        fn expAlloc(self: *Self, slot: *Slot) !void {
+            if ((slot.mod.size + self.exp.buf_top) > EXP.BUF_SIZE) {
+                return error.ExpanionBufferFull;
+            }
+            slot.buf_offset = self.exp.buf_top;
+            self.exp.buf_top += slot.mod.size;
+            const start = slot.buf_offset;
+            const end = start + slot.mod.size;
+            @memset(self.exp_buf[start..end], 0);
+        }
+
+        // free area in expansion buffer and close any gaps
+        fn expFree(self: *Self, free_slot: *Slot) void {
+            assert(free_slot.mod.size > 0);
+            const gap_size = free_slot.mod.size;
+            assert(self.exp.buf_top >= gap_size);
+            for (&self.exp.slots) |*slot| {
+                if (slot.mod.mod_type == .NONE) {
+                    continue;
+                }
+                // if slot is 'behind' the to-be-freed slot...
+                if (slot.buf_offset > free_slot.buf_offset) {
+                    assert(slot.buf_offset >= gap_size);
+                    // move data backward to close the gap
+                    const src_start = slot.buf_offset;
+                    const src_end = src_start + slot.mod.size;
+                    const dst_start = slot.buf_offset - gap_size;
+                    const dst_end = dst_start + slot.mod.size;
+                    std.mem.copyBackwards(u8, self.exp_buf[dst_start..dst_end], self.exp_buf[src_start..src_end]);
+                    slot.buf_offset = dst_start;
+                }
+            }
+        }
+
+        // write expansion slot control byte, returns true if slot address is valid
+        fn expWriteCtrl(self: *Self, slot_addr: u8, ctrl_byte: u8) bool {
+            if (self.slotByAddr(slot_addr)) |slot| {
+                slot.ctrl = ctrl_byte;
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        // return id of expansion module in slot or 0xFF if invalid slot or slot is not occupied
+        fn expReadModuleId(self: *Self, slot_addr: u8) u8 {
+            if (self.slotByAddr(slot_addr)) |slot| {
+                return slot.mod.id;
+            } else {
+                return 0xFF;
+            }
+        }
+
+        // update expansion system memory mapping, called form inside updateMemoryMapping
+        fn expUpdateMemoryMap(self: *Self) void {
+            // NOTE: expansion modules are iterated from lowest to highest memory mapping priority
+            for (&self.exp.slots) |*slot| {
+                // nothing to do if no module in slot
+                if (slot.mod.mod_type == .NONE) {
+                    continue;
+                }
+                // module is only active if bit 0 in control byte is set
+                if ((slot.ctrl & 1) != 0) {
+                    // compute z80 and exp_buf slice
+                    const addr: u16 = @as(u16, (slot.ctrl & slot.mod.addr_mask)) << 8;
+                    const host = self.exp_buf[slot.buf_offset .. slot.buf_offset + slot.mod.size];
+                    // RAM modules are only writable if bit 1 in control-byte is set
+                    const writable = ((slot.ctrl & 2) != 0) and slot.mod.writable;
+                    if (writable) {
+                        self.mem.mapRAM(addr, slot.mod.size, host);
+                    } else {
+                        self.mem.mapROM(addr, slot.mod.size, host);
+                    }
                 }
             }
         }
