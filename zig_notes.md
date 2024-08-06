@@ -1,5 +1,5 @@
 - Low debug performance may become a problem => investigate!
-  => release=safe is fast
+  => release=safe is fast => PS: not for the KC85 though!
   => inline functions are also inlined in debug mode, but still
      push/pop parameters on stack
 
