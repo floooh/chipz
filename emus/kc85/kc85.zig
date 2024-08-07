@@ -22,21 +22,9 @@ const name = switch (model) {
 };
 const KC85 = kc85.Type(model);
 
-// command line args
-const Args = struct {
-    const Module = struct {
-        mod_type: KC85.ModuleType = .NONE,
-        rom_dump: ?[]const u8 = null,
-    };
-    // optional file to load (.KCC or .TAP format)
-    file: ?[]const u8 = null,
-    // modules to insert into slot 08 and 0C
-    slot8: Module = .{},
-    slotc: Module = .{},
-};
-
 var sys: KC85 = undefined;
 var gpa = GeneralPurposeAllocator(.{}){};
+var args: Args = undefined;
 
 export fn init() void {
     host.audio.init(.{});
@@ -64,10 +52,16 @@ export fn init() void {
         },
     });
     host.gfx.init(.{ .display = sys.displayInfo() });
-    const args = parseArgs(gpa.allocator()) catch {
-        std.process.exit(10);
-    };
-    print("args: {}\n", .{args});
+
+    // insert modules
+    inline for (.{ &args.slot8, &args.slotc }, .{ 0x08, 0x0C }) |slot, slot_addr| {
+        if (slot.mod_type != .NONE) {
+            sys.insertModule(slot_addr, slot.mod_type, slot.rom_dump) catch |err| {
+                print("Failed to insert module with: {}\n", .{err});
+                std.process.exit(10);
+            };
+        }
+    }
 }
 
 export fn frame() void {
@@ -91,6 +85,7 @@ export fn cleanup() void {
     host.gfx.shutdown();
     host.prof.shutdown();
     host.audio.shutdown();
+    args.deinit();
     if (gpa.deinit() != .ok) {
         @panic("Memory leaks detected");
     }
@@ -162,6 +157,14 @@ export fn input(ev: ?*const sapp.Event) void {
 }
 
 pub fn main() void {
+    args = Args.parse(gpa.allocator()) catch {
+        std.process.exit(10);
+    };
+    if (args.help) {
+        args.deinit();
+        std.process.exit(0);
+    }
+
     const display = KC85.displayInfo(null);
     const border = host.gfx.DEFAULT_BORDER;
     const width = 2 * display.view.width + border.left + border.right;
@@ -179,91 +182,124 @@ pub fn main() void {
     });
 }
 
-fn isArg(arg: []const u8, comptime strings: []const []const u8) bool {
-    for (strings) |str| {
-        if (std.mem.eql(u8, arg, str)) {
-            return true;
+// command line args
+const Args = struct {
+    const Module = struct {
+        mod_type: KC85.ModuleType = .NONE,
+        rom_dump: ?[]const u8 = null,
+    };
+    allocator: std.mem.Allocator,
+    help: bool = false,
+    // optional file content to load (.KCC or .TAP file format)
+    file_data: ?[]const u8 = null,
+    // modules to insert into slot 08 and 0C
+    slot8: Module = .{},
+    slotc: Module = .{},
+
+    pub fn parse(allocator: std.mem.Allocator) !Args {
+        var res = Args{
+            .allocator = allocator,
+        };
+        var arg_iter = try std.process.argsWithAllocator(res.allocator);
+        defer arg_iter.deinit();
+        _ = arg_iter.skip();
+        while (arg_iter.next()) |arg| {
+            if (isArg(arg, &.{ "-h", "-help", "--help" })) {
+                res.help = true;
+                const help = .{
+                    "  -file path -- load .KCC or .TAP file",
+                    "  -slot8 name [rom dump path] -- load module into slot 08",
+                    "  -slotc name [rom dump path] -- load module into slot 0C",
+                    "",
+                    "  Valid module names are:",
+                    "    m006 - KC85/2 BASIC ROM",
+                    "    m011 - 64 KByte RAM",
+                    "    m022 - 16 KByte RAM",
+                    "    m012 - TEXOR text processor",
+                    "    m026 - FORTH development",
+                    "    m027 - assembly development",
+                };
+                inline for (help) |s| {
+                    print(s ++ "\n", .{});
+                }
+            } else if (isArg(arg, &.{"-file"})) {
+                const next = arg_iter.next() orelse {
+                    print("Expected path to .KCC or .TAP file after '{s}'\n", .{arg});
+                    return error.InvalidArgs;
+                };
+                res.file_data = fs.cwd().readFileAlloc(allocator, next, 64 * 1024) catch |err| {
+                    print("Failed to load file '{s}'\n", .{next});
+                    return err;
+                };
+            } else if (isArg(arg, &.{"-slot8"})) {
+                res.slot8 = try parseModuleArgs(allocator, arg, &arg_iter);
+            } else if (isArg(arg, &.{"-slotc"})) {
+                res.slotc = try parseModuleArgs(allocator, arg, &arg_iter);
+            } else {
+                print("Unknown argument: {s} (run '-help' to show valid args)\n", .{arg});
+                return error.InvalidArgs;
+            }
+        }
+        return res;
+    }
+
+    pub fn deinit(self: *Args) void {
+        if (self.file_data) |slice| {
+            self.allocator.free(slice);
+        }
+        if (self.slot8.rom_dump) |slice| {
+            self.allocator.free(slice);
+        }
+        if (self.slotc.rom_dump) |slice| {
+            self.allocator.free(slice);
         }
     }
-    return false;
-}
 
-fn parseArgs(alloc: std.mem.Allocator) !Args {
-    var args = Args{};
-    var arg_iter = try std.process.argsWithAllocator(alloc);
-    defer arg_iter.deinit();
-    _ = arg_iter.skip();
-    while (arg_iter.next()) |arg| {
-        if (isArg(arg, &.{ "-h", "-help", "--help" })) {
-            const help = .{
-                "  -file path -- load .KCC or .TAP file",
-                "  -slot8 name [rom dump path] -- load module into slot 08",
-                "  -slotc name [rom dump path] -- load module into slot 0C",
-                "",
-                "  Valid module names are:",
-                "    m006 - KC85/2 BASIC ROM",
-                "    m011 - 64 KByte RAM",
-                "    m022 - 16 KByte RAM",
-                "    m012 - TEXOR text processor",
-                "    m026 - FORTH development",
-                "    m027 - assembly development",
-            };
-            inline for (help) |s| {
-                print(s ++ "\n", .{});
+    fn isArg(arg: []const u8, comptime strings: []const []const u8) bool {
+        for (strings) |str| {
+            if (std.mem.eql(u8, arg, str)) {
+                return true;
             }
-        } else if (isArg(arg, &.{"-file"})) {
-            const next = arg_iter.next() orelse {
-                print("Expected path to .KCC or .TAP file after '{s}'\n", .{arg});
+        }
+        return false;
+    }
+
+    fn parseModuleArgs(allocator: std.mem.Allocator, arg: []const u8, arg_iter: *std.process.ArgIterator) !Args.Module {
+        var mod = Args.Module{};
+        const mod_name = arg_iter.next() orelse {
+            print("Expected module name after '{s}'\n", .{arg});
+            return error.InvalidArgs;
+        };
+        const mod_table = .{
+            .{ .name = "m006", .mod_type = .M006_BASIC, .rom = true },
+            .{ .name = "m011", .mod_type = .M011_64KBYTE, .rom = false },
+            .{ .name = "m012", .mod_type = .M012_TEXOR, .rom = true },
+            .{ .name = "m022", .mod_type = .M022_16KBYTE, .rom = false },
+            .{ .name = "m026", .mod_type = .M026_FORTH, .rom = true },
+            .{ .name = "m026", .mod_type = .M027_DEV, .rom = true },
+        };
+        var is_rom_module = false;
+        inline for (mod_table) |item| {
+            if (std.mem.eql(u8, mod_name, item.name)) {
+                mod.mod_type = item.mod_type;
+                is_rom_module = item.rom;
+                break;
+            }
+        }
+        if (mod.mod_type == .NONE) {
+            print("Invalid module name '{s} (see -help for list of valid module names)\n", .{mod_name});
+            return error.InvalidArgs;
+        }
+        if (is_rom_module) {
+            const rom_dump_path = arg_iter.next() orelse {
+                print("Expect ROM dump file path after '{s} {s}'\n", .{ arg, mod_name });
                 return error.InvalidArgs;
             };
-            args.file = try alloc.dupe(u8, next);
-        } else if (isArg(arg, &.{"-slot8"})) {
-            args.slot8 = try parseModuleArgs(alloc, arg, &arg_iter);
-        } else if (isArg(arg, &.{"-slotc"})) {
-            args.slotc = try parseModuleArgs(alloc, arg, &arg_iter);
-        } else {
-            print("Unknown argument: {s} (run '-help' to show valid args)\n", .{arg});
-            return error.InvalidArgs;
+            mod.rom_dump = fs.cwd().readFileAlloc(allocator, rom_dump_path, 64 * 1024) catch |err| {
+                print("Failed to load module rom dump file '{s}'\n", .{rom_dump_path});
+                return err;
+            };
         }
+        return mod;
     }
-    return args;
-}
-
-fn parseModuleArgs(alloc: std.mem.Allocator, arg: []const u8, arg_iter: *std.process.ArgIterator) !Args.Module {
-    var mod = Args.Module{};
-    const mod_name = arg_iter.next() orelse {
-        print("Expected module name after '{s}'\n", .{arg});
-        return error.InvalidArgs;
-    };
-    const mod_table = .{
-        .{ .name = "m006", .mod_type = .M006_BASIC, .rom = true },
-        .{ .name = "m011", .mod_type = .M011_64KBYTE, .rom = false },
-        .{ .name = "m012", .mod_type = .M012_TEXOR, .rom = true },
-        .{ .name = "m022", .mod_type = .M022_16KBYTE, .rom = false },
-        .{ .name = "m026", .mod_type = .M026_FORTH, .rom = true },
-        .{ .name = "m026", .mod_type = .M027_DEV, .rom = true },
-    };
-    var is_rom_module = false;
-    inline for (mod_table) |item| {
-        if (std.mem.eql(u8, mod_name, item.name)) {
-            mod.mod_type = item.mod_type;
-            is_rom_module = item.rom;
-            break;
-        }
-    }
-    if (mod.mod_type == .NONE) {
-        print("Invalid module name '{s} (see -help for list of valid module names)\n", .{mod_name});
-        return error.InvalidArgs;
-    }
-    if (is_rom_module) {
-        const rom_dump_path = arg_iter.next() orelse {
-            print("Expect ROM dump file path after '{s} {s}\n", .{ arg, mod_name });
-            return error.InvalidArgs;
-        };
-        mod.rom_dump = fs.cwd().readFileAlloc(alloc, rom_dump_path, 64 * 1024) catch |err| {
-            print("Failed to load module rom dump file '{s}'\n", .{rom_dump_path});
-            return err;
-        };
-    }
-    return mod;
-}
+};

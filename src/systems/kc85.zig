@@ -309,30 +309,6 @@ pub fn Type(comptime model: Model) type {
             M026_FORTH, // FORTH IDE (id = 0xFB)
             M027_DEV, // Assembler IDE (id = 0xFB)
 
-            pub fn name(t: Type) []const u8 {
-                return switch (t) {
-                    .NONE => "NONE",
-                    .M006_BASIC => "M006 BASIC",
-                    .M011_64KBYTE => "M011 64KBYTE",
-                    .M012_TEXTOR => "M012 TEXOR",
-                    .M022_16KBYTE => "M022 16KBYTE",
-                    .M026_FORTH => "M026 FORTH",
-                    .M027_DEV => "M027 DEV",
-                };
-            }
-
-            pub fn shortName(t: ModuleType) []const u8 {
-                return switch (t) {
-                    .NONE => "NONE",
-                    .M006_BASIC => "M006",
-                    .M011_64KBYTE => "M011",
-                    .M012_TEXTOR => "M012",
-                    .M022_16KBYTE => "M022",
-                    .M026_FORTH => "M026",
-                    .M027_DEV => "M027",
-                };
-            }
-
             pub fn toModule(t: ModuleType) Module {
                 return switch (t) {
                     .NONE => .{},
@@ -865,7 +841,8 @@ pub fn Type(comptime model: Model) type {
         }
 
         //*** EXPANSION SYSTEM ***
-        fn insertModule(self: *Self, slot_addr: u8, mod_type: ModuleType, opt_rom_data: ?[]const u8) !void {
+        pub fn insertModule(self: *Self, slot_addr: u8, mod_type: ModuleType, opt_rom_data: ?[]const u8) !void {
+            try self.removeModule(slot_addr);
             if (mod_type == .NONE) {
                 return error.CannotInsertNoneModule;
             }
@@ -898,16 +875,6 @@ pub fn Type(comptime model: Model) type {
             } else {
                 return error.InvalidSlotAddr;
             }
-        }
-
-        pub fn insertRamModule(self: *Self, slot_addr: u8, mod_type: ModuleType) !void {
-            try self.removeModule(slot_addr);
-            try self.insertModule(slot_addr, mod_type, null);
-        }
-
-        pub fn insertRomModule(self: *Self, slot_addr: u8, mod_type: ModuleType, rom_data: []const u8) !void {
-            try self.removeModule(slot_addr);
-            try self.insertModule(slot_addr, mod_type, rom_data);
         }
 
         fn slotByAddr(self: *Self, slot_addr: u8) ?*Slot {
