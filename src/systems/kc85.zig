@@ -963,5 +963,96 @@ pub fn Type(comptime model: Model) type {
                 }
             }
         }
+
+        //*** FILE LOADING ***
+        const KCCHeader = extern struct {
+            name: [16]u8,
+            num_addr: u8,
+            load_addr_l: u8,
+            load_addr_h: u8,
+            end_addr_l: u8,
+            end_addr_h: u8,
+            exec_addr_l: u8,
+            exec_addr_h: u8,
+            pad: [128 - 23]u8,
+        };
+
+        const KCTAPHeader = extern struct {
+            sig: [16]u8, // "\xC3KC-TAPE by AF. "
+            type: u8, // 00: KCTAP_Z9001, 01: KCTAP_KC85, else: KCTAP_SYS
+            kcc: KCCHeader, // from here on identical with KCC
+        };
+
+        pub fn load(data: []const u8, start: bool) !void {
+            _ = start; // autofix
+            if (isKCTAPMagic(data)) {
+                @panic("FIXME");
+            } else {
+                @panic("FIXME");
+            }
+        }
+
+        fn isKCTAPMagic(data: []const u8) bool {
+            if (data.len < @sizeOf(KCTAPHeader)) {
+                return false;
+            }
+            const hdr: *const KCTAPHeader = @ptrCast(data);
+            const magic = [16]u8{ 0xC3, 'K', 'C', '-', 'T', 'A', 'P', 'E', 0x20, 'b', 'y', 0x20, 'A', 'F', '.', 0x20 };
+            return std.mem.eql(u8, &magic, &hdr.magic);
+        }
+
+        fn asU16(hi: u8, lo: u8) u16 {
+            return (@as(u16, hi) << 8) | lo;
+        }
+
+        fn ensureValidKCTAP(data: []const u8) !void {
+            if (!isKCTAPMagic(data)) {
+                return error.NoKCTAPMagicNumber;
+            }
+            const hdr: *const KCTAPHeader = @ptrCast(data);
+            if (hdr.kcc.num_addr > 3) {
+                return error.KCTAPNumAddrTooBig;
+            }
+            const load_addr = asU16(hdr.kcc.load_addr_h, hdr.kcc.load_addr_l);
+            const end_addr = asU16(hdr.kcc.end_addr_h, hdr.kcc.end_addr_l);
+            if (end_addr <= load_addr) {
+                return error.KCTAPEndAddrBeforeLoadAddr;
+            }
+            if (hdr.kcc.num_addr > 2) {
+                const exec_addr = asU16(hdr.kcc.exec_addr_h, hdr.kcc.exec_addr_l);
+                if ((exec_addr < load_addr) or (exec_addr >= end_addr)) {
+                    return error.KCTAPExecAddrOutOfRange;
+                }
+            }
+            const expected_data_size = (end_addr - load_addr) + @sizeOf(KCTAPHeader);
+            if (expected_data_size > data.len) {
+                return error.KCCNotEnoughData;
+            }
+        }
+
+        fn ensureValidKCC(data: []const u8) !void {
+            if (data.len <= @sizeOf(KCCHeader)) {
+                return false;
+            }
+            const hdr: *const KCCHeader = @ptrCast(data);
+            if (hdr.num_addr > 3) {
+                return error.KCCNumAddrTooBig;
+            }
+            const load_addr = asU16(hdr.load_addr_h, hdr.load_addr_l);
+            const end_addr = asU16(hdr.end_addr_h, hdr.end_addr_l);
+            if (end_addr <= load_addr) {
+                return error.KCCEndAddrBeforeLoadAddr;
+            }
+            if (hdr.num_addr > 2) {
+                const exec_addr = asU16(hdr.exec_addr_h, hdr.exec_addr_l);
+                if ((exec_addr < load_addr) or (exec_addr >= end_addr)) {
+                    return error.KCCExecAddrOutOfRange;
+                }
+            }
+            const expected_data_size = (end_addr - load_addr) + @sizeOf(KCCHeader);
+            if (expected_data_size > data.len) {
+                return error.KCCNotEnoughData;
+            }
+        }
     };
 }
