@@ -36,7 +36,7 @@ Run KC85/3 with 16 KByte RAM module (this will be automatically mapped to addres
 zig build --release=fast run-kc853 -- -slot8 m022
 ```
 
-Start with Forth ROM module:
+Start with Forth ROM module in expansion slot `08`:
 
 ```
 zig build --release=fast run-kc852 -- -slot8 m026 media/kc85/forth.853
