@@ -22,6 +22,12 @@ const name = switch (model) {
 };
 const KC85 = kc85.Type(model);
 
+// a once-trigger for loading a file after booting has finished
+var file_loaded = host.time.Once.init(switch (model) {
+    .KC852, .KC853 => 8 * 1000 * 1000,
+    .KC854 => 3 * 1000 * 1000,
+});
+
 var sys: KC85 = undefined;
 var gpa = GeneralPurposeAllocator(.{}){};
 var args: Args = undefined;
@@ -79,6 +85,14 @@ export fn frame() void {
             .emu_stats = host.prof.stats(.EMU),
         },
     });
+    if (file_loaded.once()) {
+        if (args.file_data) |file_data| {
+            // FIXME: patch-func
+            sys.load(.{ .data = file_data, .start = true, .patch = null }) catch |err| {
+                print("Failed to load file into emulator with {}", .{err});
+            };
+        }
+    }
 }
 
 export fn cleanup() void {

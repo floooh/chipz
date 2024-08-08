@@ -983,13 +983,97 @@ pub fn Type(comptime model: Model) type {
             kcc: KCCHeader, // from here on identical with KCC
         };
 
-        pub fn load(data: []const u8, start: bool) !void {
-            _ = start; // autofix
-            if (isKCTAPMagic(data)) {
-                @panic("FIXME");
+        pub const LoadOptions = struct {
+            data: []const u8,
+            start: bool,
+            patch: ?struct {
+                func: *const fn (snapshot_name: []const u8, userdata: usize) void,
+                userdata: usize = 0,
+            },
+        };
+
+        pub fn load(self: *Self, opts: LoadOptions) !void {
+            if (isKCTAPMagic(opts.data)) {
+                try self.loadKCTAP(opts);
             } else {
-                @panic("FIXME");
+                try self.loadKCC(opts);
             }
+        }
+
+        pub fn loadKCTAP(self: *Self, opts: LoadOptions) !void {
+            try ensureValidKCTAP(opts.data);
+            const hdr: *const KCTAPHeader = @ptrCast(opts.data);
+            var addr = asU16(hdr.kcc.load_addr_h, hdr.kcc.load_addr_l);
+            const end_addr = asU16(hdr.kcc.end_addr_h, hdr.kcc.end_addr_l);
+            var pos: usize = @sizeOf(KCTAPHeader);
+            while (addr < end_addr) {
+                // each block is 1 lead byte + 128 bytes data
+                pos += 1;
+                for (pos..pos + 128) |i| {
+                    if (addr < end_addr) {
+                        self.mem.wr(addr, opts.data[i]);
+                        addr +%= 1;
+                    }
+                }
+            }
+            if (opts.patch) |patch| {
+                patch.func(&hdr.kcc.name, patch.userdata);
+            }
+            if (opts.start) {
+                const exec_addr = asU16(hdr.kcc.exec_addr_h, hdr.kcc.exec_addr_l);
+                self.loadStart(exec_addr);
+            }
+        }
+
+        pub fn loadKCC(self: *Self, opts: LoadOptions) !void {
+            try ensureValidKCC(opts.data);
+            const hdr: *const KCCHeader = @ptrCast(opts.data);
+            var addr = asU16(hdr.load_addr_h, hdr.load_addr_l);
+            const end_addr = asU16(hdr.end_addr_h, hdr.end_addr_l);
+            for (opts.data[@sizeOf(KCCHeader)..]) |byte| {
+                if (addr < end_addr) {
+                    self.mem.wr(addr, byte);
+                    addr += 1;
+                }
+            }
+            if (opts.patch) |patch| {
+                patch.func(&hdr.name, patch.userdata);
+            }
+            if (opts.start) {
+                const exec_addr = asU16(hdr.exec_addr_h, hdr.exec_addr_l);
+                self.loadStart(exec_addr);
+            }
+        }
+
+        fn loadReturnAddr() u16 {
+            return switch (model) {
+                .KC852 => @panic("FIXME: find return address for loaded files"),
+                .KC853 => 0xF15C,
+                .KC854 => 0xF17E,
+            };
+        }
+
+        fn loadStart(self: *Self, exec_addr: u16) void {
+            self.cpu.r[Z80.A] = 0;
+            self.cpu.r[Z80.F] = 0x10;
+            self.cpu.af2 = 0;
+            self.cpu.setBC(0);
+            self.cpu.bc2 = 0;
+            self.cpu.setDE(0);
+            self.cpu.de2 = 0;
+            self.cpu.setHL(0);
+            self.cpu.hl2 = 0;
+            self.cpu.setSP(0x01C2);
+            // delete ASCII buffer
+            for (0xB200..0xB700) |addr| {
+                self.mem.wr(@truncate(addr), 0);
+            }
+            self.mem.wr(0xB7A0, 0);
+            // FIXME: do we actually need to reset PIO-B and memory mapping here?
+            // write return address
+            self.mem.wr16(self.cpu.SP(), exec_addr);
+            // start execution at new address
+            self.cpu.prefetch(exec_addr);
         }
 
         fn isKCTAPMagic(data: []const u8) bool {
@@ -998,7 +1082,7 @@ pub fn Type(comptime model: Model) type {
             }
             const hdr: *const KCTAPHeader = @ptrCast(data);
             const magic = [16]u8{ 0xC3, 'K', 'C', '-', 'T', 'A', 'P', 'E', 0x20, 'b', 'y', 0x20, 'A', 'F', '.', 0x20 };
-            return std.mem.eql(u8, &magic, &hdr.magic);
+            return std.mem.eql(u8, &magic, &hdr.sig);
         }
 
         fn asU16(hi: u8, lo: u8) u16 {
@@ -1032,7 +1116,7 @@ pub fn Type(comptime model: Model) type {
 
         fn ensureValidKCC(data: []const u8) !void {
             if (data.len <= @sizeOf(KCCHeader)) {
-                return false;
+                return error.KCCNotEnoughData;
             }
             const hdr: *const KCCHeader = @ptrCast(data);
             if (hdr.num_addr > 3) {

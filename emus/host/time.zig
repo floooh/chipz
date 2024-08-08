@@ -38,3 +38,25 @@ pub fn after(micro_seconds: u64) bool {
     const elapsed_us: u64 = @intFromFloat(stm.us(stm.since(state.start_time)));
     return elapsed_us > micro_seconds;
 }
+
+// a helper which triggers an action once after a delay
+pub const Once = struct {
+    delay_us: u64,
+    triggered: bool,
+
+    pub fn init(delay_us: u64) Once {
+        return .{
+            .delay_us = delay_us,
+            .triggered = false,
+        };
+    }
+
+    pub fn once(self: *Once) bool {
+        if (!self.triggered and after(self.delay_us)) {
+            self.triggered = true;
+            return true;
+        } else {
+            return false;
+        }
+    }
+};

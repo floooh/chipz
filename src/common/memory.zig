@@ -76,6 +76,12 @@ pub fn Type(comptime cfg: TypeConfig) type {
             self.pages[addr >> PAGE_SHIFT].write[addr & PAGE_MASK] = data;
         }
 
+        // write 16-bit value to memory
+        pub inline fn wr16(self: *Self, addr: u16, data: u16) void {
+            self.wr(addr, @truncate(data >> 8));
+            self.wr(addr +% 1, @truncate(data));
+        }
+
         /// map address range as RAM to host memory
         pub fn mapRAM(self: *Self, addr: u16, size: u17, ram: []u8) void {
             assert(ram.len == size);
