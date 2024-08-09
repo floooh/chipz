@@ -105,7 +105,6 @@ pub fn Type(comptime model: Model) type {
         // runtime options
         pub const Options = struct {
             audio: Audio.Options,
-            // FIXME: patch callback
             roms: switch (model) {
                 .KC852 => struct {
                     caos22: []const u8,

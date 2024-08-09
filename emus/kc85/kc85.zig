@@ -87,8 +87,7 @@ export fn frame() void {
     });
     if (file_loaded.once()) {
         if (args.file_data) |file_data| {
-            // FIXME: patch-func
-            sys.load(.{ .data = file_data, .start = true, .patch = null }) catch |err| {
+            sys.load(.{ .data = file_data, .start = true, .patch = .{ .func = patch } }) catch |err| {
                 print("Failed to load file into emulator with {}", .{err});
             };
         }
@@ -194,6 +193,29 @@ pub fn main() void {
         .icon = .{ .sokol_default = true },
         .logger = .{ .func = slog.func },
     });
+}
+
+// game patcher callback
+fn patch(image_name: []const u8, userdata: usize) void {
+    _ = userdata;
+    if (std.mem.startsWith(u8, image_name, "JUNGLE     ")) {
+        // patch start level 1 into memory
+        sys.mem.wr(0x36B7, 1);
+        sys.mem.wr(0x3697, 1);
+        for (0..5) |idx| {
+            const idx16: u16 = @truncate(idx);
+            const b = sys.mem.rd(0x36B6 +% idx16);
+            sys.mem.wr(0x1770 +% idx16, b);
+        }
+    } else if (std.mem.startsWith(u8, image_name, "DIGGER  COM\x01")) {
+        // time for delay loop 0x0160 instead of 0x0260
+        sys.mem.wr16(0x09AA, 0x0160);
+        // OR L instead of OR (HL)
+        sys.mem.wr(0x3D3A, 0xB5);
+    } else if (std.mem.startsWith(u8, image_name, "DIGGERJ")) {
+        sys.mem.wr16(0x09AA, 0x0260); // not a bug
+        sys.mem.wr(0x3D3A, 0xB5);
+    }
 }
 
 // command line args
