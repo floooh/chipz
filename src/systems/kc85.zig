@@ -1009,10 +1009,11 @@ pub fn Type(comptime model: Model) type {
             while (addr < end_addr) {
                 // each block is 1 lead byte + 128 bytes data
                 pos += 1;
-                for (pos..pos + 128) |i| {
+                for (0..128) |_| {
                     if (addr < end_addr) {
-                        self.mem.wr(addr, opts.data[i]);
+                        self.mem.wr(addr, opts.data[pos]);
                         addr +%= 1;
+                        pos += 1;
                     }
                 }
             }
@@ -1056,22 +1057,21 @@ pub fn Type(comptime model: Model) type {
         fn loadStart(self: *Self, exec_addr: u16) void {
             self.cpu.r[Z80.A] = 0;
             self.cpu.r[Z80.F] = 0x10;
-            self.cpu.af2 = 0;
             self.cpu.setBC(0);
-            self.cpu.bc2 = 0;
             self.cpu.setDE(0);
-            self.cpu.de2 = 0;
             self.cpu.setHL(0);
-            self.cpu.hl2 = 0;
             self.cpu.setSP(0x01C2);
+            self.cpu.af2 = 0;
+            self.cpu.bc2 = 0;
+            self.cpu.de2 = 0;
+            self.cpu.hl2 = 0;
             // delete ASCII buffer
             for (0xB200..0xB700) |addr| {
                 self.mem.wr(@truncate(addr), 0);
             }
             self.mem.wr(0xB7A0, 0);
-            // FIXME: do we actually need to reset PIO-B and memory mapping here?
             // write return address
-            self.mem.wr16(self.cpu.SP(), exec_addr);
+            self.mem.wr16(self.cpu.SP(), loadReturnAddr());
             // start execution at new address
             self.cpu.prefetch(exec_addr);
         }

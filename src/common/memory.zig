@@ -78,8 +78,8 @@ pub fn Type(comptime cfg: TypeConfig) type {
 
         // write 16-bit value to memory
         pub inline fn wr16(self: *Self, addr: u16, data: u16) void {
-            self.wr(addr, @truncate(data >> 8));
-            self.wr(addr +% 1, @truncate(data));
+            self.wr(addr, @truncate(data));
+            self.wr(addr +% 1, @truncate(data >> 8));
         }
 
         /// map address range as RAM to host memory
