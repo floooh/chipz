@@ -85,7 +85,7 @@ export fn frame() void {
             .emu_stats = host.prof.stats(.EMU),
         },
     });
-    if (file_loaded.once()) {
+    if (file_loaded.once(frame_time_us)) {
         if (args.file_data) |file_data| {
             sys.load(.{ .data = file_data, .start = true, .patch = .{ .func = patch } }) catch |err| {
                 print("Failed to load file into emulator with {}", .{err});

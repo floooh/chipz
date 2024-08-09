@@ -41,6 +41,7 @@ pub fn after(micro_seconds: u64) bool {
 
 // a helper which triggers an action once after a delay
 pub const Once = struct {
+    elapsed_us: u64 = 0,
     delay_us: u64,
     triggered: bool,
 
@@ -51,8 +52,9 @@ pub const Once = struct {
         };
     }
 
-    pub fn once(self: *Once) bool {
-        if (!self.triggered and after(self.delay_us)) {
+    pub fn once(self: *Once, delta_us: u64) bool {
+        self.elapsed_us +%= delta_us;
+        if (!self.triggered and (self.elapsed_us >= self.delay_us)) {
             self.triggered = true;
             return true;
         } else {
