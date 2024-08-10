@@ -122,7 +122,7 @@ pub fn Type(comptime model: Model) type {
         };
 
         pub const FREQUENCY = if (model == .KC854) 1770000 else 1750000;
-        pub const SCANLINE_TICKS = if (model == .KC854) 112 else 113;
+        pub const SCANLINE_TICKS = if (model == .KC854) 113 else 112;
         pub const NUM_SCANLINES = 312;
         pub const IRM0_PAGE = 4;
 
