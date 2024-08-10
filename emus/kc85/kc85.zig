@@ -110,16 +110,16 @@ export fn input(ev: ?*const sapp.Event) void {
     switch (event.type) {
         .CHAR => {
             var c: u8 = @truncate(event.char_code);
-            if ((c >= 0x20) and (c < 0x7F)) {
+            if ((c > 0x20) and (c < 0x7F)) {
                 // need to invert case
                 if (std.ascii.isUpper(c)) {
                     c = std.ascii.toLower(c);
                 } else if (std.ascii.isLower(c)) {
                     c = std.ascii.toUpper(c);
                 }
+                sys.keyDown(c);
+                sys.keyUp(c);
             }
-            sys.keyDown(c);
-            sys.keyUp(c);
         },
         .KEY_DOWN, .KEY_UP => {
             const c: u32 = switch (event.key_code) {
