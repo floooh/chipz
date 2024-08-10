@@ -2,11 +2,11 @@
 
 [![build](https://github.com/floooh/chipz/actions/workflows/main.yml/badge.svg)](https://github.com/floooh/chipz/actions/workflows/main.yml)
 
-[EXPERIMENTAL] like chips but in zig
+8-bit emulator experiments in Zig.
 
 ## Usage
 
-### Arcace Machines:
+### Arcade Machines:
 
 ```
 zig build --release=fast run-pacman
