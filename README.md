@@ -69,7 +69,7 @@ zig build --release=fast run-kc854 -- -file media/kc85/sokoban4.kcc
 zig build --release=fast run-kc854 -- -file media/kc85/demo.kcc
 ```
 
-#### Doc.K's audio sampling demo:
+#### Doc.K's sampled-audio demo:
 ```
 zig build --release=fast run-kc854 -- -file media/kc85/sreplay.kcc
 ```
