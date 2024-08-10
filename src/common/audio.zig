@@ -13,7 +13,7 @@ pub const TypeConfig = struct {
     /// enable/disable lowpass filter
     lowpass_filter_enable: bool = true,
     /// dc-adjustment buffer size
-    dcadjust_buf_len: u32 = 128,
+    dcadjust_buf_len: u32 = 512,
 };
 
 pub fn Type(cfg: TypeConfig) type {
