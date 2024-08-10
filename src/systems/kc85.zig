@@ -1019,7 +1019,7 @@ pub fn Type(comptime model: Model) type {
             if (opts.patch) |patch| {
                 patch.func(&hdr.kcc.name, patch.userdata);
             }
-            if (opts.start) {
+            if (opts.start and hdr.kcc.num_addr > 2) {
                 const exec_addr = asU16(hdr.kcc.exec_addr_h, hdr.kcc.exec_addr_l);
                 self.loadStart(exec_addr);
             }
@@ -1039,7 +1039,7 @@ pub fn Type(comptime model: Model) type {
             if (opts.patch) |patch| {
                 patch.func(&hdr.name, patch.userdata);
             }
-            if (opts.start) {
+            if (opts.start and hdr.num_addr > 2) {
                 const exec_addr = asU16(hdr.exec_addr_h, hdr.exec_addr_l);
                 self.loadStart(exec_addr);
             }
