@@ -1,9 +1,10 @@
+//! a cycle-stepped Z80 emulator
 const bitutils = @import("common").bitutils;
 const mask = bitutils.mask;
 const maskm = bitutils.maskm;
 
-/// map chip pin names to bit positions
-/// NOTE: no BUSRQ and BUSAK pins, but a virtual RETI pin
+/// Z80 pin to bus bit mappings
+/// NOTE: BUSRQ/BUSAK not emulated
 pub const Pins = struct {
     DBUS: [8]comptime_int,
     ABUS: [16]comptime_int,
@@ -62,17 +63,19 @@ const indirect_table = init: {
 };
 // zig fmt: on
 
+/// comptime type configuration for Z80
 pub const TypeConfig = struct {
     pins: Pins,
     bus: type,
 };
 
+/// build a Z80 type specialized by pins-to-bus mapping and bus integer type
 pub fn Type(comptime cfg: TypeConfig) type {
     const Bus = cfg.bus;
     return struct {
         const Self = @This();
 
-        // pin bit masks
+        // pin bit-masks
         pub const ABUS = maskm(Bus, &cfg.pins.ABUS);
         pub const A0 = mask(Bus, cfg.pins.ABUS[0]);
         pub const A1 = mask(Bus, cfg.pins.ABUS[1]);
@@ -180,19 +183,23 @@ pub fn Type(comptime cfg: TypeConfig) type {
         de2: u16 = 0xFFFF,
         hl2: u16 = 0xFFFF,
 
+        /// return an initialized Z80 instance
         pub fn init() Self {
             return .{};
         }
 
+        /// reset Z80 instance
         pub fn reset(self: *Self) void {
             self.* = .{};
         }
 
+        /// continue execution at provided address, does not change any CPU state except PC
         pub fn prefetch(self: *Self, addr: u16) void {
             self.pc = addr;
             self.step = 0;
         }
 
+        /// returns true if current instruction is finished and overlapped result is available
         pub fn opdone(self: *const Self, bus: Bus) bool {
             const m = M1 | RD;
             return (!self.prefix_active) and ((bus & m) == m);
@@ -348,18 +355,22 @@ pub fn Type(comptime cfg: TypeConfig) type {
             self.r[lo + 1] = @truncate(val >> 8);
         }
 
+        /// get A and F as 16-bit value (A: hi, F: lo)
         pub inline fn AF(self: *const Self) u16 {
             return self.get16(F);
         }
 
+        /// set A and F as 16-bit value (A: hi, F: lo)
         pub inline fn setAF(self: *Self, af: u16) void {
             self.set16(F, af);
         }
 
+        /// get BC register pair (C: lo, B: hi)
         pub inline fn BC(self: *const Self) u16 {
             return self.get16(C);
         }
 
+        /// set BC register pair (C: lo, B: hi)
         pub inline fn setBC(self: *Self, bc: u16) void {
             self.set16(C, bc);
         }
@@ -368,10 +379,12 @@ pub fn Type(comptime cfg: TypeConfig) type {
             self.setBC(self.BC() -% 1);
         }
 
+        /// get DE register pair (E: lo, B: hi)
         pub inline fn DE(self: *const Self) u16 {
             return self.get16(E);
         }
 
+        /// set DE register pair (E: lo, B: hi)
         pub inline fn setDE(self: *Self, de: u16) void {
             self.set16(E, de);
         }
@@ -388,10 +401,12 @@ pub fn Type(comptime cfg: TypeConfig) type {
             return de;
         }
 
+        /// get HL register pair (L: lo, H: hi)
         pub inline fn HL(self: *const Self) u16 {
             return self.get16(L);
         }
 
+        /// set HL register pair (L: lo, H: hi)
         pub inline fn setHL(self: *Self, hl: u16) void {
             self.set16(L, hl);
         }
@@ -408,35 +423,41 @@ pub fn Type(comptime cfg: TypeConfig) type {
             return hl;
         }
 
+        /// get IX register (IXL: lo, IXH: hi)
         pub inline fn IX(self: *const Self) u16 {
             return self.get16(IXL);
         }
 
+        /// set IX register (IXL: lo, IXH: hi)
         pub inline fn setIX(self: *Self, ix: u16) void {
             self.set16(IXL, ix);
         }
 
+        /// get IY regsiter pair (IYL: lo, IYH: hi)
         pub inline fn IY(self: *const Self) u16 {
             return self.get16(IYL);
         }
 
+        /// set IY register pair (IYL: lo, IYH: hi)
         pub inline fn setIY(self: *Self, iy: u16) void {
             self.set16(IYL, iy);
         }
 
-        pub inline fn HLIXY(self: *const Self) u16 {
+        inline fn HLIXY(self: *const Self) u16 {
             return (@as(u16, self.r[H + self.rixy]) << 8) | self.r[L + self.rixy];
         }
 
-        pub inline fn setHLIXY(self: *Self, val: u16) void {
+        inline fn setHLIXY(self: *Self, val: u16) void {
             self.r[L + self.rixy] = @truncate(val);
             self.r[H + self.rixy] = @truncate(val >> 8);
         }
 
+        /// get internal WZ register (WZL: lo, WZH hi)
         pub inline fn WZ(self: *const Self) u16 {
             return self.get16(WZL);
         }
 
+        /// set internal WZ register (WZL: lo, WZH: hi)
         pub inline fn setWZ(self: *Self, wz: u16) void {
             self.set16(WZL, wz);
         }
@@ -455,20 +476,24 @@ pub fn Type(comptime cfg: TypeConfig) type {
             return wz;
         }
 
+        /// get SP register (SPL: lo, SPH: hi)
         pub inline fn SP(self: *const Self) u16 {
             return self.get16(SPL);
         }
 
+        /// set SP register (SPL: lo, SPH: hi)
         pub inline fn setSP(self: *Self, sp: u16) void {
             self.set16(SPL, sp);
         }
 
+        /// decrement and return SP
         pub inline fn @"--SP"(self: *Self) u16 {
             const sp = self.SP() -% 1;
             self.setSP(sp);
             return sp;
         }
 
+        /// increment SP and return original SP
         pub inline fn @"SP++"(self: *Self) u16 {
             const sp = self.SP();
             self.setSP(sp +% 1);
@@ -483,26 +508,32 @@ pub fn Type(comptime cfg: TypeConfig) type {
             return @truncate(self.pc);
         }
 
+        /// get I register
         pub inline fn I(self: *const Self) u8 {
             return @truncate(self.ir >> 8);
         }
 
+        /// set I register
         pub inline fn setI(self: *Self, i: u8) void {
             self.ir = (self.ir & 0x00FF) | (@as(u16, i) << 8);
         }
 
+        /// get internal R register
         pub inline fn R(self: *const Self) u8 {
             return @truncate(self.ir);
         }
 
+        /// set internal R register
         pub inline fn setR(self: *Self, r: u8) void {
             self.ir = (self.ir & 0xFF00) | r;
         }
 
+        /// set 16-bit address bus value
         pub inline fn setAddr(bus: Bus, addr: u16) Bus {
             return (bus & ~ABUS) | (@as(Bus, addr) << cfg.pins.ABUS[0]);
         }
 
+        /// get 16-bit address bus value
         pub inline fn getAddr(bus: Bus) u16 {
             return @truncate(bus >> cfg.pins.ABUS[0]);
         }
@@ -511,11 +542,13 @@ pub fn Type(comptime cfg: TypeConfig) type {
             return (bus & ~(ABUS | DBUS)) | (@as(Bus, addr) << cfg.pins.ABUS[0]) | (@as(Bus, data) << cfg.pins.DBUS[0]);
         }
 
+        /// get 8-bit data bus value
         pub inline fn getData(bus: Bus) u8 {
             return @truncate(bus >> cfg.pins.DBUS[0]);
         }
         const gd = getData;
 
+        /// set 8-bit data bus value
         pub inline fn setData(bus: Bus, data: u8) Bus {
             return (bus & ~DBUS) | (@as(Bus, data) << cfg.pins.DBUS[0]);
         }
@@ -1159,6 +1192,7 @@ pub fn Type(comptime cfg: TypeConfig) type {
         // END CONSTS
 
         // zig fmt: off
+        /// execute a single Z80 clock cycle
         pub fn tick(self: *Self, in_bus: Bus) Bus {
             @setEvalBranchQuota(4096);
             var bus = in_bus & ~(CTRL | RETI);
