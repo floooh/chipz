@@ -37,8 +37,13 @@ pub const DefaultPins = Pins{
     .IEIO = 23,
 };
 
-pub const TypeConfig = struct { pins: Pins, bus: type };
+/// comptime type configuration for Z80 CTC
+pub const TypeConfig = struct {
+    pins: Pins,
+    bus: type,
+};
 
+/// stamp out a specialized Z80CTC type
 pub fn Type(comptime cfg: TypeConfig) type {
     assert(cfg.pins.CS[1] == cfg.pins.CS[0] + 1);
     assert(cfg.pins.ZCTO[1] == cfg.pins.ZCTO[0] + 1);
@@ -60,7 +65,7 @@ pub fn Type(comptime cfg: TypeConfig) type {
     return struct {
         const Self = @This();
 
-        // pin bit masks
+        // pin bit-masks
         pub const DBUS = maskm(Bus, &cfg.pins.DBUS);
         pub const D0 = mask(Bus, cfg.pins.D[0]);
         pub const D1 = mask(Bus, cfg.pins.D[1]);
@@ -92,7 +97,7 @@ pub fn Type(comptime cfg: TypeConfig) type {
         pub const RETI = mask(Bus, cfg.pins.RETI);
         pub const IEIO = mask(Bus, cfg.pins.IEIO);
 
-        // control register bits
+        /// control register bits
         pub const CTRL = struct {
             pub const EI: u8 = 1 << 7; // 1: interrupts enabled, 0: interrupts disabled
 
@@ -117,8 +122,10 @@ pub fn Type(comptime cfg: TypeConfig) type {
             pub const CONTROL: u8 = 1 << 0; // 1: control word, 0: vector
         };
 
+        /// the Z80 CTC has 4 counter/timer channels
         pub const NUM_CHANNELS = 4;
 
+        /// Z80 CTC channel state
         pub const Channel = struct {
             control: u8 = 0,
             constant: u8 = 0,
@@ -134,20 +141,24 @@ pub fn Type(comptime cfg: TypeConfig) type {
 
         chn: [NUM_CHANNELS]Channel = [_]Channel{.{}} ** NUM_CHANNELS,
 
+        /// get data bus value
         pub inline fn getData(bus: Bus) u8 {
             return @truncate(bus >> cfg.pins.DBUS[0]);
         }
 
+        /// set data bus value
         pub inline fn setData(bus: Bus, data: u8) Bus {
             return (bus & ~DBUS) | (@as(Bus, data) << cfg.pins.DBUS[0]);
         }
 
+        /// return an initialized Z80 CTC instance
         pub fn init() Self {
             var self: Self = .{};
             self.reset();
             return self;
         }
 
+        /// reset Z80 CTC instance
         pub fn reset(self: *Self) void {
             for (&self.chn) |*chn| {
                 chn.control = CTRL.RESET;
@@ -160,6 +171,7 @@ pub fn Type(comptime cfg: TypeConfig) type {
             }
         }
 
+        /// execute one clock cycle
         pub fn tick(self: *Self, in_bus: Bus) Bus {
             var bus = in_bus;
             bus = self._tick(bus);

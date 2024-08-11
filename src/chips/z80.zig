@@ -69,7 +69,7 @@ pub const TypeConfig = struct {
     bus: type,
 };
 
-/// build a Z80 type specialized by pins-to-bus mapping and bus integer type
+/// stamp out a specialized Z80 type
 pub fn Type(comptime cfg: TypeConfig) type {
     const Bus = cfg.bus;
     return struct {
@@ -1192,7 +1192,7 @@ pub fn Type(comptime cfg: TypeConfig) type {
         // END CONSTS
 
         // zig fmt: off
-        /// execute a single Z80 clock cycle
+        /// execute one Z80 clock cycle
         pub fn tick(self: *Self, in_bus: Bus) Bus {
             @setEvalBranchQuota(4096);
             var bus = in_bus & ~(CTRL | RETI);

@@ -45,11 +45,13 @@ pub const DefaultPins = Pins{
     .IEIO = 36,
 };
 
+/// Z80 PIO comptime type configuration
 pub const TypeConfig = struct {
     pins: Pins,
     bus: type,
 };
 
+/// stamp out a specialized Z80 PIO type
 pub fn Type(cfg: TypeConfig) type {
     const Bus = cfg.bus;
     const Z80IRQ = z80irq.Type(.{
@@ -107,23 +109,25 @@ pub fn Type(cfg: TypeConfig) type {
         pub const PB6 = mask(Bus, cfg.pins.PB[6]);
         pub const PB7 = mask(Bus, cfg.pins.PB[7]);
 
+        /// POP port A and B indices
         pub const PORT = struct {
             pub const A = 0;
             pub const B = 1;
         };
+        /// number of PIO ports
         pub const NUM_PORTS = 2;
 
-        // Operating Modes
-        //
-        // The operating mode of a port is established by writing a control word
-        // to the PIO in the following format:
-        //
-        //  D7 D6 D5 D4 D3 D2 D1 D0
-        // |M1|M0| x| x| 1| 1| 1| 1|
-        //
-        // D7,D6   are the mode word bits
-        // D3..D0  set to 1111 to indicate 'Set Mode'
-        //
+        /// Operating Modes
+        ///
+        /// The operating mode of a port is established by writing a control word
+        /// to the PIO in the following format:
+        ///
+        ///  D7 D6 D5 D4 D3 D2 D1 D0
+        /// |M1|M0| x| x| 1| 1| 1| 1|
+        ///
+        /// D7,D6   are the mode word bits
+        /// D3..D0  set to 1111 to indicate 'Set Mode'
+        ///
         pub const MODE = struct {
             pub const OUTPUT: u2 = 0;
             pub const INPUT: u2 = 1;
@@ -131,28 +135,32 @@ pub fn Type(cfg: TypeConfig) type {
             pub const BITCONTROL: u2 = 3;
         };
 
-        // Interrupt control word bits.
-        //
-        //  D7 D6 D5 D4 D3 D2 D1 D0
-        // |EI|AO|HL|MF| 0| 1| 1| 1|
-        //
-        // D7 (EI)             interrupt enabled (1=enabled, 0=disabled)
-        // D6 (AND/OR)         logical operation during port monitoring (only Mode 3, AND=1, OR=0)
-        // D5 (HIGH/LOW)       port data polarity during port monitoring (only Mode 3)
-        // D4 (MASK FOLLOWS)   if set, the next control word are the port monitoring mask (only Mode 3)
-        //
-        // (*) if an interrupt is pending when the enable flag is set, it will then be
-        //     enabled on the onto the CPU interrupt request line
-        // (*) setting bit D4 during any mode of operation will cause any pending
-        //     interrupt to be reset
-        //
-        // The interrupt enable flip-flop of a port may be set or reset
-        // without modifying the rest of the interrupt control word
-        // by the following command:
-        //
-        //  D7 D6 D5 D4 D3 D2 D1 D0
-        // |EI| x| x| x| 0| 0| 1| 1|
-        //
+        /// Interrupt control word bits.
+        ///
+        ///  D7 D6 D5 D4 D3 D2 D1 D0
+        /// |EI|AO|HL|MF| 0| 1| 1| 1|
+        ///
+        /// D7 (EI)             interrupt enabled (1=enabled, 0=disabled)
+        ///
+        /// D6 (AND/OR)         logical operation during port monitoring (only Mode 3, AND=1, OR=0)
+        ///
+        /// D5 (HIGH/LOW)       port data polarity during port monitoring (only Mode 3)
+        ///
+        /// D4 (MASK FOLLOWS)   if set, the next control word are the port monitoring mask (only Mode 3)
+        ///
+        /// - if an interrupt is pending when the enable flag is set, it will then be
+        ///   enabled on the onto the CPU interrupt request line
+        ///
+        /// - setting bit D4 during any mode of operation will cause any pending
+        ///   interrupt to be reset
+        ///
+        /// The interrupt enable flip-flop of a port may be set or reset
+        /// without modifying the rest of the interrupt control word
+        /// by the following command:
+        ///
+        ///  D7 D6 D5 D4 D3 D2 D1 D0
+        /// |EI| x| x| x| 0| 0| 1| 1|
+        ///
         pub const INTCTRL = struct {
             pub const EI: u8 = 1 << 7;
             pub const ANDOR: u8 = 1 << 6;
@@ -160,12 +168,14 @@ pub fn Type(cfg: TypeConfig) type {
             pub const MASK_FOLLOWS: u8 = 1 << 4;
         };
 
+        /// type of data expected in next IO write
         pub const Expect = enum {
             CTRL,
             IO_SELECT,
             INT_MASK,
         };
 
+        /// Z80 PIO port state
         pub const Port = struct {
             input: u8 = 0, // data input register
             output: u8 = 0, // data output register
@@ -186,14 +196,17 @@ pub fn Type(cfg: TypeConfig) type {
         reset_active: bool = false,
         port_output_or_ioselect_dirty: bool = true,
 
+        /// get data bus value
         pub inline fn getData(bus: Bus) u8 {
             return @truncate(bus >> cfg.pins.DBUS[0]);
         }
 
+        /// set data bus value
         pub inline fn setData(bus: Bus, data: u8) Bus {
             return (bus & ~DBUS) | (@as(Bus, data) << cfg.pins.DBUS[0]);
         }
 
+        /// set PIO port pins value
         pub inline fn setPort(comptime port: comptime_int, bus: Bus, data: u8) Bus {
             return switch (port) {
                 PORT.A => (bus & ~PA) | (@as(Bus, data) << cfg.pins.PA[0]),
@@ -202,6 +215,7 @@ pub fn Type(cfg: TypeConfig) type {
             };
         }
 
+        /// get PIO port pins value
         pub inline fn getPort(comptime port: comptime_int, bus: Bus) u8 {
             return @truncate(bus >> switch (port) {
                 PORT.A => cfg.pins.PA[0],
@@ -210,12 +224,14 @@ pub fn Type(cfg: TypeConfig) type {
             });
         }
 
+        /// return an initialized Z80 PIO instance
         pub fn init() Self {
             var self: Self = .{};
             self.reset();
             return self;
         }
 
+        /// reset Z80 PIO instance
         pub fn reset(self: *Self) void {
             self.reset_active = true;
             self.port_output_or_ioselect_dirty = true;
@@ -233,6 +249,7 @@ pub fn Type(cfg: TypeConfig) type {
             }
         }
 
+        /// execute one clock cycle
         pub fn tick(self: *Self, in_bus: Bus) Bus {
             var bus = in_bus;
             // - OUTPUT MODE: On CPU write, the bus data is written to the output
@@ -290,6 +307,7 @@ pub fn Type(cfg: TypeConfig) type {
             self.port_output_or_ioselect_dirty = false;
             return bus;
         }
+
         // new control word received from CPU
         fn writeCtrl(self: *Self, p: *Port, data: u8) void {
             self.reset_active = false;

@@ -3,6 +3,7 @@ const bitutils = @import("common").bitutils;
 const mask = bitutils.mask;
 const maskm = bitutils.maskm;
 
+/// Z80 IRQ pin declarations
 pub const Pins = struct {
     DBUS: [8]comptime_int,
     M1: comptime_int,
@@ -12,11 +13,13 @@ pub const Pins = struct {
     IEIO: comptime_int,
 };
 
+/// Z80 IRQ comptime type configuration
 pub const TypeConfig = struct {
     pins: Pins,
     bus: type,
 };
 
+/// stamp out a specialized Z80 IRQ type
 pub fn Type(comptime cfg: TypeConfig) type {
     const Bus = cfg.bus;
     return struct {
@@ -41,22 +44,27 @@ pub fn Type(comptime cfg: TypeConfig) type {
             return (bus & ~DBUS) | (@as(Bus, data) << cfg.pins.DBUS[0]);
         }
 
+        /// reset the Z80 IRQ state
         pub fn reset(self: *Self) void {
             self.state = 0;
         }
 
+        /// request an interrupt
         pub fn request(self: *Self) void {
             self.state |= NEEDED;
         }
 
+        /// clear any active interrupt request
         pub fn clearRequest(self: *Self) void {
             self.state &= ~NEEDED;
         }
 
+        /// store the 8-bit interrupt vector
         pub fn setVector(self: *Self, v: u8) void {
             self.vector = v;
         }
 
+        /// execute one clock cycle
         pub fn tick(self: *Self, in_bus: Bus) Bus {
             var bus = in_bus;
 
