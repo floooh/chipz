@@ -75,10 +75,11 @@ fn keyToInput(key: sapp.Keycode) Bombjack.Input {
     };
 }
 
-export fn input(ev: [*c]const sapp.Event) void {
-    switch (ev.*.type) {
-        .KEY_DOWN => sys.setInput(keyToInput(ev.*.key_code)),
-        .KEY_UP => sys.clearInput(keyToInput(ev.*.key_code)),
+export fn input(event: ?*const sapp.Event) void {
+    const ev = event.?;
+    switch (ev.type) {
+        .KEY_DOWN => sys.setInput(keyToInput(ev.key_code)),
+        .KEY_UP => sys.clearInput(keyToInput(ev.key_code)),
         else => {},
     }
 }
