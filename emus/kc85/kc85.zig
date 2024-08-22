@@ -38,7 +38,7 @@ export fn init() void {
     host.prof.init();
     sys.initInPlace(.{
         .audio = .{
-            .sample_rate = host.audio.sampleRate(),
+            .sample_rate = @intCast(host.audio.sampleRate()),
             .volume = 0.5,
             .callback = host.audio.push,
         },

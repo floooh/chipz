@@ -32,7 +32,7 @@ pub fn Type(cfg: TypeConfig) type {
         /// runtime audio options
         pub const Options = struct {
             /// host audio frequency in Hz
-            sample_rate: i32,
+            sample_rate: u32,
             /// output volume modulator (0..1)
             volume: f32 = 0.75,
             /// called when new chunk of audio data is ready

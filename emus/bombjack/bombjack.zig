@@ -12,7 +12,7 @@ export fn init() void {
     host.prof.init();
     sys.initInPlace(.{
         .audio = .{
-            .sample_rate = host.audio.sampleRate(),
+            .sample_rate = @intCast(host.audio.sampleRate()),
             .callback = host.audio.push,
         },
         .roms = .{

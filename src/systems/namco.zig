@@ -810,7 +810,7 @@ pub fn Type(comptime sys: System) type {
 
         fn initWSG(opts: Options) WSG {
             assert(opts.audio.sample_rate > 0);
-            const period: i32 = @divFloor(CPU_FREQUENCY * AUDIO.SAMPLE_SCALE, opts.audio.sample_rate);
+            const period: i32 = @intCast((CPU_FREQUENCY * AUDIO.SAMPLE_SCALE) / opts.audio.sample_rate);
             return .{
                 .tick_counter = AUDIO.PERIOD,
                 .sample_period = period,

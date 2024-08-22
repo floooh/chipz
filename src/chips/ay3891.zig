@@ -217,7 +217,7 @@ pub fn Type(comptime cfg: TypeConfig) type {
         }
 
         pub fn init(opts: Options) Self {
-            const sample_period: i32 = @intCast(@divFloor(opts.tick_hz * FIXEDPOINT_SCALE, opts.sound_hz));
+            const sample_period: i32 = @intCast((opts.tick_hz * FIXEDPOINT_SCALE) / opts.sound_hz);
             var self = Self{
                 .cs_mask = @as(u8, opts.chip_select) << 4,
                 .noise = .{
