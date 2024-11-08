@@ -275,9 +275,9 @@ pub fn draw(opts: DrawOptions) void {
     sg.applyBindings(init: {
         var bind: sg.Bindings = .{};
         bind.vertex_buffers[0] = state.offscreen.vbuf;
-        bind.fs.images[shaders.SLOT_fb_tex] = state.fb.img;
-        bind.fs.images[shaders.SLOT_pal_tex] = state.fb.pal_img;
-        bind.fs.samplers[shaders.SLOT_smp] = state.fb.smp;
+        bind.images[shaders.IMG_fb_tex] = state.fb.img;
+        bind.images[shaders.IMG_pal_tex] = state.fb.pal_img;
+        bind.samplers[shaders.SMP_smp] = state.fb.smp;
         break :init bind;
     });
     const vs_params = shaders.OffscreenVsParams{ .uv_offset = .{
@@ -287,7 +287,7 @@ pub fn draw(opts: DrawOptions) void {
         asF32(state.offscreen.view.width) / asF32(state.fb.dim.width),
         asF32(state.offscreen.view.height) / asF32(state.fb.dim.height),
     } };
-    sg.applyUniforms(.VS, shaders.SLOT_offscreen_vs_params, sg.asRange(&vs_params));
+    sg.applyUniforms(shaders.UB_offscreen_vs_params, sg.asRange(&vs_params));
     sg.draw(0, 4, 1);
     sg.endPass();
 
@@ -304,8 +304,8 @@ pub fn draw(opts: DrawOptions) void {
     sg.applyBindings(init: {
         var bind = sg.Bindings{};
         bind.vertex_buffers[0] = state.display.vbuf;
-        bind.fs.images[shaders.SLOT_tex] = state.offscreen.img;
-        bind.fs.samplers[shaders.SLOT_smp] = state.offscreen.smp;
+        bind.images[shaders.IMG_tex] = state.offscreen.img;
+        bind.samplers[shaders.SMP_smp] = state.offscreen.smp;
         break :init bind;
     });
     sg.draw(0, 4, 1);
