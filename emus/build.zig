@@ -75,20 +75,25 @@ const EmuOptions = struct {
 };
 
 fn addEmulator(b: *Build, opts: EmuOptions) void {
-    const exe = b.addExecutable(.{
-        .name = opts.name,
+    const mod = b.createModule(.{
         .root_source_file = b.path(opts.src),
         .target = opts.target,
         .optimize = opts.optimize,
+        .imports = &.{
+            .{ .name = "chipz", .module = opts.mod_chipz },
+            .{ .name = "host", .module = opts.mod_host },
+            .{ .name = "sokol", .module = opts.mod_sokol },
+        },
     });
     if (opts.model != .NONE) {
         const options = b.addOptions();
         options.addOption(Model, "model", opts.model);
-        exe.root_module.addOptions("build_options", options);
+        mod.addOptions("build_options", options);
     }
-    exe.root_module.addImport("chipz", opts.mod_chipz);
-    exe.root_module.addImport("host", opts.mod_host);
-    exe.root_module.addImport("sokol", opts.mod_sokol);
+    const exe = b.addExecutable(.{
+        .name = opts.name,
+        .root_module = mod,
+    });
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);

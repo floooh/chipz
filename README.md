@@ -4,6 +4,8 @@
 
 8-bit emulator experiments in Zig.
 
+> NOTE: no longer works with Zig 0.13.0, instead use the Zig nightly version
+
 ## Usage
 
 ### Arcade Machines:

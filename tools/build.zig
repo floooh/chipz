@@ -31,9 +31,11 @@ const ToolOptions = struct {
 fn buildTool(b: *Build, options: ToolOptions) void {
     const exe = b.addExecutable(.{
         .name = options.name,
-        .root_source_file = b.path(options.src),
-        .target = options.target,
-        .optimize = options.optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path(options.src),
+            .target = options.target,
+            .optimize = options.optimize,
+        }),
     });
     b.installArtifact(exe);
 
