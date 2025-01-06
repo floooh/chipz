@@ -6,6 +6,14 @@
 
 > NOTE: no longer works with Zig 0.13.0, instead use the Zig nightly version
 
+Also see blog post [Zig and Emulators](https://floooh.github.io/2024/08/24/zig-and-emulators.html)
+
+![Pacman](media/screenshots/pacman.webp)
+![Pengo](media/screenshots/pengo.webp)
+![Bombjack](media/screenshots/bombjack.webp)
+![KC85/3 Digger](media/screenshots/kc853_digger.webp)
+![KC85/4 Demo](media/screenshots/kc854_demo.webp)
+
 ## Usage
 
 ### Arcade Machines:
