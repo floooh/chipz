@@ -171,11 +171,11 @@ export fn input(ev: ?*const sapp.Event) void {
 
 pub fn main() void {
     args = Args.parse(gpa.allocator()) catch {
-        std.process.exit(10);
+        return;
     };
+    defer args.deinit();
     if (args.help) {
-        args.deinit();
-        std.process.exit(0);
+        return;
     }
 
     const display = KC85.displayInfo(null);
@@ -236,6 +236,7 @@ const Args = struct {
         var res = Args{
             .allocator = allocator,
         };
+        errdefer res.deinit();
         var arg_iter = try std.process.argsWithAllocator(res.allocator);
         defer arg_iter.deinit();
         _ = arg_iter.skip();
