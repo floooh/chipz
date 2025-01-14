@@ -22,15 +22,11 @@ pub fn build(b: *Build, opts: Options) void {
     inline for (tests) |name| {
         const exe = b.addExecutable(.{
             .name = name,
-            .root_module = b.createModule(.{
-                .root_source_file = b.path(b.fmt("{s}/{s}.zig", .{ opts.src_dir, name })),
-                .target = opts.target,
-                .optimize = opts.optimize,
-                .imports = &.{
-                    .{ .name = "chipz", .module = opts.mod_chipz },
-                },
-            }),
+            .root_source_file = b.path(b.fmt("{s}/{s}.zig", .{ opts.src_dir, name })),
+            .target = opts.target,
+            .optimize = opts.optimize,
         });
+        exe.root_module.addImport("chipz", opts.mod_chipz);
         b.installArtifact(exe);
 
         const run = b.addRunArtifact(exe);
@@ -50,15 +46,11 @@ pub fn build(b: *Build, opts: Options) void {
     inline for (unit_tests) |name| {
         const unit_test = b.addTest(.{
             .name = name ++ ".test",
-            .root_module = b.createModule(.{
-                .root_source_file = b.path(b.fmt("{s}/{s}.test.zig", .{ opts.src_dir, name })),
-                .target = opts.target,
-                .imports = &.{
-                    .{ .name = "chipz", .module = opts.mod_chipz },
-                },
-            }),
+            .root_source_file = b.path(b.fmt("{s}/{s}.test.zig", .{ opts.src_dir, name })),
+            .target = opts.target,
         });
         b.installArtifact(unit_test); // install an exe for debugging
+        unit_test.root_module.addImport("chipz", opts.mod_chipz);
         const run_unit_test = b.addRunArtifact(unit_test);
         test_step.dependOn(&run_unit_test.step);
     }
