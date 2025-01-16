@@ -8,6 +8,8 @@
 
 Also see blog post [Zig and Emulators](https://floooh.github.io/2024/08/24/zig-and-emulators.html)
 
+...and an experiment to host the emulator in a terminal window: https://github.com/floooh/chipz-kitty
+
 ![Pacman](media/screenshots/pacman.webp)
 ![Pengo](media/screenshots/pengo.webp)
 ![Bombjack](media/screenshots/bombjack.webp)
