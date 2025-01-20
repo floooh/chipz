@@ -44,6 +44,7 @@ pub fn build(b: *Build, opts: Options) void {
         "ay3891",
         "z80ctc",
         "z80pio",
+        "intel8255",
         "keybuf",
     };
     const test_step = b.step("test", "Run unit tests");
