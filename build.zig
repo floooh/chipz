@@ -32,7 +32,7 @@ pub fn build(b: *Build) void {
         },
     });
     const mod_host = b.addModule("host", .{
-        .root_source_file = b.path("src/emus/host/host.zig"),
+        .root_source_file = b.path("emus/host/host.zig"),
         .target = target,
         .optimize = optimize,
         .imports = &.{
