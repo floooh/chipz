@@ -31,6 +31,16 @@ pub fn build(b: *Build) void {
             .{ .name = "chips", .module = mod_chips },
         },
     });
+    const mod_host = b.addModule("host", .{
+        .root_source_file = b.path("src/emus/host/host.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "common", .module = mod_common },
+            .{ .name = "chips", .module = mod_chips },
+            .{ .name = "system", .module = mod_systems },
+        },
+    });
 
     // top-level module
     const mod_chipz = b.addModule("chipz", .{
@@ -41,6 +51,7 @@ pub fn build(b: *Build) void {
             .{ .name = "common", .module = mod_common },
             .{ .name = "chips", .module = mod_chips },
             .{ .name = "systems", .module = mod_systems },
+            .{ .name = "host", .module = mod_host },
         },
     });
 
