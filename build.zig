@@ -8,6 +8,11 @@ pub fn build(b: *Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const dep_sokol = b.dependency("sokol", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     // internal module definitions
     const mod_common = b.addModule("common", .{
         .root_source_file = b.path("src/common/common.zig"),
@@ -31,6 +36,15 @@ pub fn build(b: *Build) void {
             .{ .name = "chips", .module = mod_chips },
         },
     });
+    const mod_host = b.addModule("host", .{
+        .root_source_file = b.path("src/host/host.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "sokol", .module = dep_sokol.module("sokol") },
+            .{ .name = "common", .module = mod_common },
+        },
+    });
 
     // top-level modules
     const mod_chipz = b.addModule("chipz", .{
@@ -41,6 +55,7 @@ pub fn build(b: *Build) void {
             .{ .name = "common", .module = mod_common },
             .{ .name = "chips", .module = mod_chips },
             .{ .name = "systems", .module = mod_systems },
+            .{ .name = "host", .module = mod_host },
         },
     });
 

@@ -6,14 +6,14 @@ const sapp = sokol.app;
 const sdtx = sokol.debugtext;
 const sglue = sokol.glue;
 const slog = sokol.log;
-const chipz = @import("chipz");
+const common = @import("common");
 const prof = @import("prof.zig");
 const shaders = @import("shaders.zig");
 
-const DisplayInfo = chipz.common.glue.DisplayInfo;
-const DisplayOrientation = chipz.common.glue.DisplayOrientation;
-const Dim = chipz.common.glue.Dim;
-const Rect = chipz.common.glue.Rect;
+const DisplayInfo = common.glue.DisplayInfo;
+const DisplayOrientation = common.glue.DisplayOrientation;
+const Dim = common.glue.Dim;
+const Rect = common.glue.Rect;
 
 pub const Border = struct {
     top: u32,
