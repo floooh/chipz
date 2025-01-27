@@ -2,7 +2,7 @@ const build_options = @import("build_options");
 const sokol = @import("sokol");
 const sapp = sokol.app;
 const slog = sokol.log;
-const host = @import("host");
+const host = @import("chipz").host;
 const namco = @import("chipz").systems.namco;
 
 const model: namco.System = switch (build_options.model) {

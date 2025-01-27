@@ -39,16 +39,6 @@ pub fn build(b: *Build, opts: Options) void {
         .optimize = opts.optimize,
     });
 
-    const mod_host = b.addModule("host", .{
-        .root_source_file = b.path(b.fmt("{s}/host/host.zig", .{opts.src_dir})),
-        .target = opts.target,
-        .optimize = opts.optimize,
-        .imports = &.{
-            .{ .name = "sokol", .module = dep_sokol.module("sokol") },
-            .{ .name = "chipz", .module = opts.mod_chipz },
-        },
-    });
-
     inline for (emulators) |emu| {
         addEmulator(b, .{
             .name = emu.name,
@@ -58,7 +48,6 @@ pub fn build(b: *Build, opts: Options) void {
             .optimize = opts.optimize,
             .mod_chipz = opts.mod_chipz,
             .mod_sokol = dep_sokol.module("sokol"),
-            .mod_host = mod_host,
         });
     }
 }
@@ -71,7 +60,6 @@ const EmuOptions = struct {
     optimize: OptimizeMode,
     mod_chipz: *Module,
     mod_sokol: *Module,
-    mod_host: *Module,
 };
 
 fn addEmulator(b: *Build, opts: EmuOptions) void {
@@ -81,7 +69,6 @@ fn addEmulator(b: *Build, opts: EmuOptions) void {
         .optimize = opts.optimize,
         .imports = &.{
             .{ .name = "chipz", .module = opts.mod_chipz },
-            .{ .name = "host", .module = opts.mod_host },
             .{ .name = "sokol", .module = opts.mod_sokol },
         },
     });

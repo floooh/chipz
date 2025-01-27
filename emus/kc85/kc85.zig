@@ -6,7 +6,7 @@ const GeneralPurposeAllocator = std.heap.GeneralPurposeAllocator;
 const sokol = @import("sokol");
 const sapp = sokol.app;
 const slog = sokol.log;
-const host = @import("host");
+const host = @import("chipz").host;
 const kc85 = @import("chipz").systems.kc85;
 
 const model: kc85.Model = switch (build_options.model) {
