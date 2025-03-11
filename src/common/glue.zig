@@ -12,14 +12,6 @@ pub const Dim = struct {
     height: i32 = 0,
 };
 
-/// emulator framebuffer pixel formats
-pub const PixelFormat = enum {
-    /// pixels are 8-bit palette indices
-    Palette8,
-    /// pixels are 32-bit true color
-    Rgba8,
-};
-
 /// display orientation
 pub const DisplayOrientation = enum {
     Landscape,
@@ -33,7 +25,7 @@ pub const DisplayInfo = struct {
         /// framebuffer dimensions in pixels
         dim: Dim,
         /// slice to the actual framebuffer pixels
-        buffer: ?union(PixelFormat) {
+        buffer: ?union(enum) {
             Palette8: []const u8,
             Rgba8: []const u32,
         },
