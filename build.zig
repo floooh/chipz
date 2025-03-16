@@ -11,7 +11,15 @@ pub fn build(b: *Build) void {
     const dep_sokol = b.dependency("sokol", .{
         .target = target,
         .optimize = optimize,
+        .with_sokol_imgui = true,
     });
+    const dep_cimgui = b.dependency("cimgui", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // inject the cimgui header search path into the sokol C library compile step
+    dep_sokol.artifact("sokol_clib").addIncludePath(dep_cimgui.path("src"));
 
     // internal module definitions
     const mod_common = b.addModule("common", .{
@@ -42,6 +50,7 @@ pub fn build(b: *Build) void {
         .optimize = optimize,
         .imports = &.{
             .{ .name = "sokol", .module = dep_sokol.module("sokol") },
+            .{ .name = "cimgui", .module = dep_cimgui.module("cimgui") },
             .{ .name = "common", .module = mod_common },
         },
     });
