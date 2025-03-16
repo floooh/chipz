@@ -45,6 +45,7 @@ pub const Status = struct {
 const DrawOptions = struct {
     display: DisplayInfo,
     status: ?Status = null,
+    render_cb: ?*const fn () void = null,
 };
 
 const DrawFunc = *const fn () void;
@@ -289,6 +290,9 @@ pub fn draw(opts: DrawOptions) void {
     } };
     sg.applyUniforms(shaders.UB_offscreen_vs_params, sg.asRange(&vs_params));
     sg.draw(0, 4, 1);
+    if (opts.render_cb) |cb| {
+        cb();
+    }
     sg.endPass();
 
     // draw display pass with linear filtering
