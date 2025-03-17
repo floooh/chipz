@@ -9,6 +9,9 @@ const slog = sokol.log;
 const host = @import("chipz").host;
 const kc85 = @import("chipz").systems.kc85;
 
+const ig = @import("cimgui");
+const simgui = sokol.imgui;
+
 const model: kc85.Model = switch (build_options.model) {
     .KC852 => .KC852,
     .KC853 => .KC853,
@@ -58,6 +61,11 @@ export fn init() void {
         },
     });
     host.gfx.init(.{ .display = sys.displayInfo() });
+    // initialize sokol-imgui
+    simgui.setup(.{
+        .logger = .{ .func = slog.func },
+    });
+    host.gfx.addDrawFunc(renderGUI);
 
     // insert modules
     inline for (.{ &args.slot8, &args.slotc }, .{ 0x08, 0x0C }) |slot, slot_addr| {
@@ -70,12 +78,105 @@ export fn init() void {
     }
 }
 
+fn renderGUI() void {
+    simgui.render();
+}
+
+fn uiDrawMenu() void {
+    if (ig.igBeginMainMenuBar()) {
+        if (ig.igBeginMenu("System")) {
+            if (ig.igMenuItem("Reset")) {
+                // TODO: implement reset
+            }
+            if (ig.igMenuItem("Cold Boot")) {
+                // TODO: implement cold boot
+            }
+            ig.igEndMenu();
+        }
+        if (ig.igBeginMenu("Hardware")) {
+            if (ig.igMenuItem("Memory Map")) {
+                // TODO: open window
+            }
+            if (ig.igMenuItem("System State")) {
+                // TODO: open window
+            }
+            if (ig.igMenuItem("Audio Output")) {
+                // TODO: open window
+            }
+            if (ig.igMenuItem("Display")) {
+                // TODO: open window
+            }
+            if (ig.igMenuItem("Z80")) {
+                // TODO: open chip window
+            }
+            if (ig.igMenuItem("Z80 PIO")) {
+                // TODO: open chip window
+            }
+            if (ig.igMenuItem("Z80 CTC")) {
+                // TODO: open chip window
+            }
+            ig.igEndMenu();
+        }
+        if (ig.igBeginMenu("Debug")) {
+            if (ig.igMenuItem("CPU Debugger")) {
+                // TODO: open window
+            }
+            if (ig.igMenuItem("Breakpoints")) {
+                // TODO: open window
+            }
+            if (ig.igBeginMenu("Memory Editor")) {
+                if (ig.igMenuItem("Window #1")) {
+                    // TODO: open window
+                }
+                if (ig.igMenuItem("Window #2")) {
+                    // TODO: open window
+                }
+                if (ig.igMenuItem("Window #3")) {
+                    // TODO: open window
+                }
+                if (ig.igMenuItem("Window #4")) {
+                    // TODO: open window
+                }
+                ig.igEndMenu();
+            }
+            if (ig.igBeginMenu("Disassembler")) {
+                if (ig.igMenuItem("Window #1")) {
+                    // TODO: open window
+                }
+                if (ig.igMenuItem("Window #2")) {
+                    // TODO: open window
+                }
+                if (ig.igMenuItem("Window #3")) {
+                    // TODO: open window
+                }
+                if (ig.igMenuItem("Window #4")) {
+                    // TODO: open window
+                }
+                ig.igEndMenu();
+            }
+            ig.igEndMenu();
+        }
+        ig.igEndMainMenuBar();
+    }
+}
+
 export fn frame() void {
     const frame_time_us = host.time.frameTime();
     host.prof.pushMicroSeconds(.FRAME, frame_time_us);
     host.time.emuStart();
     const num_ticks = sys.exec(frame_time_us);
     host.prof.pushMicroSeconds(.EMU, host.time.emuEnd());
+
+    // call simgui.newFrame() before any ImGui calls
+    simgui.newFrame(.{
+        .width = sapp.width(),
+        .height = sapp.height(),
+        .delta_time = sapp.frameDuration(),
+        .dpi_scale = sapp.dpiScale(),
+    });
+
+    uiDrawMenu();
+
     host.gfx.draw(.{
         .display = sys.displayInfo(),
         .status = .{
@@ -95,6 +196,7 @@ export fn frame() void {
 }
 
 export fn cleanup() void {
+    simgui.shutdown();
     host.gfx.shutdown();
     host.prof.shutdown();
     host.audio.shutdown();
@@ -107,6 +209,10 @@ export fn cleanup() void {
 export fn input(ev: ?*const sapp.Event) void {
     const event = ev.?;
     const shift = 0 != (event.modifiers & sapp.modifier_shift);
+
+    // forward input events to sokol-imgui
+    _ = simgui.handleEvent(event.*);
+
     switch (event.type) {
         .CHAR => {
             var c: u8 = @truncate(event.char_code);
