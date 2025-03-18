@@ -63,6 +63,44 @@ const UI_Z80_Pins = [_]UI_CHIP.Pin{
     .{ .name = "A14", .slot = 32, .mask = kc85.Z80.A14 },
     .{ .name = "A15", .slot = 33, .mask = kc85.Z80.A15 },
 };
+const UI_Z80PIO = ui.ui_z80pio.Type(.{ .bus = kc85.Bus, .pio = kc85.Z80PIO });
+const UI_Z80PIO_Pins = [_]UI_CHIP.Pin{
+    .{ .name = "D0", .slot = 0, .mask = kc85.Z80.D0 },
+    .{ .name = "D1", .slot = 1, .mask = kc85.Z80.D1 },
+    .{ .name = "D2", .slot = 2, .mask = kc85.Z80.D2 },
+    .{ .name = "D3", .slot = 3, .mask = kc85.Z80.D3 },
+    .{ .name = "D4", .slot = 4, .mask = kc85.Z80.D4 },
+    .{ .name = "D5", .slot = 5, .mask = kc85.Z80.D5 },
+    .{ .name = "D6", .slot = 6, .mask = kc85.Z80.D6 },
+    .{ .name = "D7", .slot = 7, .mask = kc85.Z80.D7 },
+    .{ .name = "CE", .slot = 9, .mask = kc85.Z80PIO.CE },
+    .{ .name = "BASEL", .slot = 10, .mask = kc85.Z80PIO.BASEL },
+    .{ .name = "CDSEL", .slot = 11, .mask = kc85.Z80PIO.CDSEL },
+    .{ .name = "M1", .slot = 12, .mask = kc85.Z80PIO.M1 },
+    .{ .name = "IORQ", .slot = 13, .mask = kc85.Z80PIO.IORQ },
+    .{ .name = "RD", .slot = 14, .mask = kc85.Z80PIO.RD },
+    .{ .name = "INT", .slot = 15, .mask = kc85.Z80PIO.INT },
+    .{ .name = "ARDY", .slot = 20, .mask = kc85.Z80PIO.ARDY },
+    .{ .name = "ASTB", .slot = 21, .mask = kc85.Z80PIO.ASTB },
+    .{ .name = "PA0", .slot = 22, .mask = kc85.Z80PIO.PA0 },
+    .{ .name = "PA1", .slot = 23, .mask = kc85.Z80PIO.PA1 },
+    .{ .name = "PA2", .slot = 24, .mask = kc85.Z80PIO.PA2 },
+    .{ .name = "PA3", .slot = 25, .mask = kc85.Z80PIO.PA3 },
+    .{ .name = "PA4", .slot = 26, .mask = kc85.Z80PIO.PA4 },
+    .{ .name = "PA5", .slot = 27, .mask = kc85.Z80PIO.PA5 },
+    .{ .name = "PA6", .slot = 28, .mask = kc85.Z80PIO.PA6 },
+    .{ .name = "PA7", .slot = 29, .mask = kc85.Z80PIO.PA7 },
+    .{ .name = "BRDY", .slot = 30, .mask = kc85.Z80PIO.ARDY },
+    .{ .name = "BSTB", .slot = 31, .mask = kc85.Z80PIO.ASTB },
+    .{ .name = "PB0", .slot = 32, .mask = kc85.Z80PIO.PB0 },
+    .{ .name = "PB1", .slot = 33, .mask = kc85.Z80PIO.PB1 },
+    .{ .name = "PB2", .slot = 34, .mask = kc85.Z80PIO.PB2 },
+    .{ .name = "PB3", .slot = 35, .mask = kc85.Z80PIO.PB3 },
+    .{ .name = "PB4", .slot = 36, .mask = kc85.Z80PIO.PB4 },
+    .{ .name = "PB5", .slot = 37, .mask = kc85.Z80PIO.PB5 },
+    .{ .name = "PB6", .slot = 38, .mask = kc85.Z80PIO.PB6 },
+    .{ .name = "PB7", .slot = 39, .mask = kc85.Z80PIO.PB7 },
+};
 
 // a once-trigger for loading a file after booting has finished
 var file_loaded = host.time.Once.init(switch (model) {
@@ -74,6 +112,7 @@ var sys: KC85 = undefined;
 var gpa = GeneralPurposeAllocator(.{}){};
 var args: Args = undefined;
 var ui_z80: UI_Z80 = undefined;
+var ui_z80pio: UI_Z80PIO = undefined;
 
 export fn init() void {
     host.audio.init(.{});
@@ -100,13 +139,29 @@ export fn init() void {
             },
         },
     });
+
+    // Setting up debug UI
+    var start = ig.ImVec2{ .x = 20, .y = 20 };
+    const d = ig.ImVec2{ .x = 10, .y = 10 };
     ui_z80.initInPlace(.{
         .title = "Z80 CPU",
         .cpu = &sys.cpu,
-        .origin = .{ .x = 30, .y = 30 },
+        .origin = start,
         .chip = .{ .name = "Z80\nCPU", .num_slots = 36, .pins = &UI_Z80_Pins },
     });
+    start.x += d.x;
+    start.y += d.y;
+    ui_z80pio.initInPlace(.{
+        .title = "Z80 PIO",
+        .pio = &sys.pio,
+        .origin = start,
+        .chip = .{ .name = "Z80\nPIO", .num_slots = 40, .pins = &UI_Z80_Pins },
+    });
+    start.x += d.x;
+    start.y += d.y;
+
     host.gfx.init(.{ .display = sys.displayInfo() });
+
     // initialize sokol-imgui
     simgui.setup(.{
         .logger = .{ .func = slog.func },
@@ -157,7 +212,7 @@ fn uiDrawMenu() void {
                 ui_z80.open = true;
             }
             if (ig.igMenuItem("Z80 PIO")) {
-                // TODO: open chip window
+                ui_z80pio.open = true;
             }
             if (ig.igMenuItem("Z80 CTC")) {
                 // TODO: open chip window
@@ -224,6 +279,7 @@ export fn frame() void {
 
     uiDrawMenu();
     ui_z80.draw(sys.bus);
+    ui_z80pio.draw(sys.bus);
 
     host.gfx.draw(.{
         .display = sys.displayInfo(),
