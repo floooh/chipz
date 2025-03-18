@@ -152,6 +152,7 @@ fn uiDrawMenu() void {
             if (ig.igMenuItem("Display")) {
                 // TODO: open window
             }
+            ig.igSeparator();
             if (ig.igMenuItem("Z80")) {
                 ui_z80.open = true;
             }

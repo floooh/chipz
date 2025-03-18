@@ -123,7 +123,7 @@ pub fn Type(comptime cfg: TypeConfig) type {
         /// Draw chip centered at screen pos
         pub fn drawAt(self: *Self, pins: Bus, c: ig.ImVec2) void {
             const dl = ig.igGetWindowDrawList();
-            const w = self.pin_width;
+            const w = self.chip_width;
             const h = self.chip_height;
             const p0 = ig.ImVec2{ .x = math.floor(c.x - w / 2), .y = math.floor(c.y - h / 2) };
             const p1 = ig.ImVec2{ .x = p0.x + w, .y = p0.y + h };
@@ -149,9 +149,8 @@ pub fn Type(comptime cfg: TypeConfig) type {
             }
             var p = ig.ImVec2{};
             var t = ig.ImVec2{};
-            for (0..self.num_slots) |index| {
+            for (0..self.pins.len) |index| {
                 const pin = self.pins[index];
-                if (pin.name.len == 0) break;
                 const pin_pos = self.pinPos(index, c);
                 p.x = pin_pos.x - pw / 2;
                 p.y = pin_pos.y - ph / 2;
