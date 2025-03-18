@@ -101,6 +101,31 @@ const UI_Z80PIO_Pins = [_]UI_CHIP.Pin{
     .{ .name = "PB6", .slot = 38, .mask = kc85.Z80PIO.PB6 },
     .{ .name = "PB7", .slot = 39, .mask = kc85.Z80PIO.PB7 },
 };
+const UI_Z80CTC = ui.ui_z80ctc.Type(.{ .bus = kc85.Bus, .ctc = kc85.Z80CTC });
+const UI_Z80CTC_Pins = [_]UI_CHIP.Pin{
+    .{ .name = "D0", .slot = 0, .mask = kc85.Z80.D0 },
+    .{ .name = "D1", .slot = 1, .mask = kc85.Z80.D1 },
+    .{ .name = "D2", .slot = 2, .mask = kc85.Z80.D2 },
+    .{ .name = "D3", .slot = 3, .mask = kc85.Z80.D3 },
+    .{ .name = "D4", .slot = 4, .mask = kc85.Z80.D4 },
+    .{ .name = "D5", .slot = 5, .mask = kc85.Z80.D5 },
+    .{ .name = "D6", .slot = 6, .mask = kc85.Z80.D6 },
+    .{ .name = "D7", .slot = 7, .mask = kc85.Z80.D7 },
+    .{ .name = "CE", .slot = 9, .mask = kc85.Z80CTC.CE },
+    .{ .name = "CS0", .slot = 10, .mask = kc85.Z80CTC.CS0 },
+    .{ .name = "CS1", .slot = 11, .mask = kc85.Z80CTC.CS1 },
+    .{ .name = "M1", .slot = 12, .mask = kc85.Z80CTC.M1 },
+    .{ .name = "IORQ", .slot = 13, .mask = kc85.Z80CTC.IORQ },
+    .{ .name = "RD", .slot = 14, .mask = kc85.Z80CTC.RD },
+    .{ .name = "INT", .slot = 15, .mask = kc85.Z80CTC.INT },
+    .{ .name = "CT0", .slot = 16, .mask = kc85.Z80CTC.CLKTRG0 },
+    .{ .name = "ZT0", .slot = 17, .mask = kc85.Z80CTC.ZCTO0 },
+    .{ .name = "CT1", .slot = 19, .mask = kc85.Z80CTC.CLKTRG1 },
+    .{ .name = "ZT1", .slot = 20, .mask = kc85.Z80CTC.ZCTO1 },
+    .{ .name = "CT2", .slot = 22, .mask = kc85.Z80CTC.CLKTRG2 },
+    .{ .name = "ZT2", .slot = 23, .mask = kc85.Z80CTC.ZCTO2 },
+    .{ .name = "CT3", .slot = 25, .mask = kc85.Z80CTC.CLKTRG3 },
+};
 
 // a once-trigger for loading a file after booting has finished
 var file_loaded = host.time.Once.init(switch (model) {
@@ -113,6 +138,7 @@ var gpa = GeneralPurposeAllocator(.{}){};
 var args: Args = undefined;
 var ui_z80: UI_Z80 = undefined;
 var ui_z80pio: UI_Z80PIO = undefined;
+var ui_z80ctc: UI_Z80CTC = undefined;
 
 export fn init() void {
     host.audio.init(.{});
@@ -155,7 +181,15 @@ export fn init() void {
         .title = "Z80 PIO",
         .pio = &sys.pio,
         .origin = start,
-        .chip = .{ .name = "Z80\nPIO", .num_slots = 40, .pins = &UI_Z80_Pins },
+        .chip = .{ .name = "Z80\nPIO", .num_slots = 40, .pins = &UI_Z80PIO_Pins },
+    });
+    start.x += d.x;
+    start.y += d.y;
+    ui_z80ctc.initInPlace(.{
+        .title = "Z80 CTC",
+        .ctc = &sys.ctc,
+        .origin = start,
+        .chip = .{ .name = "Z80\nCTC", .num_slots = 32, .pins = &UI_Z80CTC_Pins },
     });
     start.x += d.x;
     start.y += d.y;
@@ -215,7 +249,7 @@ fn uiDrawMenu() void {
                 ui_z80pio.open = true;
             }
             if (ig.igMenuItem("Z80 CTC")) {
-                // TODO: open chip window
+                ui_z80ctc.open = true;
             }
             ig.igEndMenu();
         }
@@ -280,6 +314,7 @@ export fn frame() void {
     uiDrawMenu();
     ui_z80.draw(sys.bus);
     ui_z80pio.draw(sys.bus);
+    ui_z80ctc.draw(sys.bus);
 
     host.gfx.draw(.{
         .display = sys.displayInfo(),
