@@ -11,7 +11,15 @@ pub fn build(b: *Build) void {
     const dep_sokol = b.dependency("sokol", .{
         .target = target,
         .optimize = optimize,
+        .with_sokol_imgui = true,
     });
+    const dep_cimgui = b.dependency("cimgui", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // inject the cimgui header search path into the sokol C library compile step
+    dep_sokol.artifact("sokol_clib").addIncludePath(dep_cimgui.path("src"));
 
     // internal module definitions
     const mod_common = b.addModule("common", .{
@@ -45,6 +53,17 @@ pub fn build(b: *Build) void {
             .{ .name = "common", .module = mod_common },
         },
     });
+    const mod_ui = b.addModule("ui", .{
+        .root_source_file = b.path("src/ui/ui.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "sokol", .module = dep_sokol.module("sokol") },
+            .{ .name = "cimgui", .module = dep_cimgui.module("cimgui") },
+            .{ .name = "common", .module = mod_common },
+            .{ .name = "chips", .module = mod_chips },
+        },
+    });
 
     // top-level modules
     const mod_chipz = b.addModule("chipz", .{
@@ -56,6 +75,7 @@ pub fn build(b: *Build) void {
             .{ .name = "chips", .module = mod_chips },
             .{ .name = "systems", .module = mod_systems },
             .{ .name = "host", .module = mod_host },
+            .{ .name = "ui", .module = mod_ui },
         },
     });
 

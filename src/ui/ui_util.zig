@@ -1,9 +1,7 @@
 //! UI helper functions
 const ig = @import("cimgui");
 
-pub fn color(imgui_color: c_int) ig.ImColor {
+pub fn color(imgui_color: usize) ig.ImU32 {
     const style = ig.igGetStyle();
-    var c = style.Colors[imgui_color];
-    c.w *= style.Alpha;
-    return ig.ImColor{c};
+    return ig.igGetColorU32Ex(@intCast(imgui_color), style.*.Alpha);
 }

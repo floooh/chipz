@@ -8,6 +8,7 @@ const sapp = sokol.app;
 const slog = sokol.log;
 const host = @import("chipz").host;
 const kc85 = @import("chipz").systems.kc85;
+const ui = @import("chipz").ui;
 
 const ig = @import("cimgui");
 const simgui = sokol.imgui;
@@ -24,6 +25,44 @@ const name = switch (model) {
     .KC854 => "KC85/4",
 };
 const KC85 = kc85.Type(model);
+const UI_CHIP = ui.ui_chip.Type(.{ .bus = kc85.Bus });
+const UI_Z80 = ui.ui_z80.Type(.{ .bus = kc85.Bus, .cpu = kc85.Z80 });
+const UI_Z80_Pins = [_]UI_CHIP.Pin{
+    .{ .name = "D0", .slot = 0, .mask = kc85.Z80.D0 },
+    .{ .name = "D1", .slot = 1, .mask = kc85.Z80.D1 },
+    .{ .name = "D2", .slot = 2, .mask = kc85.Z80.D2 },
+    .{ .name = "D3", .slot = 3, .mask = kc85.Z80.D3 },
+    .{ .name = "D4", .slot = 4, .mask = kc85.Z80.D4 },
+    .{ .name = "D5", .slot = 5, .mask = kc85.Z80.D5 },
+    .{ .name = "D6", .slot = 6, .mask = kc85.Z80.D6 },
+    .{ .name = "D7", .slot = 7, .mask = kc85.Z80.D7 },
+    .{ .name = "M1", .slot = 8, .mask = kc85.Z80.M1 },
+    .{ .name = "MREQ", .slot = 9, .mask = kc85.Z80.MREQ },
+    .{ .name = "IORQ", .slot = 10, .mask = kc85.Z80.IORQ },
+    .{ .name = "RD", .slot = 11, .mask = kc85.Z80.RD },
+    .{ .name = "WR", .slot = 12, .mask = kc85.Z80.WR },
+    .{ .name = "RFSH", .slot = 13, .mask = kc85.Z80.RFSH },
+    .{ .name = "HALT", .slot = 14, .mask = kc85.Z80.HALT },
+    .{ .name = "INT", .slot = 15, .mask = kc85.Z80.INT },
+    .{ .name = "NMI", .slot = 16, .mask = kc85.Z80.NMI },
+    .{ .name = "WAIT", .slot = 17, .mask = kc85.Z80.WAIT },
+    .{ .name = "A0", .slot = 18, .mask = kc85.Z80.A0 },
+    .{ .name = "A1", .slot = 19, .mask = kc85.Z80.A1 },
+    .{ .name = "A2", .slot = 20, .mask = kc85.Z80.A2 },
+    .{ .name = "A3", .slot = 21, .mask = kc85.Z80.A3 },
+    .{ .name = "A4", .slot = 22, .mask = kc85.Z80.A4 },
+    .{ .name = "A5", .slot = 23, .mask = kc85.Z80.A5 },
+    .{ .name = "A6", .slot = 24, .mask = kc85.Z80.A6 },
+    .{ .name = "A7", .slot = 25, .mask = kc85.Z80.A7 },
+    .{ .name = "A8", .slot = 26, .mask = kc85.Z80.A8 },
+    .{ .name = "A9", .slot = 27, .mask = kc85.Z80.A9 },
+    .{ .name = "A10", .slot = 28, .mask = kc85.Z80.A10 },
+    .{ .name = "A11", .slot = 29, .mask = kc85.Z80.A11 },
+    .{ .name = "A12", .slot = 30, .mask = kc85.Z80.A12 },
+    .{ .name = "A13", .slot = 31, .mask = kc85.Z80.A13 },
+    .{ .name = "A14", .slot = 32, .mask = kc85.Z80.A14 },
+    .{ .name = "A15", .slot = 33, .mask = kc85.Z80.A15 },
+};
 
 // a once-trigger for loading a file after booting has finished
 var file_loaded = host.time.Once.init(switch (model) {
@@ -34,6 +73,7 @@ var file_loaded = host.time.Once.init(switch (model) {
 var sys: KC85 = undefined;
 var gpa = GeneralPurposeAllocator(.{}){};
 var args: Args = undefined;
+var ui_z80: UI_Z80 = undefined;
 
 export fn init() void {
     host.audio.init(.{});
@@ -59,6 +99,12 @@ export fn init() void {
                 .kcbasic = @embedFile("roms/basic_c0.853"),
             },
         },
+    });
+    ui_z80.initInPlace(.{
+        .title = "Z80 CPU",
+        .cpu = &sys.cpu,
+        .origin = .{ .x = 30, .y = 30 },
+        .chip = .{ .name = "Z80\nCPU", .num_slots = 36, .pins = &UI_Z80_Pins },
     });
     host.gfx.init(.{ .display = sys.displayInfo() });
     // initialize sokol-imgui
@@ -107,7 +153,7 @@ fn uiDrawMenu() void {
                 // TODO: open window
             }
             if (ig.igMenuItem("Z80")) {
-                // TODO: open chip window
+                ui_z80.open = true;
             }
             if (ig.igMenuItem("Z80 PIO")) {
                 // TODO: open chip window
@@ -176,6 +222,7 @@ export fn frame() void {
     });
 
     uiDrawMenu();
+    ui_z80.draw(sys.bus);
 
     host.gfx.draw(.{
         .display = sys.displayInfo(),

@@ -8,33 +8,30 @@ pub const TypeConfig = struct {
 };
 
 pub fn Type(comptime cfg: TypeConfig) type {
-    const Bus = cfg.bus;
-
-    const ChipPin = struct {
-        name: []u8,
-        slot: comptime_int,
-        mask: Bus,
-    };
-
-    const MAX_PINS = 64;
-
     return struct {
         const Self = @This();
+        const Bus = cfg.bus;
 
-        name: []u8,
-        num_slots: comptime_int = 0,
-        num_slots_left: comptime_int = 0,
-        num_slots_right: comptime_int = 0,
-        num_slots_top: comptime_int = 0,
-        num_slots_bottom: comptime_int = 0,
-        chip_width: comptime_float = 0,
-        chip_height: comptime_float = 0,
-        pin_slot_dist: comptime_float = 0,
-        pin_width: comptime_float = 0,
-        pin_height: comptime_float = 0,
+        pub const Pin = struct {
+            name: []const u8,
+            slot: usize,
+            mask: Bus,
+        };
+
+        name: []const u8,
+        num_slots: usize = 0,
+        num_slots_left: usize = 0,
+        num_slots_right: usize = 0,
+        num_slots_top: usize = 0,
+        num_slots_bottom: usize = 0,
+        chip_width: f32 = 0,
+        chip_height: f32 = 0,
+        pin_slot_dist: f32 = 0,
+        pin_width: f32 = 0,
+        pin_height: f32 = 0,
         are_pin_names_inside: bool = false,
         is_name_outside: bool = false,
-        pins: [MAX_PINS]ChipPin,
+        pins: []const Pin,
 
         pub fn init(chip: Self) Self {
             var self = chip;
@@ -54,17 +51,18 @@ pub fn Type(comptime cfg: TypeConfig) type {
                 self.pin_height = 12;
             }
             if (self.chip_width == 0) {
-                const slots = @max(self.num_slots_top, self.num_slots_bottom);
+                const slots: f32 = @floatFromInt(@max(self.num_slots_top, self.num_slots_bottom));
                 self.chip_width = if (slots > 0) slots * self.pin_slot_dist else 64;
             }
             if (self.chip_height == 0) {
-                const slots = @max(self.num_slots_left, self.num_slots_right);
+                const slots: f32 = @floatFromInt(@max(self.num_slots_left, self.num_slots_right));
                 self.chip_height = if (slots > 0) slots * self.pin_slot_dist else 64;
             }
+            return self;
         }
 
         /// Get screen pos of center of pin (by pin index) with chip center at cx, cy
-        fn pinPos(self: *Self, pin_index: comptime_int, c: ig.ImVec2) ig.ImVec2 {
+        fn pinPos(self: *Self, pin_index: usize, c: ig.ImVec2) ig.ImVec2 {
             var pos = ig.ImVec2{ .x = 0, .y = 0 };
             if (pin_index < self.num_slots) {
                 const w = self.chip_width;
@@ -78,20 +76,25 @@ pub fn Type(comptime cfg: TypeConfig) type {
                 const t = self.num_slots_top;
                 const b = self.num_slots_bottom;
                 const pin = self.pins[pin_index];
+                const pin_slot_f: f32 = @floatFromInt(pin.slot);
+                const l_f: f32 = @floatFromInt(l);
+                const r_f: f32 = @floatFromInt(r);
+                const t_f: f32 = @floatFromInt(t);
+
                 if (pin.slot < l) {
                     // left side
                     pos.x = zero.x - pwh;
-                    pos.y = zero.y + slot_dist / 2 + pin.slot * slot_dist;
+                    pos.y = zero.y + slot_dist / 2 + pin_slot_f * slot_dist;
                 } else if (pin.slot < (l + r)) {
                     // right side
                     pos.x = zero.x + w + pwh;
-                    pos.y = zero.y + slot_dist / 2 + (pin.slot - l) * slot_dist;
+                    pos.y = zero.y + slot_dist / 2 + (pin_slot_f - l_f) * slot_dist;
                 } else if (pin.slot < (l + r + t)) {
                     // top side
-                    pos.x = zero.x + slot_dist / 2 + (pin.slot - (l + r)) * slot_dist;
+                    pos.x = zero.x + slot_dist / 2 + (pin_slot_f - (l_f + r_f)) * slot_dist;
                     pos.y = zero.y - phh;
                 } else if (pin.slot < (l + r + t + b)) {
-                    pos.x = zero.x + slot_dist / 2 + (pin.slot - (l + r + t)) * slot_dist;
+                    pos.x = zero.x + slot_dist / 2 + (pin_slot_f - (l_f + r_f + t_f)) * slot_dist;
                     pos.y = zero.y + h + phh;
                 }
             }
@@ -131,15 +134,18 @@ pub fn Type(comptime cfg: TypeConfig) type {
             const r = self.num_slots_right;
             const text_color = ui_util.color(ig.ImGuiCol_Text);
             const line_color = text_color;
-            const pin_color_on = ig.ImColor{ig.ImVec4{ .x = 0, .y = 1, .z = 0, .w = ig.igGetStyle().Alpha }};
-            const pin_color_off = ig.ImColor{ig.ImVec4{ .x = 0, .y = 0.25, .z = 0, .w = ig.igGetStyle().Alpha }};
+            const style = ig.igGetStyle();
+            const pin_color_on = ig.igGetColorU32ImVec4(.{ .x = 0, .y = 1, .z = 0, .w = style.*.Alpha });
+            const pin_color_off = ig.igGetColorU32ImVec4(.{ .x = 0, .y = 0.25, .z = 0, .w = style.*.Alpha });
 
-            dl.AddRect(p0, p1, line_color);
-            const ts = ig.igCalcTextSize(self.name);
+            ig.ImDrawList_AddRect(dl, p0, p1, line_color);
+            const chip_ts = ig.igCalcTextSize(self.name.ptr);
             if (self.is_name_outside) {
-                dl.AddText(.{ .x = m.x - ts.x / 2, .y = p0.y - ts.y }, text_color, self.name);
+                const tpos = ig.ImVec2{ .x = m.x - chip_ts.x / 2, .y = p0.y - chip_ts.y };
+                ig.ImDrawList_AddText(dl, tpos, text_color, self.name.ptr);
             } else {
-                dl.AddText(.{ .x = m.x - ts.x / 2, .y = m.y - ts.y / 2 }, text_color, self.name);
+                const tpos = ig.ImVec2{ .x = m.x - chip_ts.x / 2, .y = m.y - chip_ts.y / 2 };
+                ig.ImDrawList_AddText(dl, tpos, text_color, self.name.ptr);
             }
             var p = ig.ImVec2{};
             var t = ig.ImVec2{};
@@ -149,7 +155,7 @@ pub fn Type(comptime cfg: TypeConfig) type {
                 const pin_pos = self.pinPos(index, c);
                 p.x = pin_pos.x - pw / 2;
                 p.y = pin_pos.y - ph / 2;
-                ts = ig.igCalcTextSize(pin.name);
+                const ts = ig.igCalcTextSize(pin.name.ptr);
                 if (pin.slot < l) {
                     // left side
                     if (self.are_pin_names_inside) {
@@ -172,9 +178,9 @@ pub fn Type(comptime cfg: TypeConfig) type {
                 }
                 const pin_color = if ((pins & pin.mask) != 0) pin_color_on else pin_color_off;
                 const pp = ig.ImVec2{ .x = p.x + pw, .y = p.y + ph };
-                dl.AddRectFilled(p, pp, pin_color);
-                dl.AddRect(p, pp, line_color);
-                dl.AddText(t, text_color, pin.name);
+                ig.ImDrawList_AddRectFilled(dl, p, pp, pin_color);
+                ig.ImDrawList_AddRect(dl, p, pp, line_color);
+                ig.ImDrawList_AddText(dl, t, text_color, pin.name.ptr);
             }
         }
 
