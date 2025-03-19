@@ -54,6 +54,17 @@ pub fn build(b: *Build) void {
             .{ .name = "common", .module = mod_common },
         },
     });
+    const mod_ui = b.addModule("ui", .{
+        .root_source_file = b.path("src/ui/ui.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "sokol", .module = dep_sokol.module("sokol") },
+            .{ .name = "cimgui", .module = dep_cimgui.module("cimgui") },
+            .{ .name = "common", .module = mod_common },
+            .{ .name = "chips", .module = mod_chips },
+        },
+    });
 
     // top-level modules
     const mod_chipz = b.addModule("chipz", .{
@@ -65,6 +76,7 @@ pub fn build(b: *Build) void {
             .{ .name = "chips", .module = mod_chips },
             .{ .name = "systems", .module = mod_systems },
             .{ .name = "host", .module = mod_host },
+            .{ .name = "ui", .module = mod_ui },
         },
     });
 
