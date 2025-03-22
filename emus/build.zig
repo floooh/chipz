@@ -37,7 +37,15 @@ pub fn build(b: *Build, opts: Options) void {
     const dep_sokol = b.dependency("sokol", .{
         .target = opts.target,
         .optimize = opts.optimize,
+        .with_sokol_imgui = true,
     });
+    const dep_cimgui = b.dependency("cimgui", .{
+        .target = opts.target,
+        .optimize = opts.optimize,
+    });
+
+    // inject the cimgui header search path into the sokol C library compile step
+    dep_sokol.artifact("sokol_clib").addIncludePath(dep_cimgui.path("src"));
 
     inline for (emulators) |emu| {
         addEmulator(b, .{
@@ -48,6 +56,7 @@ pub fn build(b: *Build, opts: Options) void {
             .optimize = opts.optimize,
             .mod_chipz = opts.mod_chipz,
             .mod_sokol = dep_sokol.module("sokol"),
+            .mod_cimgui = dep_cimgui.module("cimgui"),
         });
     }
 }
@@ -60,6 +69,7 @@ const EmuOptions = struct {
     optimize: OptimizeMode,
     mod_chipz: *Module,
     mod_sokol: *Module,
+    mod_cimgui: *Module,
 };
 
 fn addEmulator(b: *Build, opts: EmuOptions) void {
@@ -70,6 +80,7 @@ fn addEmulator(b: *Build, opts: EmuOptions) void {
         .imports = &.{
             .{ .name = "chipz", .module = opts.mod_chipz },
             .{ .name = "sokol", .module = opts.mod_sokol },
+            .{ .name = "cimgui", .module = opts.mod_cimgui },
         },
     });
     if (opts.model != .NONE) {
