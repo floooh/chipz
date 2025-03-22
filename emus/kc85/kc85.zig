@@ -220,25 +220,25 @@ fn renderGUI() void {
 fn uiDrawMenu() void {
     if (ig.igBeginMainMenuBar()) {
         if (ig.igBeginMenu("System")) {
-            if (ig.igMenuItem("Reset")) {
+            if (ig.igMenuItem("Reset (TODO)")) {
                 // TODO: implement reset
             }
-            if (ig.igMenuItem("Cold Boot")) {
+            if (ig.igMenuItem("Cold Boot (TODO)")) {
                 // TODO: implement cold boot
             }
             ig.igEndMenu();
         }
         if (ig.igBeginMenu("Hardware")) {
-            if (ig.igMenuItem("Memory Map")) {
+            if (ig.igMenuItem("Memory Map (TODO)")) {
                 // TODO: open window
             }
-            if (ig.igMenuItem("System State")) {
+            if (ig.igMenuItem("System State (TODO)")) {
                 // TODO: open window
             }
-            if (ig.igMenuItem("Audio Output")) {
+            if (ig.igMenuItem("Audio Output (TODO)")) {
                 // TODO: open window
             }
-            if (ig.igMenuItem("Display")) {
+            if (ig.igMenuItem("Display (TODO)")) {
                 // TODO: open window
             }
             ig.igSeparator();
@@ -254,13 +254,13 @@ fn uiDrawMenu() void {
             ig.igEndMenu();
         }
         if (ig.igBeginMenu("Debug")) {
-            if (ig.igMenuItem("CPU Debugger")) {
+            if (ig.igMenuItem("CPU Debugger (TODO)")) {
                 // TODO: open window
             }
-            if (ig.igMenuItem("Breakpoints")) {
+            if (ig.igMenuItem("Breakpoints (TODO)")) {
                 // TODO: open window
             }
-            if (ig.igBeginMenu("Memory Editor")) {
+            if (ig.igBeginMenu("Memory Editor (TODO)")) {
                 if (ig.igMenuItem("Window #1")) {
                     // TODO: open window
                 }
@@ -275,7 +275,7 @@ fn uiDrawMenu() void {
                 }
                 ig.igEndMenu();
             }
-            if (ig.igBeginMenu("Disassembler")) {
+            if (ig.igBeginMenu("Disassembler (TODO)")) {
                 if (ig.igMenuItem("Window #1")) {
                     // TODO: open window
                 }
