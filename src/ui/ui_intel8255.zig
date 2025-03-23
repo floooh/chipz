@@ -36,7 +36,7 @@ pub fn Type(comptime cfg: TypeConfig) type {
         pub fn initInPlace(self: *Self, opts: Options) void {
             self.* = .{
                 .title = opts.title,
-                .ctc = opts.ctc,
+                .ppi = opts.ppi,
                 .origin = opts.origin,
                 .size = .{ .x = if (opts.size.x == 0) 440 else opts.size.x, .y = if (opts.size.y == 0) 370 else opts.size.y },
                 .open = opts.open,
