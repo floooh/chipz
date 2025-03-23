@@ -3,8 +3,9 @@ const tests = @import("tests/build.zig");
 const tools = @import("tools/build.zig");
 const emus = @import("emus/build.zig");
 const Build = std.Build;
+const sokol = @import("sokol");
 
-pub fn build(b: *Build) void {
+pub fn build(b: *Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
@@ -59,6 +60,19 @@ pub fn build(b: *Build) void {
         },
     });
 
+    // shader compilation step
+    const shd_step = try sokol.shdc.compile(b, .{
+        .dep_shdc = dep_sokol.builder.dependency("shdc", .{}),
+        .input = b.path("src/host/shaders.glsl"),
+        .output = b.path("src/host/shaders.zig"),
+        .slang = .{
+            .glsl410 = true,
+            .hlsl4 = true,
+            .metal_macos = true,
+            .glsl300es = true,
+        },
+    });
+
     tools.build(b, .{
         .src_dir = "tools",
         .target = target,
@@ -75,5 +89,6 @@ pub fn build(b: *Build) void {
         .target = target,
         .optimize = optimize,
         .mod_chipz = mod_chipz,
+        .shd_step = &shd_step.step,
     });
 }
