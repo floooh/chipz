@@ -4,8 +4,6 @@
 
 8-bit emulator experiments in Zig.
 
-> NOTE: no longer works with Zig 0.13.0, instead use the Zig nightly version
-
 Also see blog post [Zig and Emulators](https://floooh.github.io/2024/08/24/zig-and-emulators.html)
 
 ...and an experiment to host the emulator in a terminal window: https://github.com/floooh/chipz-kitty

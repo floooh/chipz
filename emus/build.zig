@@ -2,7 +2,6 @@ const std = @import("std");
 const Build = std.Build;
 const ResolvedTarget = Build.ResolvedTarget;
 const OptimizeMode = std.builtin.OptimizeMode;
-const Module = Build.Module;
 
 const Model = enum {
     NONE,
@@ -30,7 +29,8 @@ pub const Options = struct {
     src_dir: []const u8,
     target: ResolvedTarget,
     optimize: OptimizeMode,
-    mod_chipz: *Module,
+    mod_chipz: *Build.Module,
+    shd_step: *Build.Step,
 };
 
 pub fn build(b: *Build, opts: Options) void {
@@ -57,6 +57,7 @@ pub fn build(b: *Build, opts: Options) void {
             .mod_chipz = opts.mod_chipz,
             .mod_sokol = dep_sokol.module("sokol"),
             .mod_cimgui = dep_cimgui.module("cimgui"),
+            .shd_step = opts.shd_step,
         });
     }
 }
@@ -67,9 +68,10 @@ const EmuOptions = struct {
     src: []const u8,
     target: ResolvedTarget,
     optimize: OptimizeMode,
-    mod_chipz: *Module,
-    mod_sokol: *Module,
-    mod_cimgui: *Module,
+    mod_chipz: *Build.Module,
+    mod_sokol: *Build.Module,
+    mod_cimgui: *Build.Module,
+    shd_step: *Build.Step,
 };
 
 fn addEmulator(b: *Build, opts: EmuOptions) void {
@@ -93,6 +95,7 @@ fn addEmulator(b: *Build, opts: EmuOptions) void {
         .root_module = mod,
     });
     b.installArtifact(exe);
+    exe.step.dependOn(opts.shd_step);
 
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
