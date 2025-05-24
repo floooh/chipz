@@ -333,7 +333,7 @@ fn initImagesAndPass() void {
         .width = state.fb.dim.width,
         .height = state.fb.dim.height,
         .pixel_format = if (state.fb.paletted) .R8 else .RGBA8,
-        .usage = .STREAM,
+        .usage = .{ .stream_update = true },
     });
 
     // a sampler for sampling the emulator's raw pixel data
@@ -347,7 +347,7 @@ fn initImagesAndPass() void {
     // 2x upscaling render target texture, sampler and pass
     assert((state.offscreen.view.width > 0) and (state.offscreen.view.height > 0));
     state.offscreen.img = sg.makeImage(.{
-        .render_target = true,
+        .usage = .{ .render_attachment = true },
         .width = 2 * state.offscreen.view.width,
         .height = 2 * state.offscreen.view.height,
         .sample_count = 1,
