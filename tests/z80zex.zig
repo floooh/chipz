@@ -77,7 +77,7 @@ fn runTest() u64 {
     const done: Bus = Z80.setAddr(M1 | MREQ | RD, 0x0000);
     var num_ticks: u64 = 0;
     var bus: Bus = 0;
-    while (true) : (num_ticks += 1) {
+    while (num_ticks < 10000000) : (num_ticks += 1) {
         bus = tick(bus);
         switch (bus & (CTRL | ABUS)) {
             bdos_call => cpmBDOS(),
