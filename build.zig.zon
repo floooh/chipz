@@ -7,6 +7,10 @@
             .url = "git+https://github.com/floooh/sokol-zig.git#57fa55c9c6e2f02259680f8036592eb0fbf45b78",
             .hash = "sokol-0.1.0-pb1HKxeCLQAKj7VzwB2eVCygr-xCfiFPFGD_3Cqs1IFX",
         },
+        .cimgui = .{
+            .url = "git+https://github.com/floooh/dcimgui.git#3969c14f7c7abda0e4b59d2616b17b7fb9eb0827",
+            .hash = "cimgui-0.1.0-44ClkTt5hgBU8BelH8W_G8mso3ys_hrqNUWwJvaxXDs5",
+        },
     },
     .paths = .{
         "build.zig",
