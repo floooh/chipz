@@ -30,15 +30,10 @@ pub const Options = struct {
     target: ResolvedTarget,
     optimize: OptimizeMode,
     mod_chipz: *Build.Module,
-    shd_step: *Build.Step,
+    mod_sokol: *Build.Module,
 };
 
 pub fn build(b: *Build, opts: Options) void {
-    const dep_sokol = b.dependency("sokol", .{
-        .target = opts.target,
-        .optimize = opts.optimize,
-    });
-
     inline for (emulators) |emu| {
         addEmulator(b, .{
             .name = emu.name,
@@ -47,8 +42,7 @@ pub fn build(b: *Build, opts: Options) void {
             .target = opts.target,
             .optimize = opts.optimize,
             .mod_chipz = opts.mod_chipz,
-            .mod_sokol = dep_sokol.module("sokol"),
-            .shd_step = opts.shd_step,
+            .mod_sokol = opts.mod_sokol,
         });
     }
 }
@@ -61,7 +55,6 @@ const EmuOptions = struct {
     optimize: OptimizeMode,
     mod_chipz: *Build.Module,
     mod_sokol: *Build.Module,
-    shd_step: *Build.Step,
 };
 
 fn addEmulator(b: *Build, opts: EmuOptions) void {
@@ -84,7 +77,6 @@ fn addEmulator(b: *Build, opts: EmuOptions) void {
         .root_module = mod,
     });
     b.installArtifact(exe);
-    exe.step.dependOn(opts.shd_step);
 
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());

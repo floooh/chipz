@@ -8,7 +8,7 @@ const sglue = sokol.glue;
 const slog = sokol.log;
 const common = @import("common");
 const prof = @import("prof.zig");
-const shaders = @import("shaders.zig");
+const shaders = @import("shaders");
 
 const DisplayInfo = common.glue.DisplayInfo;
 const DisplayOrientation = common.glue.DisplayOrientation;

@@ -13,6 +13,21 @@ pub fn build(b: *Build) !void {
         .target = target,
         .optimize = optimize,
     });
+    const dep_shdc = dep_sokol.builder.dependency("shdc", .{});
+    const mod_sokol = dep_sokol.module("sokol");
+
+    // shader module
+    const mod_shaders = try sokol.shdc.createModule(b, "shaders", mod_sokol, .{
+        .shdc_dep = dep_shdc,
+        .input = "src/host/shaders.glsl",
+        .output = "shaders.zig",
+        .slang = .{
+            .glsl410 = true,
+            .hlsl4 = true,
+            .metal_macos = true,
+            .glsl300es = true,
+        },
+    });
 
     // internal module definitions
     const mod_common = b.addModule("common", .{
@@ -44,6 +59,7 @@ pub fn build(b: *Build) !void {
         .imports = &.{
             .{ .name = "sokol", .module = dep_sokol.module("sokol") },
             .{ .name = "common", .module = mod_common },
+            .{ .name = "shaders", .module = mod_shaders },
         },
     });
 
@@ -57,19 +73,6 @@ pub fn build(b: *Build) !void {
             .{ .name = "chips", .module = mod_chips },
             .{ .name = "systems", .module = mod_systems },
             .{ .name = "host", .module = mod_host },
-        },
-    });
-
-    // shader compilation step
-    const shd_step = try sokol.shdc.compile(b, .{
-        .dep_shdc = dep_sokol.builder.dependency("shdc", .{}),
-        .input = b.path("src/host/shaders.glsl"),
-        .output = b.path("src/host/shaders.zig"),
-        .slang = .{
-            .glsl410 = true,
-            .hlsl4 = true,
-            .metal_macos = true,
-            .glsl300es = true,
         },
     });
 
@@ -89,6 +92,6 @@ pub fn build(b: *Build) !void {
         .target = target,
         .optimize = optimize,
         .mod_chipz = mod_chipz,
-        .shd_step = &shd_step.step,
+        .mod_sokol = mod_sokol,
     });
 }
