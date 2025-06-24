@@ -126,7 +126,7 @@ const UI_Z80CTC_Pins = [_]UI_CHIP.Pin{
     .{ .name = "ZT2", .slot = 23, .mask = kc85.Z80CTC.ZCTO2 },
     .{ .name = "CT3", .slot = 25, .mask = kc85.Z80CTC.CLKTRG3 },
 };
-
+const UI_MEMMAP = ui.ui_memmap.MemMap;
 // a once-trigger for loading a file after booting has finished
 var file_loaded = host.time.Once.init(switch (model) {
     .KC852, .KC853 => 8 * 1000 * 1000,
@@ -139,6 +139,7 @@ var args: Args = undefined;
 var ui_z80: UI_Z80 = undefined;
 var ui_z80pio: UI_Z80PIO = undefined;
 var ui_z80ctc: UI_Z80CTC = undefined;
+var ui_memmap: UI_MEMMAP = undefined;
 
 export fn init() void {
     host.audio.init(.{});
@@ -193,6 +194,10 @@ export fn init() void {
     });
     start.x += d.x;
     start.y += d.y;
+    ui_memmap.initInPlace(.{
+        .title = "Memory Map",
+        .origin = start,
+    });
 
     host.gfx.init(.{ .display = sys.displayInfo() });
 
@@ -229,8 +234,8 @@ fn uiDrawMenu() void {
             ig.igEndMenu();
         }
         if (ig.igBeginMenu("Hardware")) {
-            if (ig.igMenuItem("Memory Map (TODO)")) {
-                // TODO: open window
+            if (ig.igMenuItem("Memory Map")) {
+                ui_memmap.open = true;
             }
             if (ig.igMenuItem("System State (TODO)")) {
                 // TODO: open window
@@ -315,6 +320,7 @@ export fn frame() void {
     ui_z80.draw(sys.bus);
     ui_z80pio.draw(sys.bus);
     ui_z80ctc.draw(sys.bus);
+    ui_memmap.draw();
 
     host.gfx.draw(.{
         .display = sys.displayInfo(),

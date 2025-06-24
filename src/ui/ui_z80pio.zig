@@ -2,7 +2,7 @@ const chips = @import("chips");
 const z80pio = chips.z80pio;
 const ui_chip = @import("ui_chip.zig");
 const ig = @import("cimgui");
-
+const ui_settings = @import("ui_settings.zig");
 pub const TypeConfig = struct {
     bus: type,
     pio: type,
@@ -166,6 +166,14 @@ pub fn Type(comptime cfg: TypeConfig) type {
                 ig.igEndChild();
             }
             ig.igEnd();
+        }
+
+        pub fn saveSettings(self: *Self, settings: *ui_settings.Settings) void {
+            _ = settings.add(self.title, self.open);
+        }
+
+        pub fn loadSettings(self: *Self, settings: *const ui_settings.Settings) void {
+            self.open = settings.isOpen(self.title);
         }
     };
 }
