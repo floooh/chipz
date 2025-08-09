@@ -14,6 +14,7 @@ const DisplayInfo = common.glue.DisplayInfo;
 const DisplayOrientation = common.glue.DisplayOrientation;
 const Dim = common.glue.Dim;
 const Rect = common.glue.Rect;
+const BoundedArray = common.BoundedArray;
 
 pub const Border = struct {
     top: u32,
@@ -48,7 +49,7 @@ const DrawOptions = struct {
 };
 
 const DrawFunc = *const fn () void;
-const DrawFuncs = std.BoundedArray(DrawFunc, 32);
+const DrawFuncs = BoundedArray(DrawFunc, 32);
 
 const state = struct {
     var valid = false;

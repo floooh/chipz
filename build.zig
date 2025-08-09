@@ -80,6 +80,7 @@ pub fn build(b: *Build) !void {
         .src_dir = "tools",
         .target = target,
         .optimize = optimize,
+        .mod_common = mod_common,
     });
     tests.build(b, .{
         .src_dir = "tests",
