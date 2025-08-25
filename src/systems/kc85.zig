@@ -548,7 +548,7 @@ pub fn Type(comptime model: Model) type {
                     },
                     .buffer = if (selfOrNull) |self| .{ .Palette8 = &self.fb } else null,
                 },
-                .view = .{
+                .viewport = .{
                     .x = 0,
                     .y = 0,
                     .width = DISPLAY.WIDTH,

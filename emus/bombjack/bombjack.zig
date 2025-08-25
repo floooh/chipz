@@ -87,8 +87,8 @@ export fn input(event: ?*const sapp.Event) void {
 pub fn main() void {
     const display = Bombjack.displayInfo(null);
     const border = host.gfx.DEFAULT_BORDER;
-    const width = 3 * display.view.width + border.left + border.right;
-    const height = 3 * display.view.height + border.top + border.bottom;
+    const width = 3 * display.viewport.width + border.left + border.right;
+    const height = 3 * display.viewport.height + border.top + border.bottom;
     sapp.run(.{
         .init_cb = init,
         .frame_cb = frame,

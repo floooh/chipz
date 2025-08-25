@@ -180,8 +180,8 @@ pub fn main() void {
 
     const display = KC85.displayInfo(null);
     const border = host.gfx.DEFAULT_BORDER;
-    const width = 2 * display.view.width + border.left + border.right;
-    const height = 2 * display.view.height + border.top + border.bottom;
+    const width = 2 * display.viewport.width + border.left + border.right;
+    const height = 2 * display.viewport.height + border.top + border.bottom;
     sapp.run(.{
         .init_cb = init,
         .frame_cb = frame,
