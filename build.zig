@@ -21,6 +21,21 @@ pub fn build(b: *Build) !void {
 
     // inject the cimgui header search path into the sokol C library compile step
     dep_sokol.artifact("sokol_clib").addIncludePath(dep_cimgui.path("src"));
+    const dep_shdc = dep_sokol.builder.dependency("shdc", .{});
+    const mod_sokol = dep_sokol.module("sokol");
+
+    // shader module
+    const mod_shaders = try sokol.shdc.createModule(b, "shaders", mod_sokol, .{
+        .shdc_dep = dep_shdc,
+        .input = "src/host/shaders.glsl",
+        .output = "shaders.zig",
+        .slang = .{
+            .glsl410 = true,
+            .hlsl4 = true,
+            .metal_macos = true,
+            .glsl300es = true,
+        },
+    });
 
     // internal module definitions
     const mod_common = b.addModule("common", .{
@@ -53,6 +68,7 @@ pub fn build(b: *Build) !void {
             .{ .name = "sokol", .module = dep_sokol.module("sokol") },
             .{ .name = "cimgui", .module = dep_cimgui.module("cimgui") },
             .{ .name = "common", .module = mod_common },
+            .{ .name = "shaders", .module = mod_shaders },
         },
     });
     const mod_ui = b.addModule("ui", .{
@@ -81,23 +97,11 @@ pub fn build(b: *Build) !void {
         },
     });
 
-    // shader compilation step
-    const shd_step = try sokol.shdc.compile(b, .{
-        .dep_shdc = dep_sokol.builder.dependency("shdc", .{}),
-        .input = b.path("src/host/shaders.glsl"),
-        .output = b.path("src/host/shaders.zig"),
-        .slang = .{
-            .glsl410 = true,
-            .hlsl4 = true,
-            .metal_macos = true,
-            .glsl300es = true,
-        },
-    });
-
     tools.build(b, .{
         .src_dir = "tools",
         .target = target,
         .optimize = optimize,
+        .mod_common = mod_common,
     });
     tests.build(b, .{
         .src_dir = "tests",
@@ -110,6 +114,6 @@ pub fn build(b: *Build) !void {
         .target = target,
         .optimize = optimize,
         .mod_chipz = mod_chipz,
-        .shd_step = &shd_step.step,
+        .mod_sokol = mod_sokol,
     });
 }

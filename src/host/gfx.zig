@@ -8,12 +8,13 @@ const sglue = sokol.glue;
 const slog = sokol.log;
 const common = @import("common");
 const prof = @import("prof.zig");
-const shaders = @import("shaders.zig");
+const shaders = @import("shaders");
 
 const DisplayInfo = common.glue.DisplayInfo;
 const DisplayOrientation = common.glue.DisplayOrientation;
 const Dim = common.glue.Dim;
 const Rect = common.glue.Rect;
+const BoundedArray = common.BoundedArray;
 
 pub const Border = struct {
     top: u32,
@@ -48,28 +49,34 @@ const DrawOptions = struct {
 };
 
 const DrawFunc = *const fn () void;
-const DrawFuncs = std.BoundedArray(DrawFunc, 32);
+const DrawFuncs = BoundedArray(DrawFunc, 32);
 
 const state = struct {
     var valid = false;
     var border: Border = DEFAULT_BORDER;
-    var drawFuncs: DrawFuncs = .{};
+    var draw_funcs: DrawFuncs = .{};
     const fb = struct {
-        var img: sg.Image = .{};
-        var pal_img: sg.Image = .{};
+        const vidmem = struct {
+            var img: sg.Image = .{};
+            var tex_view: sg.View = .{};
+        };
+        const pal = struct {
+            var img: sg.Image = .{};
+            var tex_view: sg.View = .{};
+        };
         var smp: sg.Sampler = .{};
         var dim: Dim = .{};
         var paletted: bool = false;
     };
     const offscreen = struct {
-        var view: Rect = .{};
+        var viewport: Rect = .{};
         var pixel_aspect: Dim = .{};
         var img: sg.Image = .{};
+        var tex_view: sg.View = .{};
         var smp: sg.Sampler = .{};
         var vbuf: sg.Buffer = .{};
         var pip: sg.Pipeline = .{};
-        var attachments: sg.Attachments = .{};
-        var pass_action: sg.PassAction = .{};
+        var pass: sg.Pass = .{};
     };
     const display = struct {
         var vbuf: sg.Buffer = .{};
@@ -117,7 +124,7 @@ pub fn init(opts: Options) void {
         .image_pool_size = 128,
         .shader_pool_size = 16,
         .pipeline_pool_size = 16,
-        .attachments_pool_size = 2,
+        .view_pool_size = 128,
         .environment = sglue.environment(),
         .logger = .{ .func = slog.func },
     });
@@ -132,13 +139,13 @@ pub fn init(opts: Options) void {
         state.fb.paletted = buf == .Palette8;
     }
     state.offscreen.pixel_aspect = opts.pixel_aspect;
-    state.offscreen.view = opts.display.view;
+    state.offscreen.viewport = opts.display.viewport;
 
-    // create optional palette texture
+    // create optional palette image and texture view
     if (state.fb.paletted) {
         var pal_buf = [_]u32{0} ** 256;
         std.mem.copyForwards(u32, &pal_buf, opts.display.palette.?);
-        state.fb.pal_img = sg.makeImage(.{
+        state.fb.pal.img = sg.makeImage(.{
             .width = 256,
             .height = 1,
             .pixel_format = .RGBA8,
@@ -148,9 +155,12 @@ pub fn init(opts: Options) void {
                 break :init data;
             },
         });
+        state.fb.pal.tex_view = sg.makeView(.{
+            .texture = .{ .image = state.fb.pal.img },
+        });
     }
 
-    state.offscreen.pass_action.colors[0] = .{ .load_action = .DONTCARE };
+    state.offscreen.pass.action.colors[0] = .{ .load_action = .DONTCARE };
     state.offscreen.vbuf = sg.makeBuffer(.{ .data = sg.asRange(&gfx_verts) });
     const pal8_shd_desc = shaders.offscreenPalShaderDesc(sg.queryBackend());
     const rgba8_shd_desc = shaders.offscreenShaderDesc(sg.queryBackend());
@@ -199,7 +209,7 @@ pub fn shutdown() void {
 }
 
 pub fn addDrawFunc(func: DrawFunc) void {
-    state.drawFuncs.appendAssumeCapacity(func);
+    state.draw_funcs.appendAssumeCapacity(func);
 }
 
 fn asF32(val: anytype) f32 {
@@ -247,9 +257,9 @@ pub fn draw(opts: DrawOptions) void {
     assert(state.valid);
     assert((opts.display.fb.dim.width > 0) and (opts.display.fb.dim.height > 0));
     assert(opts.display.fb.buffer != null);
-    assert((opts.display.view.width > 0) and (opts.display.view.height > 0));
+    assert((opts.display.viewport.width > 0) and (opts.display.viewport.height > 0));
 
-    state.offscreen.view = opts.display.view;
+    state.offscreen.viewport = opts.display.viewport;
 
     if (opts.status) |status| {
         drawStatusBar(status);
@@ -267,25 +277,25 @@ pub fn draw(opts: DrawOptions) void {
         .Palette8 => |pal_buf| sg.asRange(pal_buf),
         .Rgba8 => |rgba8_buf| sg.asRange(rgba8_buf),
     };
-    sg.updateImage(state.fb.img, img_data);
+    sg.updateImage(state.fb.vidmem.img, img_data);
 
     // upscale emulator framebuffer with 2x nearest filtering
-    sg.beginPass(.{ .action = state.offscreen.pass_action, .attachments = state.offscreen.attachments });
+    sg.beginPass(state.offscreen.pass);
     sg.applyPipeline(state.offscreen.pip);
     sg.applyBindings(init: {
         var bind: sg.Bindings = .{};
         bind.vertex_buffers[0] = state.offscreen.vbuf;
-        bind.images[shaders.IMG_fb_tex] = state.fb.img;
-        bind.images[shaders.IMG_pal_tex] = state.fb.pal_img;
+        bind.views[shaders.VIEW_fb_tex] = state.fb.vidmem.tex_view;
+        bind.views[shaders.VIEW_pal_tex] = state.fb.pal.tex_view;
         bind.samplers[shaders.SMP_smp] = state.fb.smp;
         break :init bind;
     });
     const vs_params = shaders.OffscreenVsParams{ .uv_offset = .{
-        asF32(state.offscreen.view.x) / asF32(state.fb.dim.width),
-        asF32(state.offscreen.view.y) / asF32(state.fb.dim.height),
+        asF32(state.offscreen.viewport.x) / asF32(state.fb.dim.width),
+        asF32(state.offscreen.viewport.y) / asF32(state.fb.dim.height),
     }, .uv_scale = .{
-        asF32(state.offscreen.view.width) / asF32(state.fb.dim.width),
-        asF32(state.offscreen.view.height) / asF32(state.fb.dim.height),
+        asF32(state.offscreen.viewport.width) / asF32(state.fb.dim.width),
+        asF32(state.offscreen.viewport.height) / asF32(state.fb.dim.height),
     } };
     sg.applyUniforms(shaders.UB_offscreen_vs_params, sg.asRange(&vs_params));
     sg.draw(0, 4, 1);
@@ -296,7 +306,7 @@ pub fn draw(opts: DrawOptions) void {
     sg.beginPass(.{ .action = state.display.pass_action, .swapchain = sglue.swapchain() });
     applyViewport(
         displayDim,
-        opts.display.view,
+        opts.display.viewport,
         state.offscreen.pixel_aspect,
         state.border,
     );
@@ -304,14 +314,14 @@ pub fn draw(opts: DrawOptions) void {
     sg.applyBindings(init: {
         var bind = sg.Bindings{};
         bind.vertex_buffers[0] = state.display.vbuf;
-        bind.images[shaders.IMG_tex] = state.offscreen.img;
+        bind.views[shaders.VIEW_tex] = state.offscreen.tex_view;
         bind.samplers[shaders.SMP_smp] = state.offscreen.smp;
         break :init bind;
     });
     sg.draw(0, 4, 1);
     sg.applyViewport(0, 0, displayDim.width, displayDim.height, true);
     sdtx.draw();
-    for (state.drawFuncs.slice()) |drawFunc| {
+    for (state.draw_funcs.slice()) |drawFunc| {
         drawFunc();
     }
     sg.endPass();
@@ -321,19 +331,24 @@ pub fn draw(opts: DrawOptions) void {
 // called at init time and when the emulator framebuffer size changes
 fn initImagesAndPass() void {
     // destroy previous resources (fine to be called with invalid handles)
-    sg.destroyImage(state.fb.img);
+    sg.destroyImage(state.fb.vidmem.img);
+    sg.destroyView(state.fb.vidmem.tex_view);
     sg.destroySampler(state.fb.smp);
     sg.destroyImage(state.offscreen.img);
+    sg.destroyView(state.offscreen.tex_view);
+    sg.destroyView(state.offscreen.pass.attachments.colors[0]);
     sg.destroySampler(state.offscreen.smp);
-    sg.destroyAttachments(state.offscreen.attachments);
 
-    // a texture with the emulator's raw pixel data
+    // an image abd texture-view with the emulator's raw pixel data
     assert((state.fb.dim.width > 0) and (state.fb.dim.height > 0));
-    state.fb.img = sg.makeImage(.{
+    state.fb.vidmem.img = sg.makeImage(.{
         .width = state.fb.dim.width,
         .height = state.fb.dim.height,
         .pixel_format = if (state.fb.paletted) .R8 else .RGBA8,
         .usage = .{ .stream_update = true },
+    });
+    state.fb.vidmem.tex_view = sg.makeView(.{
+        .texture = .{ .image = state.fb.vidmem.img },
     });
 
     // a sampler for sampling the emulator's raw pixel data
@@ -344,13 +359,19 @@ fn initImagesAndPass() void {
         .wrap_v = .CLAMP_TO_EDGE,
     });
 
-    // 2x upscaling render target texture, sampler and pass
-    assert((state.offscreen.view.width > 0) and (state.offscreen.view.height > 0));
+    // 2x upscaling render target image, views and sampler
+    assert((state.offscreen.viewport.width > 0) and (state.offscreen.viewport.height > 0));
     state.offscreen.img = sg.makeImage(.{
-        .usage = .{ .render_attachment = true },
-        .width = 2 * state.offscreen.view.width,
-        .height = 2 * state.offscreen.view.height,
+        .usage = .{ .color_attachment = true },
+        .width = 2 * state.offscreen.viewport.width,
+        .height = 2 * state.offscreen.viewport.height,
         .sample_count = 1,
+    });
+    state.offscreen.tex_view = sg.makeView(.{
+        .texture = .{ .image = state.offscreen.img },
+    });
+    state.offscreen.pass.attachments.colors[0] = sg.makeView(.{
+        .color_attachment = .{ .image = state.offscreen.img },
     });
     state.offscreen.smp = sg.makeSampler(.{
         .min_filter = .LINEAR,
@@ -358,9 +379,6 @@ fn initImagesAndPass() void {
         .wrap_u = .CLAMP_TO_EDGE,
         .wrap_v = .CLAMP_TO_EDGE,
     });
-    var atts_desc: sg.AttachmentsDesc = .{};
-    atts_desc.colors[0].image = state.offscreen.img;
-    state.offscreen.attachments = sg.makeAttachments(atts_desc);
 }
 
 fn drawStatusBar(status: Status) void {

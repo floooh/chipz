@@ -30,23 +30,11 @@ pub const Options = struct {
     target: ResolvedTarget,
     optimize: OptimizeMode,
     mod_chipz: *Build.Module,
-    shd_step: *Build.Step,
+    mod_sokol: *Build.Module,
+    mod_cimgui: *Build.Module,
 };
 
 pub fn build(b: *Build, opts: Options) void {
-    const dep_sokol = b.dependency("sokol", .{
-        .target = opts.target,
-        .optimize = opts.optimize,
-        .with_sokol_imgui = true,
-    });
-    const dep_cimgui = b.dependency("cimgui", .{
-        .target = opts.target,
-        .optimize = opts.optimize,
-    });
-
-    // inject the cimgui header search path into the sokol C library compile step
-    dep_sokol.artifact("sokol_clib").addIncludePath(dep_cimgui.path("src"));
-
     inline for (emulators) |emu| {
         addEmulator(b, .{
             .name = emu.name,
@@ -55,9 +43,8 @@ pub fn build(b: *Build, opts: Options) void {
             .target = opts.target,
             .optimize = opts.optimize,
             .mod_chipz = opts.mod_chipz,
-            .mod_sokol = dep_sokol.module("sokol"),
-            .mod_cimgui = dep_cimgui.module("cimgui"),
-            .shd_step = opts.shd_step,
+            .mod_sokol = opts.mod_sokol,
+            .mod_cimgui = opts.mod_cimgui,
         });
     }
 }
@@ -71,7 +58,6 @@ const EmuOptions = struct {
     mod_chipz: *Build.Module,
     mod_sokol: *Build.Module,
     mod_cimgui: *Build.Module,
-    shd_step: *Build.Step,
 };
 
 fn addEmulator(b: *Build, opts: EmuOptions) void {
@@ -95,7 +81,6 @@ fn addEmulator(b: *Build, opts: EmuOptions) void {
         .root_module = mod,
     });
     b.installArtifact(exe);
-    exe.step.dependOn(opts.shd_step);
 
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());

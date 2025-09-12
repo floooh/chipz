@@ -7,6 +7,7 @@ pub const Options = struct {
     src_dir: []const u8,
     target: ResolvedTarget,
     optimize: OptimizeMode,
+    mod_common: *Build.Module,
 };
 
 pub fn build(b: *Build, opts: Options) void {
@@ -17,6 +18,7 @@ pub fn build(b: *Build, opts: Options) void {
         .src = b.fmt("{s}/z80gen/main.zig", .{opts.src_dir}),
         .target = opts.target,
         .optimize = opts.optimize,
+        .mod_common = opts.mod_common,
     });
 }
 
@@ -26,6 +28,7 @@ const ToolOptions = struct {
     src: []const u8,
     target: ResolvedTarget,
     optimize: OptimizeMode,
+    mod_common: *Build.Module,
 };
 
 fn buildTool(b: *Build, options: ToolOptions) void {
@@ -35,6 +38,9 @@ fn buildTool(b: *Build, options: ToolOptions) void {
             .root_source_file = b.path(options.src),
             .target = options.target,
             .optimize = options.optimize,
+            .imports = &.{
+                .{ .name = "common", .module = options.mod_common },
+            },
         }),
     });
     b.installArtifact(exe);

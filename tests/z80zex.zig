@@ -44,7 +44,7 @@ fn copy(start_addr: u16, bytes: []const u8) void {
 }
 
 fn putChar(c: u8) void {
-    std.io.getStdErr().writer().writeByte(c) catch @panic("write to stderr failed");
+    std.debug.print("{c}", .{c});
 }
 
 // emulate character and string output CP/M calls

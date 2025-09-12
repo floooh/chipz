@@ -8,11 +8,12 @@ const replace = @import("string.zig").replace;
 const accumulate = @import("accumulate.zig");
 const Op = @import("types.zig").Op;
 const TCycle = @import("types.zig").TCycle;
+const BoundedArray = @import("common").BoundedArray;
 
 const MAX_LINES = 16 * 1024;
 const MAX_LINE_LENGTH = 1024;
-var op_lines = std.BoundedArray([]const u8, MAX_LINES){};
-var extra_lines = std.BoundedArray([]const u8, MAX_LINES){};
+var op_lines = BoundedArray([]const u8, MAX_LINES){};
+var extra_lines = BoundedArray([]const u8, MAX_LINES){};
 
 var extra_step_index: usize = undefined;
 
@@ -44,7 +45,7 @@ fn genOp(op: Op, opcode_step_index: usize) !void {
 fn genTcycle(opcode_step_index: usize, op: Op, tcycle: TCycle, tcount: usize) !void {
     var step_index: usize = undefined;
     var next_step_index: usize = undefined;
-    var lines: *std.BoundedArray([]const u8, MAX_LINES) = undefined;
+    var lines: *BoundedArray([]const u8, MAX_LINES) = undefined;
     if (tcount == 0) {
         lines = &op_lines;
         step_index = opcode_step_index;
@@ -55,7 +56,7 @@ fn genTcycle(opcode_step_index: usize, op: Op, tcycle: TCycle, tcount: usize) !v
         extra_step_index += 1;
         next_step_index = extra_step_index;
     }
-    var line = std.BoundedArray(u8, MAX_LINE_LENGTH){};
+    var line = BoundedArray(u8, MAX_LINE_LENGTH){};
     try line.appendSlice(f("0x{X} => {{", .{step_index}));
     if (tcycle.wait) {
         try line.appendSlice(" if (wait(bus)) break :next;");

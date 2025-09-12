@@ -31,7 +31,7 @@ pub const DisplayInfo = struct {
         },
     },
     /// the visible area of the framebuffer
-    view: Rect,
+    viewport: Rect,
     /// optional color palette (always in RGBA8 format)
     palette: ?[]const u32,
     /// display orientation

@@ -3,10 +3,11 @@ const std = @import("std");
 const TCycle = @import("types.zig").TCycle;
 const MCycle = @import("types.zig").MCycle;
 const Op = @import("types.zig").Op;
+const BoundedArray = @import("common").BoundedArray;
 
-var actions = std.BoundedArray(?[]const u8, 1024 * 1024){};
-var tcycles = std.BoundedArray(TCycle, 256 * 1024){};
-var mcycles = std.BoundedArray(MCycle, 64 * 1024){};
+var actions = BoundedArray(?[]const u8, 1024 * 1024){};
+var tcycles = BoundedArray(TCycle, 256 * 1024){};
+var mcycles = BoundedArray(MCycle, 64 * 1024){};
 pub var main_ops = [_]Op{.{}} ** 256;
 pub var ed_ops = [_]Op{.{}} ** 256;
 
