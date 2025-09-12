@@ -23,6 +23,7 @@ pub fn build(b: *Build) !void {
     dep_sokol.artifact("sokol_clib").addIncludePath(dep_cimgui.path("src"));
     const dep_shdc = dep_sokol.builder.dependency("shdc", .{});
     const mod_sokol = dep_sokol.module("sokol");
+    const mod_cimgui = dep_cimgui.module("cimgui");
 
     // shader module
     const mod_shaders = try sokol.shdc.createModule(b, "shaders", mod_sokol, .{
@@ -115,5 +116,6 @@ pub fn build(b: *Build) !void {
         .optimize = optimize,
         .mod_chipz = mod_chipz,
         .mod_sokol = mod_sokol,
+        .mod_cimgui = mod_cimgui,
     });
 }
