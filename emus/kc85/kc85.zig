@@ -8,6 +8,10 @@ const sapp = sokol.app;
 const slog = sokol.log;
 const host = @import("chipz").host;
 const kc85 = @import("chipz").systems.kc85;
+const ui = @import("chipz").ui;
+
+const ig = @import("cimgui");
+const simgui = sokol.imgui;
 
 const model: kc85.Model = switch (build_options.model) {
     .KC852 => .KC852,
@@ -21,7 +25,108 @@ const name = switch (model) {
     .KC854 => "KC85/4",
 };
 const KC85 = kc85.Type(model);
-
+const UI_CHIP = ui.ui_chip.Type(.{ .bus = kc85.Bus });
+const UI_Z80 = ui.ui_z80.Type(.{ .bus = kc85.Bus, .cpu = kc85.Z80 });
+const UI_Z80_Pins = [_]UI_CHIP.Pin{
+    .{ .name = "D0", .slot = 0, .mask = kc85.Z80.D0 },
+    .{ .name = "D1", .slot = 1, .mask = kc85.Z80.D1 },
+    .{ .name = "D2", .slot = 2, .mask = kc85.Z80.D2 },
+    .{ .name = "D3", .slot = 3, .mask = kc85.Z80.D3 },
+    .{ .name = "D4", .slot = 4, .mask = kc85.Z80.D4 },
+    .{ .name = "D5", .slot = 5, .mask = kc85.Z80.D5 },
+    .{ .name = "D6", .slot = 6, .mask = kc85.Z80.D6 },
+    .{ .name = "D7", .slot = 7, .mask = kc85.Z80.D7 },
+    .{ .name = "M1", .slot = 8, .mask = kc85.Z80.M1 },
+    .{ .name = "MREQ", .slot = 9, .mask = kc85.Z80.MREQ },
+    .{ .name = "IORQ", .slot = 10, .mask = kc85.Z80.IORQ },
+    .{ .name = "RD", .slot = 11, .mask = kc85.Z80.RD },
+    .{ .name = "WR", .slot = 12, .mask = kc85.Z80.WR },
+    .{ .name = "RFSH", .slot = 13, .mask = kc85.Z80.RFSH },
+    .{ .name = "HALT", .slot = 14, .mask = kc85.Z80.HALT },
+    .{ .name = "INT", .slot = 15, .mask = kc85.Z80.INT },
+    .{ .name = "NMI", .slot = 16, .mask = kc85.Z80.NMI },
+    .{ .name = "WAIT", .slot = 17, .mask = kc85.Z80.WAIT },
+    .{ .name = "A0", .slot = 18, .mask = kc85.Z80.A0 },
+    .{ .name = "A1", .slot = 19, .mask = kc85.Z80.A1 },
+    .{ .name = "A2", .slot = 20, .mask = kc85.Z80.A2 },
+    .{ .name = "A3", .slot = 21, .mask = kc85.Z80.A3 },
+    .{ .name = "A4", .slot = 22, .mask = kc85.Z80.A4 },
+    .{ .name = "A5", .slot = 23, .mask = kc85.Z80.A5 },
+    .{ .name = "A6", .slot = 24, .mask = kc85.Z80.A6 },
+    .{ .name = "A7", .slot = 25, .mask = kc85.Z80.A7 },
+    .{ .name = "A8", .slot = 26, .mask = kc85.Z80.A8 },
+    .{ .name = "A9", .slot = 27, .mask = kc85.Z80.A9 },
+    .{ .name = "A10", .slot = 28, .mask = kc85.Z80.A10 },
+    .{ .name = "A11", .slot = 29, .mask = kc85.Z80.A11 },
+    .{ .name = "A12", .slot = 30, .mask = kc85.Z80.A12 },
+    .{ .name = "A13", .slot = 31, .mask = kc85.Z80.A13 },
+    .{ .name = "A14", .slot = 32, .mask = kc85.Z80.A14 },
+    .{ .name = "A15", .slot = 33, .mask = kc85.Z80.A15 },
+};
+const UI_Z80PIO = ui.ui_z80pio.Type(.{ .bus = kc85.Bus, .pio = kc85.Z80PIO });
+const UI_Z80PIO_Pins = [_]UI_CHIP.Pin{
+    .{ .name = "D0", .slot = 0, .mask = kc85.Z80.D0 },
+    .{ .name = "D1", .slot = 1, .mask = kc85.Z80.D1 },
+    .{ .name = "D2", .slot = 2, .mask = kc85.Z80.D2 },
+    .{ .name = "D3", .slot = 3, .mask = kc85.Z80.D3 },
+    .{ .name = "D4", .slot = 4, .mask = kc85.Z80.D4 },
+    .{ .name = "D5", .slot = 5, .mask = kc85.Z80.D5 },
+    .{ .name = "D6", .slot = 6, .mask = kc85.Z80.D6 },
+    .{ .name = "D7", .slot = 7, .mask = kc85.Z80.D7 },
+    .{ .name = "CE", .slot = 9, .mask = kc85.Z80PIO.CE },
+    .{ .name = "BASEL", .slot = 10, .mask = kc85.Z80PIO.BASEL },
+    .{ .name = "CDSEL", .slot = 11, .mask = kc85.Z80PIO.CDSEL },
+    .{ .name = "M1", .slot = 12, .mask = kc85.Z80PIO.M1 },
+    .{ .name = "IORQ", .slot = 13, .mask = kc85.Z80PIO.IORQ },
+    .{ .name = "RD", .slot = 14, .mask = kc85.Z80PIO.RD },
+    .{ .name = "INT", .slot = 15, .mask = kc85.Z80PIO.INT },
+    .{ .name = "ARDY", .slot = 20, .mask = kc85.Z80PIO.ARDY },
+    .{ .name = "ASTB", .slot = 21, .mask = kc85.Z80PIO.ASTB },
+    .{ .name = "PA0", .slot = 22, .mask = kc85.Z80PIO.PA0 },
+    .{ .name = "PA1", .slot = 23, .mask = kc85.Z80PIO.PA1 },
+    .{ .name = "PA2", .slot = 24, .mask = kc85.Z80PIO.PA2 },
+    .{ .name = "PA3", .slot = 25, .mask = kc85.Z80PIO.PA3 },
+    .{ .name = "PA4", .slot = 26, .mask = kc85.Z80PIO.PA4 },
+    .{ .name = "PA5", .slot = 27, .mask = kc85.Z80PIO.PA5 },
+    .{ .name = "PA6", .slot = 28, .mask = kc85.Z80PIO.PA6 },
+    .{ .name = "PA7", .slot = 29, .mask = kc85.Z80PIO.PA7 },
+    .{ .name = "BRDY", .slot = 30, .mask = kc85.Z80PIO.ARDY },
+    .{ .name = "BSTB", .slot = 31, .mask = kc85.Z80PIO.ASTB },
+    .{ .name = "PB0", .slot = 32, .mask = kc85.Z80PIO.PB0 },
+    .{ .name = "PB1", .slot = 33, .mask = kc85.Z80PIO.PB1 },
+    .{ .name = "PB2", .slot = 34, .mask = kc85.Z80PIO.PB2 },
+    .{ .name = "PB3", .slot = 35, .mask = kc85.Z80PIO.PB3 },
+    .{ .name = "PB4", .slot = 36, .mask = kc85.Z80PIO.PB4 },
+    .{ .name = "PB5", .slot = 37, .mask = kc85.Z80PIO.PB5 },
+    .{ .name = "PB6", .slot = 38, .mask = kc85.Z80PIO.PB6 },
+    .{ .name = "PB7", .slot = 39, .mask = kc85.Z80PIO.PB7 },
+};
+const UI_Z80CTC = ui.ui_z80ctc.Type(.{ .bus = kc85.Bus, .ctc = kc85.Z80CTC });
+const UI_Z80CTC_Pins = [_]UI_CHIP.Pin{
+    .{ .name = "D0", .slot = 0, .mask = kc85.Z80.D0 },
+    .{ .name = "D1", .slot = 1, .mask = kc85.Z80.D1 },
+    .{ .name = "D2", .slot = 2, .mask = kc85.Z80.D2 },
+    .{ .name = "D3", .slot = 3, .mask = kc85.Z80.D3 },
+    .{ .name = "D4", .slot = 4, .mask = kc85.Z80.D4 },
+    .{ .name = "D5", .slot = 5, .mask = kc85.Z80.D5 },
+    .{ .name = "D6", .slot = 6, .mask = kc85.Z80.D6 },
+    .{ .name = "D7", .slot = 7, .mask = kc85.Z80.D7 },
+    .{ .name = "CE", .slot = 9, .mask = kc85.Z80CTC.CE },
+    .{ .name = "CS0", .slot = 10, .mask = kc85.Z80CTC.CS0 },
+    .{ .name = "CS1", .slot = 11, .mask = kc85.Z80CTC.CS1 },
+    .{ .name = "M1", .slot = 12, .mask = kc85.Z80CTC.M1 },
+    .{ .name = "IORQ", .slot = 13, .mask = kc85.Z80CTC.IORQ },
+    .{ .name = "RD", .slot = 14, .mask = kc85.Z80CTC.RD },
+    .{ .name = "INT", .slot = 15, .mask = kc85.Z80CTC.INT },
+    .{ .name = "CT0", .slot = 16, .mask = kc85.Z80CTC.CLKTRG0 },
+    .{ .name = "ZT0", .slot = 17, .mask = kc85.Z80CTC.ZCTO0 },
+    .{ .name = "CT1", .slot = 19, .mask = kc85.Z80CTC.CLKTRG1 },
+    .{ .name = "ZT1", .slot = 20, .mask = kc85.Z80CTC.ZCTO1 },
+    .{ .name = "CT2", .slot = 22, .mask = kc85.Z80CTC.CLKTRG2 },
+    .{ .name = "ZT2", .slot = 23, .mask = kc85.Z80CTC.ZCTO2 },
+    .{ .name = "CT3", .slot = 25, .mask = kc85.Z80CTC.CLKTRG3 },
+};
+const UI_MEMMAP = ui.ui_memmap.MemMap;
 // a once-trigger for loading a file after booting has finished
 var file_loaded = host.time.Once.init(switch (model) {
     .KC852, .KC853 => 8 * 1000 * 1000,
@@ -31,6 +136,10 @@ var file_loaded = host.time.Once.init(switch (model) {
 var sys: KC85 = undefined;
 var gpa = GeneralPurposeAllocator(.{}){};
 var args: Args = undefined;
+var ui_z80: UI_Z80 = undefined;
+var ui_z80pio: UI_Z80PIO = undefined;
+var ui_z80ctc: UI_Z80CTC = undefined;
+var ui_memmap: UI_MEMMAP = undefined;
 
 export fn init() void {
     host.audio.init(.{});
@@ -57,7 +166,46 @@ export fn init() void {
             },
         },
     });
+
+    // Setting up debug UI
+    var start = ig.ImVec2{ .x = 20, .y = 20 };
+    const d = ig.ImVec2{ .x = 10, .y = 10 };
+    ui_z80.initInPlace(.{
+        .title = "Z80 CPU",
+        .cpu = &sys.cpu,
+        .origin = start,
+        .chip = .{ .name = "Z80\nCPU", .num_slots = 36, .pins = &UI_Z80_Pins },
+    });
+    start.x += d.x;
+    start.y += d.y;
+    ui_z80pio.initInPlace(.{
+        .title = "Z80 PIO",
+        .pio = &sys.pio,
+        .origin = start,
+        .chip = .{ .name = "Z80\nPIO", .num_slots = 40, .pins = &UI_Z80PIO_Pins },
+    });
+    start.x += d.x;
+    start.y += d.y;
+    ui_z80ctc.initInPlace(.{
+        .title = "Z80 CTC",
+        .ctc = &sys.ctc,
+        .origin = start,
+        .chip = .{ .name = "Z80\nCTC", .num_slots = 32, .pins = &UI_Z80CTC_Pins },
+    });
+    start.x += d.x;
+    start.y += d.y;
+    ui_memmap.initInPlace(.{
+        .title = "Memory Map",
+        .origin = start,
+    });
+
     host.gfx.init(.{ .display = sys.displayInfo() });
+
+    // initialize sokol-imgui
+    simgui.setup(.{
+        .logger = .{ .func = slog.func },
+    });
+    host.gfx.addDrawFunc(renderGUI);
 
     // insert modules
     inline for (.{ &args.slot8, &args.slotc }, .{ 0x08, 0x0C }) |slot, slot_addr| {
@@ -70,12 +218,110 @@ export fn init() void {
     }
 }
 
+fn renderGUI() void {
+    simgui.render();
+}
+
+fn uiDrawMenu() void {
+    if (ig.igBeginMainMenuBar()) {
+        if (ig.igBeginMenu("System")) {
+            if (ig.igMenuItem("Reset (TODO)")) {
+                // TODO: implement reset
+            }
+            if (ig.igMenuItem("Cold Boot (TODO)")) {
+                // TODO: implement cold boot
+            }
+            ig.igEndMenu();
+        }
+        if (ig.igBeginMenu("Hardware")) {
+            if (ig.igMenuItem("Memory Map")) {
+                ui_memmap.open = true;
+            }
+            if (ig.igMenuItem("System State (TODO)")) {
+                // TODO: open window
+            }
+            if (ig.igMenuItem("Audio Output (TODO)")) {
+                // TODO: open window
+            }
+            if (ig.igMenuItem("Display (TODO)")) {
+                // TODO: open window
+            }
+            ig.igSeparator();
+            if (ig.igMenuItem("Z80")) {
+                ui_z80.open = true;
+            }
+            if (ig.igMenuItem("Z80 PIO")) {
+                ui_z80pio.open = true;
+            }
+            if (ig.igMenuItem("Z80 CTC")) {
+                ui_z80ctc.open = true;
+            }
+            ig.igEndMenu();
+        }
+        if (ig.igBeginMenu("Debug")) {
+            if (ig.igMenuItem("CPU Debugger (TODO)")) {
+                // TODO: open window
+            }
+            if (ig.igMenuItem("Breakpoints (TODO)")) {
+                // TODO: open window
+            }
+            if (ig.igBeginMenu("Memory Editor (TODO)")) {
+                if (ig.igMenuItem("Window #1")) {
+                    // TODO: open window
+                }
+                if (ig.igMenuItem("Window #2")) {
+                    // TODO: open window
+                }
+                if (ig.igMenuItem("Window #3")) {
+                    // TODO: open window
+                }
+                if (ig.igMenuItem("Window #4")) {
+                    // TODO: open window
+                }
+                ig.igEndMenu();
+            }
+            if (ig.igBeginMenu("Disassembler (TODO)")) {
+                if (ig.igMenuItem("Window #1")) {
+                    // TODO: open window
+                }
+                if (ig.igMenuItem("Window #2")) {
+                    // TODO: open window
+                }
+                if (ig.igMenuItem("Window #3")) {
+                    // TODO: open window
+                }
+                if (ig.igMenuItem("Window #4")) {
+                    // TODO: open window
+                }
+                ig.igEndMenu();
+            }
+            ig.igEndMenu();
+        }
+        ig.igEndMainMenuBar();
+    }
+}
+
 export fn frame() void {
     const frame_time_us = host.time.frameTime();
     host.prof.pushMicroSeconds(.FRAME, frame_time_us);
     host.time.emuStart();
     const num_ticks = sys.exec(frame_time_us);
     host.prof.pushMicroSeconds(.EMU, host.time.emuEnd());
+
+    // call simgui.newFrame() before any ImGui calls
+    simgui.newFrame(.{
+        .width = sapp.width(),
+        .height = sapp.height(),
+        .delta_time = sapp.frameDuration(),
+        .dpi_scale = sapp.dpiScale(),
+    });
+
+    uiDrawMenu();
+    ui_z80.draw(sys.bus);
+    ui_z80pio.draw(sys.bus);
+    ui_z80ctc.draw(sys.bus);
+    ui_memmap.draw();
+
     host.gfx.draw(.{
         .display = sys.displayInfo(),
         .status = .{
@@ -95,6 +341,7 @@ export fn frame() void {
 }
 
 export fn cleanup() void {
+    simgui.shutdown();
     host.gfx.shutdown();
     host.prof.shutdown();
     host.audio.shutdown();
@@ -107,6 +354,10 @@ export fn cleanup() void {
 export fn input(ev: ?*const sapp.Event) void {
     const event = ev.?;
     const shift = 0 != (event.modifiers & sapp.modifier_shift);
+
+    // forward input events to sokol-imgui
+    _ = simgui.handleEvent(event.*);
+
     switch (event.type) {
         .CHAR => {
             var c: u8 = @truncate(event.char_code);
