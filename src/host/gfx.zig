@@ -151,7 +151,7 @@ pub fn init(opts: Options) void {
             .pixel_format = .RGBA8,
             .data = init: {
                 var data: sg.ImageData = .{};
-                data.subimage[0][0] = sg.asRange(&pal_buf);
+                data.mip_levels[0] = sg.asRange(&pal_buf);
                 break :init data;
             },
         });
@@ -273,7 +273,7 @@ pub fn draw(opts: DrawOptions) void {
 
     // copy emulator pixels into framebuffer texture
     var img_data = sg.ImageData{};
-    img_data.subimage[0][0] = switch (opts.display.fb.buffer.?) {
+    img_data.mip_levels[0] = switch (opts.display.fb.buffer.?) {
         .Palette8 => |pal_buf| sg.asRange(pal_buf),
         .Rgba8 => |rgba8_buf| sg.asRange(rgba8_buf),
     };
