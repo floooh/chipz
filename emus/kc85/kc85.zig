@@ -264,7 +264,7 @@ const Args = struct {
                     print("Expected path to .KCC or .TAP file after '{s}'\n", .{arg});
                     return error.InvalidArgs;
                 };
-                res.file_data = fs.cwd().readFileAlloc(allocator, next, 64 * 1024) catch |err| {
+                res.file_data = fs.cwd().readFileAlloc(next, allocator, .limited(64 * 1024)) catch |err| {
                     print("Failed to load file '{s}'\n", .{next});
                     return err;
                 };
@@ -332,7 +332,7 @@ const Args = struct {
                 print("Expect ROM dump file path after '{s} {s}'\n", .{ arg, mod_name });
                 return error.InvalidArgs;
             };
-            mod.rom_dump = fs.cwd().readFileAlloc(allocator, rom_dump_path, 64 * 1024) catch |err| {
+            mod.rom_dump = fs.cwd().readFileAlloc(rom_dump_path, allocator, .limited(64 * 1024)) catch |err| {
                 print("Failed to load module rom dump file '{s}'\n", .{rom_dump_path});
                 return err;
             };
