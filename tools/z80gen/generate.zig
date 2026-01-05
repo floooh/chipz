@@ -111,7 +111,7 @@ fn checkBeginEnd(line: []const u8, file: std.fs.File, comptime key: []const u8, 
 
 pub fn write(allocator: std.mem.Allocator, path: []const u8) !void {
     const max_size = 5 * 1024 * 1024;
-    const src = try std.fs.cwd().readFileAlloc(path, allocator, .limited(max_size));
+    const src = try std.fs.cwd().readFileAlloc(allocator, path, max_size);
     const dst = try std.fs.cwd().createFile(path, .{ .truncate = true, .lock = .exclusive });
     defer dst.close();
 
