@@ -85,10 +85,10 @@ fn genTcycle(opcode_step_index: usize, op: Op, tcycle: TCycle, tcount: usize) !v
     try lines.append(dup(line.slice()));
 }
 
-fn addLine(file: std.fs.File, prefix: []const u8, line: []const u8) !void {
-    try file.writeAll(prefix);
-    try file.writeAll(line);
-    try file.writeAll("\n");
+fn addLine(io: std.Io, file: std.Io.File, prefix: []const u8, line: []const u8) !void {
+    try file.writeStreamingAll(io, prefix);
+    try file.writeStreamingAll(io, line);
+    try file.writeStreamingAll(io, "\n");
 }
 
 const BeginEndState = struct {
@@ -96,11 +96,11 @@ const BeginEndState = struct {
     skip: bool,
 };
 
-fn checkBeginEnd(line: []const u8, file: std.fs.File, comptime key: []const u8, cur_state: BeginEndState) !BeginEndState {
+fn checkBeginEnd(io: std.Io, line: []const u8, file: std.Io.File, comptime key: []const u8, cur_state: BeginEndState) !BeginEndState {
     const trimmed = std.mem.trim(u8, line, " \t");
     if (std.mem.eql(u8, trimmed, "// BEGIN " ++ key)) {
-        try file.writeAll(line);
-        try file.writeAll("\n");
+        try file.writeStreamingAll(io, line);
+        try file.writeStreamingAll(io, "\n");
         return .{ .inside = true, .skip = false };
     }
     if (std.mem.eql(u8, trimmed, "// END " ++ key)) {
@@ -109,11 +109,12 @@ fn checkBeginEnd(line: []const u8, file: std.fs.File, comptime key: []const u8, 
     return cur_state;
 }
 
-pub fn write(allocator: std.mem.Allocator, path: []const u8) !void {
+pub fn write(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !void {
     const max_size = 5 * 1024 * 1024;
-    const src = try std.fs.cwd().readFileAlloc(allocator, path, max_size);
-    const dst = try std.fs.cwd().createFile(path, .{ .truncate = true, .lock = .exclusive });
-    defer dst.close();
+    const cwd = std.Io.Dir.cwd();
+    const src = try cwd.readFileAlloc(io, path, allocator, .limited(max_size));
+    const dst = try cwd.createFile(io, path, .{ .truncate = true, .lock = .exclusive });
+    defer dst.close(io);
 
     var decode = BeginEndState{ .inside = false, .skip = false };
     var consts = BeginEndState{ .inside = false, .skip = false };
@@ -122,15 +123,15 @@ pub fn write(allocator: std.mem.Allocator, path: []const u8) !void {
     const consts_prefix = "    " ** 2;
     const m1_t1 = extra_step_index;
     while (it.next()) |src_line| {
-        decode = try checkBeginEnd(src_line, dst, "DECODE", decode);
-        consts = try checkBeginEnd(src_line, dst, "CONSTS", consts);
+        decode = try checkBeginEnd(io, src_line, dst, "DECODE", decode);
+        consts = try checkBeginEnd(io, src_line, dst, "CONSTS", consts);
         if (decode.inside) {
             if (!decode.skip) {
                 for (op_lines.slice()) |line| {
-                    try addLine(dst, decode_prefix, line);
+                    try addLine(io, dst, decode_prefix, line);
                 }
                 for (extra_lines.slice()) |line| {
-                    try addLine(dst, decode_prefix, line);
+                    try addLine(io, dst, decode_prefix, line);
                 }
                 decode.skip = true;
             }
@@ -234,15 +235,15 @@ pub fn write(allocator: std.mem.Allocator, path: []const u8) !void {
                     "INT_IM2_T19",
                     "INT_IM2_OVERLAPPED",
                 }, 0..) |str, i| {
-                    try addLine(dst, consts_prefix, f("const {s}: u16 = 0x{X};", .{ str, m1_t1 + i }));
+                    try addLine(io, dst, consts_prefix, f("const {s}: u16 = 0x{X};", .{ str, m1_t1 + i }));
                 }
             }
             consts.skip = true;
         } else {
             // outside replace block, write current line to dst
-            try dst.writeAll(src_line);
+            try dst.writeStreamingAll(io, src_line);
             if (it.peek() != null) {
-                try dst.writeAll("\n");
+                try dst.writeStreamingAll(io, "\n");
             }
         }
     }
