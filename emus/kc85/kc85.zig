@@ -1,7 +1,6 @@
 const build_options = @import("build_options");
 const std = @import("std");
 const print = std.debug.print;
-const GeneralPurposeAllocator = std.heap.GeneralPurposeAllocator;
 const sokol = @import("sokol");
 const sapp = sokol.app;
 const slog = sokol.log;
@@ -28,8 +27,6 @@ var file_loaded = host.time.Once.init(switch (model) {
 });
 
 var sys: KC85 = undefined;
-var gpa = GeneralPurposeAllocator(.{}){};
-var ioSystem = std.Io.Threaded.init_single_threaded;
 var args: Args = undefined;
 
 export fn init() void {
@@ -99,9 +96,6 @@ export fn cleanup() void {
     host.prof.shutdown();
     host.audio.shutdown();
     args.deinit();
-    if (gpa.deinit() != .ok) {
-        @panic("Memory leaks detected");
-    }
 }
 
 export fn input(ev: ?*const sapp.Event) void {
@@ -169,8 +163,8 @@ export fn input(ev: ?*const sapp.Event) void {
     }
 }
 
-pub fn main() void {
-    args = Args.parse(gpa.allocator(), ioSystem.io()) catch {
+pub fn main(ini: std.process.Init) void {
+    args = Args.parse(ini.gpa, ini.io, ini.minimal.args) catch {
         return;
     };
     defer args.deinit();
@@ -232,12 +226,12 @@ const Args = struct {
     slot8: Module = .{},
     slotc: Module = .{},
 
-    pub fn parse(allocator: std.mem.Allocator, io: std.Io) !Args {
+    pub fn parse(allocator: std.mem.Allocator, io: std.Io, cmdline_args: std.process.Args) !Args {
         var res = Args{
             .allocator = allocator,
         };
         errdefer res.deinit();
-        var arg_iter = try std.process.argsWithAllocator(res.allocator);
+        var arg_iter = try cmdline_args.iterateAllocator(res.allocator);
         defer arg_iter.deinit();
         _ = arg_iter.skip();
         while (arg_iter.next()) |arg| {
@@ -302,7 +296,7 @@ const Args = struct {
         return false;
     }
 
-    fn parseModuleArgs(allocator: std.mem.Allocator, io: std.Io, arg: []const u8, arg_iter: *std.process.ArgIterator) !Args.Module {
+    fn parseModuleArgs(allocator: std.mem.Allocator, io: std.Io, arg: []const u8, arg_iter: *std.process.Args.Iterator) !Args.Module {
         var mod = Args.Module{};
         const mod_name = arg_iter.next() orelse {
             print("Expected module name after '{s}'\n", .{arg});
