@@ -4,10 +4,8 @@ const gen = @import("generate.zig");
 const string = @import("string.zig");
 
 pub fn main(init: std.process.Init) !void {
-    var arena: std.heap.ArenaAllocator = .init(init.gpa);
-    defer arena.deinit();
-    string.init(arena.allocator());
+    string.init(init.arena.allocator());
     dec.decode();
     try gen.generate();
-    try gen.write(arena.allocator(), init.io, "src/chips/z80.zig");
+    try gen.write(init.arena.allocator(), init.io, "src/chips/z80.zig");
 }
