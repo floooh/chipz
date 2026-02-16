@@ -5,6 +5,7 @@
 //  a minimal CP/M environment to make these work.
 //------------------------------------------------------------------------------
 const std = @import("std");
+const Timestamp = std.Io.Timestamp;
 const assert = std.debug.assert;
 const print = std.debug.print;
 const chipz = @import("chipz");
@@ -88,15 +89,15 @@ fn runTest() u64 {
     return num_ticks;
 }
 
-fn zexall() !void {
+fn zexall(io: std.Io) !void {
     print("ZEXALL...\n\n", .{});
     copy(0x0100, @embedFile("roms/zexall.com"));
-    var timer = try std.time.Timer.start();
+    const startTime = Timestamp.now(io, .real);
     const num_ticks = runTest();
-    const ns: f64 = @floatFromInt(timer.read());
-    print("\n{} ticks in {d:.4} seconds\n", .{ num_ticks, ns / std.time.ns_per_s });
+    const duration = startTime.untilNow(io, .real);
+    print("\n{} ticks in {d:.4} seconds\n", .{ num_ticks, duration.toSeconds() });
 }
 
-pub fn main() !void {
-    try zexall();
+pub fn main(ini: std.process.Init) !void {
+    try zexall(ini.io);
 }
