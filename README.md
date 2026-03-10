@@ -4,6 +4,10 @@
 
 8-bit emulator experiments in Zig.
 
+For Zig 0.16.+ (as of `0.16.0-dev.2040`).
+
+Stable Zig 0.15.2 support is in branch `zig-0.15.2`.
+
 Also see blog post [Zig and Emulators](https://floooh.github.io/2024/08/24/zig-and-emulators.html)
 
 ...and an experiment to host the emulator in a terminal window: https://github.com/floooh/chipz-kitty

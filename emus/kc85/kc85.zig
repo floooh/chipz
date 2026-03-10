@@ -1,8 +1,6 @@
 const build_options = @import("build_options");
 const std = @import("std");
 const print = std.debug.print;
-const fs = std.fs;
-const GeneralPurposeAllocator = std.heap.GeneralPurposeAllocator;
 const sokol = @import("sokol");
 const sapp = sokol.app;
 const slog = sokol.log;
@@ -134,7 +132,6 @@ var file_loaded = host.time.Once.init(switch (model) {
 });
 
 var sys: KC85 = undefined;
-var gpa = GeneralPurposeAllocator(.{}){};
 var args: Args = undefined;
 var ui_z80: UI_Z80 = undefined;
 var ui_z80pio: UI_Z80PIO = undefined;
@@ -346,9 +343,6 @@ export fn cleanup() void {
     host.prof.shutdown();
     host.audio.shutdown();
     args.deinit();
-    if (gpa.deinit() != .ok) {
-        @panic("Memory leaks detected");
-    }
 }
 
 export fn input(ev: ?*const sapp.Event) void {
@@ -420,8 +414,8 @@ export fn input(ev: ?*const sapp.Event) void {
     }
 }
 
-pub fn main() void {
-    args = Args.parse(gpa.allocator()) catch {
+pub fn main(ini: std.process.Init) void {
+    args = Args.parse(ini.gpa, ini.io, ini.minimal.args) catch {
         return;
     };
     defer args.deinit();
@@ -483,12 +477,12 @@ const Args = struct {
     slot8: Module = .{},
     slotc: Module = .{},
 
-    pub fn parse(allocator: std.mem.Allocator) !Args {
+    pub fn parse(allocator: std.mem.Allocator, io: std.Io, cmdline_args: std.process.Args) !Args {
         var res = Args{
             .allocator = allocator,
         };
         errdefer res.deinit();
-        var arg_iter = try std.process.argsWithAllocator(res.allocator);
+        var arg_iter = try cmdline_args.iterateAllocator(res.allocator);
         defer arg_iter.deinit();
         _ = arg_iter.skip();
         while (arg_iter.next()) |arg| {
@@ -515,14 +509,15 @@ const Args = struct {
                     print("Expected path to .KCC or .TAP file after '{s}'\n", .{arg});
                     return error.InvalidArgs;
                 };
-                res.file_data = fs.cwd().readFileAlloc(allocator, next, 64 * 1024) catch |err| {
+                const cwd = std.Io.Dir.cwd();
+                res.file_data = cwd.readFileAlloc(io, next, allocator, .limited(64 * 1024)) catch |err| {
                     print("Failed to load file '{s}'\n", .{next});
                     return err;
                 };
             } else if (isArg(arg, &.{"-slot8"})) {
-                res.slot8 = try parseModuleArgs(allocator, arg, &arg_iter);
+                res.slot8 = try parseModuleArgs(allocator, io, arg, &arg_iter);
             } else if (isArg(arg, &.{"-slotc"})) {
-                res.slotc = try parseModuleArgs(allocator, arg, &arg_iter);
+                res.slotc = try parseModuleArgs(allocator, io, arg, &arg_iter);
             } else {
                 print("Unknown argument: {s} (run '-help' to show valid args)\n", .{arg});
                 return error.InvalidArgs;
@@ -552,7 +547,7 @@ const Args = struct {
         return false;
     }
 
-    fn parseModuleArgs(allocator: std.mem.Allocator, arg: []const u8, arg_iter: *std.process.ArgIterator) !Args.Module {
+    fn parseModuleArgs(allocator: std.mem.Allocator, io: std.Io, arg: []const u8, arg_iter: *std.process.Args.Iterator) !Args.Module {
         var mod = Args.Module{};
         const mod_name = arg_iter.next() orelse {
             print("Expected module name after '{s}'\n", .{arg});
@@ -583,7 +578,8 @@ const Args = struct {
                 print("Expect ROM dump file path after '{s} {s}'\n", .{ arg, mod_name });
                 return error.InvalidArgs;
             };
-            mod.rom_dump = fs.cwd().readFileAlloc(allocator, rom_dump_path, 64 * 1024) catch |err| {
+            const cwd = std.Io.Dir.cwd();
+            mod.rom_dump = cwd.readFileAlloc(io, rom_dump_path, allocator, .limited(64 * 1024)) catch |err| {
                 print("Failed to load module rom dump file '{s}'\n", .{rom_dump_path});
                 return err;
             };
