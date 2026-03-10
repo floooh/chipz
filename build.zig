@@ -20,7 +20,7 @@ pub fn build(b: *Build) !void {
     });
 
     // inject the cimgui header search path into the sokol C library compile step
-    dep_sokol.artifact("sokol_clib").addIncludePath(dep_cimgui.path("src"));
+    dep_sokol.artifact("sokol_clib").root_module.addIncludePath(dep_cimgui.path("src"));
     const dep_shdc = dep_sokol.builder.dependency("shdc", .{});
     const mod_sokol = dep_sokol.module("sokol");
     const mod_cimgui = dep_cimgui.module("cimgui");
