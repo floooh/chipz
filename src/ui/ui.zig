@@ -6,3 +6,5 @@ pub const ui_z80pio = @import("ui_z80pio.zig");
 pub const ui_z80ctc = @import("ui_z80ctc.zig");
 pub const ui_intel8255 = @import("ui_intel8255.zig");
 pub const ui_memmap = @import("ui_memmap.zig");
+pub const ui_dasm = @import("ui_dasm.zig");
+pub const ui_dbg = @import("ui_dbg.zig");

@@ -2,4 +2,4 @@ zig-*/
 .zig-*/
 .vscode/
 .cursor
-.claude/settings.local.json
+/.claude
