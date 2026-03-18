@@ -31,6 +31,7 @@ pub const Options = struct {
     optimize: OptimizeMode,
     mod_chipz: *Build.Module,
     mod_sokol: *Build.Module,
+    mod_cimgui: *Build.Module,
 };
 
 pub fn build(b: *Build, opts: Options) void {
@@ -43,6 +44,7 @@ pub fn build(b: *Build, opts: Options) void {
             .optimize = opts.optimize,
             .mod_chipz = opts.mod_chipz,
             .mod_sokol = opts.mod_sokol,
+            .mod_cimgui = opts.mod_cimgui,
         });
     }
 }
@@ -55,6 +57,7 @@ const EmuOptions = struct {
     optimize: OptimizeMode,
     mod_chipz: *Build.Module,
     mod_sokol: *Build.Module,
+    mod_cimgui: *Build.Module,
 };
 
 fn addEmulator(b: *Build, opts: EmuOptions) void {
@@ -65,6 +68,7 @@ fn addEmulator(b: *Build, opts: EmuOptions) void {
         .imports = &.{
             .{ .name = "chipz", .module = opts.mod_chipz },
             .{ .name = "sokol", .module = opts.mod_sokol },
+            .{ .name = "cimgui", .module = opts.mod_cimgui },
         },
     });
     if (opts.model != .NONE) {

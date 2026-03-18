@@ -82,13 +82,13 @@ const IO84_PINS = [8]comptime_int{ 80, 81, 82, 83, 84, 85, 86, 87 };
 const IO86_PINS = [8]comptime_int{ 88, 89, 90, 91, 92, 93, 94, 95 };
 
 // NOTE: 64 bits isn't enough for the system bus
-const Bus = u128;
-const Memory = memory.Type(.{ .page_size = 0x0400 });
-const Z80 = z80.Type(.{ .pins = CPU_PINS, .bus = Bus });
-const Z80PIO = z80pio.Type(.{ .pins = PIO_PINS, .bus = Bus });
-const Z80CTC = z80ctc.Type(.{ .pins = CTC_PINS, .bus = Bus });
-const KeyBuf = keybuf.Type(.{ .num_slots = 4 });
-const Audio = audio.Type(.{ .num_voices = 2 });
+pub const Bus = u128;
+pub const Memory = memory.Type(.{ .page_size = 0x0400 });
+pub const Z80 = z80.Type(.{ .pins = CPU_PINS, .bus = Bus });
+pub const Z80PIO = z80pio.Type(.{ .pins = PIO_PINS, .bus = Bus });
+pub const Z80CTC = z80ctc.Type(.{ .pins = CTC_PINS, .bus = Bus });
+pub const KeyBuf = keybuf.Type(.{ .num_slots = 4 });
+pub const Audio = audio.Type(.{ .num_voices = 2 });
 
 const getData = Z80.getData;
 const setData = Z80.setData;
