@@ -7,6 +7,7 @@ const slog = sokol.log;
 const host = @import("chipz").host;
 const kc85 = @import("chipz").systems.kc85;
 const ui = @import("chipz").ui;
+const clock = @import("chipz").common.clock;
 
 const ig = @import("cimgui");
 const simgui = sokol.imgui;
@@ -125,6 +126,8 @@ const UI_Z80CTC_Pins = [_]UI_CHIP.Pin{
     .{ .name = "CT3", .slot = 25, .mask = kc85.Z80CTC.CLKTRG3 },
 };
 const UI_MEMMAP = ui.ui_memmap.MemMap;
+const UI_DASM = ui.ui_dasm.Dasm;
+const UI_DBG = ui.ui_dbg.Type(.{ .bus = kc85.Bus, .cpu = kc85.Z80 });
 // a once-trigger for loading a file after booting has finished
 var file_loaded = host.time.Once.init(switch (model) {
     .KC852, .KC853 => 8 * 1000 * 1000,
@@ -137,6 +140,13 @@ var ui_z80: UI_Z80 = undefined;
 var ui_z80pio: UI_Z80PIO = undefined;
 var ui_z80ctc: UI_Z80CTC = undefined;
 var ui_memmap: UI_MEMMAP = undefined;
+var ui_dasm: [2]UI_DASM = undefined;
+var ui_dbg_win: UI_DBG = undefined;
+
+fn memRead(addr: u16, userdata: ?*anyopaque) u8 {
+    const s: *KC85 = @ptrCast(@alignCast(userdata));
+    return s.mem.rd(addr);
+}
 
 export fn init() void {
     host.audio.init(.{});
@@ -195,6 +205,31 @@ export fn init() void {
         .title = "Memory Map",
         .origin = start,
     });
+    start.x += d.x;
+    start.y += d.y;
+    ui_dasm[0].initInPlace(.{
+        .title = "Disassembler #1",
+        .read_cb = memRead,
+        .userdata = &sys,
+        .origin = start,
+    });
+    start.x += d.x;
+    start.y += d.y;
+    ui_dasm[1].initInPlace(.{
+        .title = "Disassembler #2",
+        .read_cb = memRead,
+        .userdata = &sys,
+        .origin = start,
+    });
+    start.x += d.x;
+    start.y += d.y;
+    ui_dbg_win.initInPlace(.{
+        .title = "CPU Debugger",
+        .cpu = &sys.cpu,
+        .read_cb = memRead,
+        .userdata = &sys,
+        .origin = start,
+    });
 
     host.gfx.init(.{ .display = sys.displayInfo() });
 
@@ -217,6 +252,24 @@ export fn init() void {
 
 fn renderGUI() void {
     simgui.render();
+}
+
+fn execWithDebug(frame_time_us: u32) u32 {
+    if (ui_dbg_win.isStopped()) {
+        // Paused: don't advance emulation
+        return 0;
+    } else if (ui_dbg_win.needsTickDebug()) {
+        // Tick-by-tick for step mode or active breakpoints
+        const max_ticks = clock.microSecondsToTicks(KC85.FREQUENCY, frame_time_us);
+        var ticks: u32 = 0;
+        while (ticks < max_ticks) : (ticks += 1) {
+            sys.bus = sys.tick(sys.bus);
+            if (ui_dbg_win.tick(sys.bus)) break;
+        }
+        return ticks;
+    } else {
+        return sys.exec(frame_time_us);
+    }
 }
 
 fn uiDrawMenu() void {
@@ -256,41 +309,20 @@ fn uiDrawMenu() void {
             ig.igEndMenu();
         }
         if (ig.igBeginMenu("Debug")) {
-            if (ig.igMenuItem("CPU Debugger (TODO)")) {
-                // TODO: open window
+            if (ig.igMenuItem("CPU Debugger")) {
+                ui_dbg_win.open = true;
             }
-            if (ig.igMenuItem("Breakpoints (TODO)")) {
-                // TODO: open window
-            }
-            if (ig.igBeginMenu("Memory Editor (TODO)")) {
+            if (ig.igBeginMenu("Disassembler")) {
                 if (ig.igMenuItem("Window #1")) {
-                    // TODO: open window
+                    ui_dasm[0].open = true;
                 }
                 if (ig.igMenuItem("Window #2")) {
-                    // TODO: open window
-                }
-                if (ig.igMenuItem("Window #3")) {
-                    // TODO: open window
-                }
-                if (ig.igMenuItem("Window #4")) {
-                    // TODO: open window
+                    ui_dasm[1].open = true;
                 }
                 ig.igEndMenu();
             }
-            if (ig.igBeginMenu("Disassembler (TODO)")) {
-                if (ig.igMenuItem("Window #1")) {
-                    // TODO: open window
-                }
-                if (ig.igMenuItem("Window #2")) {
-                    // TODO: open window
-                }
-                if (ig.igMenuItem("Window #3")) {
-                    // TODO: open window
-                }
-                if (ig.igMenuItem("Window #4")) {
-                    // TODO: open window
-                }
-                ig.igEndMenu();
+            if (ig.igMenuItem("Memory Editor (TODO)")) {
+                // TODO: open memory editor window
             }
             ig.igEndMenu();
         }
@@ -302,7 +334,7 @@ export fn frame() void {
     const frame_time_us = host.time.frameTime();
     host.prof.pushMicroSeconds(.FRAME, frame_time_us);
     host.time.emuStart();
-    const num_ticks = sys.exec(frame_time_us);
+    const num_ticks = execWithDebug(frame_time_us);
     host.prof.pushMicroSeconds(.EMU, host.time.emuEnd());
 
     // call simgui.newFrame() before any ImGui calls
@@ -318,6 +350,9 @@ export fn frame() void {
     ui_z80pio.draw(sys.bus);
     ui_z80ctc.draw(sys.bus);
     ui_memmap.draw();
+    ui_dasm[0].draw();
+    ui_dasm[1].draw();
+    ui_dbg_win.draw(sys.bus);
 
     host.gfx.draw(.{
         .display = sys.displayInfo(),
