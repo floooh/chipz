@@ -28,7 +28,7 @@ pub fn Type(comptime cfg: Config) type {
             released: bool = false,
         };
 
-        slots: [cfg.num_slots]Slot = [_]Slot{.{}} ** cfg.num_slots,
+        slots: [cfg.num_slots]Slot = @splat(.{}),
         cur_time: u64 = 0,
         sticky_time: u64 = 0,
 

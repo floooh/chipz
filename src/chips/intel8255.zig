@@ -193,7 +193,7 @@ pub fn Type(comptime cfg: TypeConfig) type {
             output: u8 = 0, // data output register
         };
 
-        ports: [NUM_PORTS]Port = [_]Port{.{}} ** NUM_PORTS,
+        ports: [NUM_PORTS]Port = @splat(.{}),
         control: u8 = 0,
         reset_active: bool = false,
 

@@ -15,8 +15,8 @@ const Z80 = z80.Type(.{ .pins = z80.DefaultPins, .bus = Bus });
 
 var cpu: Z80 = undefined;
 var bus: Bus = 0;
-var mem = [_]u8{0} ** 0x10000;
-var io = [_]u8{0} ** 0x10000;
+var mem: [0x10000]u8 = @splat(0);
+var io: [0x10000]u8 = @splat(0);
 
 const CTRL = Z80.CTRL;
 const M1 = Z80.M1;

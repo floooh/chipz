@@ -383,7 +383,7 @@ pub fn Type(comptime sys: System) type {
             tick_counter: u32,
             sample_period: i32,
             sample_counter: i32,
-            voices: [3]Voice = [_]Voice{.{}} ** 3,
+            voices: [3]Voice = @splat(.{}),
             rom: [0x0200]u8,
         };
 
@@ -451,7 +451,7 @@ pub fn Type(comptime sys: System) type {
 
                 .fb = std.mem.zeroes(@TypeOf(self.fb)),
                 .junk_page = std.mem.zeroes(@TypeOf(self.junk_page)),
-                .unmapped_page = [_]u8{0xFF} ** Memory.PAGE_SIZE,
+                .unmapped_page = @splat(0xFF),
             };
             self.initMemoryMap();
         }

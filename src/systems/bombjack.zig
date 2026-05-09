@@ -300,7 +300,7 @@ pub const Bombjack = struct {
             },
             .fb = std.mem.zeroes(@TypeOf(self.fb)),
             .junk_page = std.mem.zeroes(@TypeOf(self.junk_page)),
-            .unmapped_page = [_]u8{0xFF} ** Memory.PAGE_SIZE,
+            .unmapped_page = @splat(0xFF),
         };
         self.initMemoryMap();
     }

@@ -25,7 +25,7 @@ const WZH = Z80.WZH;
 const WZL = Z80.WZL;
 
 var cpu: Z80 = undefined;
-var mem = [_]u8{0} ** 0x10000;
+var mem: [0x10000]u8 = @splat(0);
 
 fn tick(in_bus: Bus) Bus {
     var bus = cpu.tick(in_bus);

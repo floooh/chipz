@@ -19,7 +19,7 @@ const RING_SIZE = 128;
 const Ring = struct {
     head: usize = 0,
     tail: usize = 0,
-    values: [RING_SIZE]f32 = [_]f32{0.0} ** RING_SIZE,
+    values: [RING_SIZE]f32 = @splat(0.0),
 
     fn index(i: usize) usize {
         return i % RING_SIZE;
@@ -63,7 +63,7 @@ fn bucketRing(bucket: Bucket) *Ring {
 pub fn init() void {
     assert(!state.valid);
     state.valid = true;
-    state.buckets = [_]Ring{.{}} ** NUM_BUCKETS;
+    state.buckets = @splat(.{});
 }
 
 pub fn shutdown() void {

@@ -139,7 +139,7 @@ pub fn Type(comptime cfg: TypeConfig) type {
             irq: Z80IRQ = .{},
         };
 
-        chn: [NUM_CHANNELS]Channel = [_]Channel{.{}} ** NUM_CHANNELS,
+        chn: [NUM_CHANNELS]Channel = @splat(.{}),
 
         /// get data bus value
         pub inline fn getData(bus: Bus) u8 {

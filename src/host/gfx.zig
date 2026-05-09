@@ -143,7 +143,7 @@ pub fn init(opts: Options) void {
 
     // create optional palette image and texture view
     if (state.fb.paletted) {
-        var pal_buf = [_]u32{0} ** 256;
+        var pal_buf: [256]u32 = @splat(0);
         std.mem.copyForwards(u32, &pal_buf, opts.display.palette.?);
         state.fb.pal.img = sg.makeImage(.{
             .width = 256,

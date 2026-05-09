@@ -59,10 +59,10 @@ pub fn Type(comptime cfg: TypeConfig) type {
             return .{
                 .unmapped_page = options.unmapped_page,
                 .junk_page = options.junk_page,
-                .pages = [_]Page{.{
+                .pages = @splat(.{
                     .read = options.unmapped_page.ptr,
                     .write = options.junk_page.ptr,
-                }} ** NUM_PAGES,
+                }),
             };
         }
 

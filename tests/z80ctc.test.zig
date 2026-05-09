@@ -191,7 +191,7 @@ test "counter" {
 const state = struct {
     var cpu: Z80 = undefined;
     var ctc: Z80CTC = undefined;
-    var mem = [_]u8{0} ** 0x10000;
+    var mem: [0x10000]u8 = @splat(0);
     var tick_count: usize = 0;
 };
 

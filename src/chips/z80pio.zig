@@ -192,7 +192,7 @@ pub fn Type(cfg: TypeConfig) type {
             bctrl_match: bool = false, // bitcontrol logic equation result
         };
 
-        ports: [NUM_PORTS]Port = [_]Port{.{}} ** NUM_PORTS,
+        ports: [NUM_PORTS]Port = @splat(.{}),
         reset_active: bool = false,
         port_output_or_ioselect_dirty: bool = true,
 

@@ -180,8 +180,8 @@ pub fn Type(comptime cfg: TypeConfig) type {
         cs_mask: u8 = 0, // hi: 4-bit chip-select (options.chip_select << 4)
         active: bool = false, // true if upper chip-select matches when writing address
         addr: u4 = 0, // current register index
-        regs: [REG.NUM]u8 = [_]u8{0} ** REG.NUM,
-        tone: [NUM_CHANNELS]Tone = [_]Tone{.{}} ** NUM_CHANNELS, // tone generator states (3 channels)
+        regs: [REG.NUM]u8 = @splat(0),
+        tone: [NUM_CHANNELS]Tone = @splat(.{}), // tone generator states (3 channels)
         noise: Noise = .{}, // noise generator state
         env: Envelope = .{}, // envelope generator state
         sample: Sample = .{}, // sample generator state

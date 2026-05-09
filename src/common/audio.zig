@@ -43,11 +43,11 @@ pub fn Type(cfg: TypeConfig) type {
         callback: Callback,
         pos: u32 = 0,
         filter: struct {
-            lopass: [2]f32 = [_]f32{0} ** 2,
+            lopass: [2]f32 = @splat(0),
             dcadj: struct {
                 sum: f32 = 0,
                 pos: u32 = 0,
-                buf: [cfg.dcadjust_buf_len]f32 = [_]f32{0} ** cfg.dcadjust_buf_len,
+                buf: [cfg.dcadjust_buf_len]f32 = @splat(0),
             } = .{},
         } = .{},
         buf: [cfg.num_samples]f32,

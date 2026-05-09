@@ -425,7 +425,7 @@ pub fn Type(comptime model: Model) type {
                 .exp_buf = std.mem.zeroes(@TypeOf(self.exp_buf)),
                 .fb = std.mem.zeroes(@TypeOf(self.fb)),
                 .junk_page = std.mem.zeroes(@TypeOf(self.junk_page)),
-                .unmapped_page = [_]u8{0xFF} ** Memory.PAGE_SIZE,
+                .unmapped_page = @splat(0xFF),
             };
             // initial memory map
             self.updateMemoryMap(self.bus);

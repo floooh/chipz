@@ -119,8 +119,8 @@ pub fn write(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !void {
     var decode = BeginEndState{ .inside = false, .skip = false };
     var consts = BeginEndState{ .inside = false, .skip = false };
     var it = std.mem.splitScalar(u8, src, '\n');
-    const decode_prefix = "    " ** 5;
-    const consts_prefix = "    " ** 2;
+    const decode_prefix = "    " ++ "    " ++ "    " ++ "    " ++ "    ";
+    const consts_prefix = "    " ++ "    ";
     const m1_t1 = extra_step_index;
     while (it.next()) |src_line| {
         decode = try checkBeginEnd(io, src_line, dst, "DECODE", decode);

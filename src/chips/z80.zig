@@ -162,7 +162,7 @@ pub fn Type(comptime cfg: TypeConfig) type {
         // effective address: HL, IX+d, IY+d
         addr: u16 = 0,
         // 8/16 bit register bank
-        r: [NumRegs]u8 = [_]u8{0xFF} ** NumRegs,
+        r: [NumRegs]u8 = @splat(0xFF),
         // merged I and R register
         ir: u16 = 0,
         // interrupt mode (0, 1 or 2)

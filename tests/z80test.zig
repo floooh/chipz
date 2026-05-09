@@ -27,7 +27,7 @@ const SF = Z80.SF;
 
 var cpu: Z80 = undefined;
 var bus: u64 = 0;
-var mem = [_]u8{0} ** 0x10000;
+var mem: [0x10000]u8 = @splat(0);
 var out_port: u16 = 0;
 var out_byte: u8 = 0;
 
