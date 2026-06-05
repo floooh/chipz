@@ -4,9 +4,7 @@
 
 8-bit emulator experiments in Zig.
 
-For Zig 0.16.+ (as of `0.16.0-dev.2040`).
-
-Stable Zig 0.15.2 support is in branch `zig-0.15.2`.
+For Zig 0.17.+ (as of `0.17.0-dev.702+18b3c78a9`).
 
 Also see blog post [Zig and Emulators](https://floooh.github.io/2024/08/24/zig-and-emulators.html)
 
