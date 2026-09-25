@@ -10,7 +10,7 @@ pub const MAX_BYTES = 4;
 pub const Result = struct {
     next_pc: u16,
     num_bytes: u8,
-    mnemonic: [MAX_MNEMONIC_LEN]u8 = [_]u8{0} ** MAX_MNEMONIC_LEN,
+    mnemonic: [MAX_MNEMONIC_LEN]u8 = @splat(0),
     mnemonic_len: u8,
 
     pub fn mnemonicSlice(self: *const Result) []const u8 {
@@ -186,7 +186,7 @@ pub fn op(pc: u16, read_fn: *const fn (u16, ?*anyopaque) u8, user_data: ?*anyopa
         .num_bytes = 0,
         .read_fn = read_fn,
         .user_data = user_data,
-        .buf = [_]u8{0} ** MAX_MNEMONIC_LEN,
+        .buf = @splat(0),
         .buf_pos = 0,
         .pre = 0,
     };

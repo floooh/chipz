@@ -50,7 +50,7 @@ pub const Dasm = struct {
             .start_addr = 0,
             .highlight_addr = 0,
             .highlight_valid = false,
-            .stack = [_]u16{0} ** STACK_MAX,
+            .stack = @splat(0),
             .stack_num = 0,
             .stack_pos = 0,
         };
@@ -83,8 +83,24 @@ pub const Dasm = struct {
     fn jumpTarget(next_addr: u16, bytes: []const u8) ?u16 {
         if (bytes.len == 3) {
             switch (bytes[0]) {
-                0xCD, 0xDC, 0xFC, 0xD4, 0xC4, 0xF4, 0xEC, 0xE4, 0xCC,
-                0xC3, 0xDA, 0xFA, 0xD2, 0xC2, 0xF2, 0xEA, 0xE2, 0xCA,
+                0xCD,
+                0xDC,
+                0xFC,
+                0xD4,
+                0xC4,
+                0xF4,
+                0xEC,
+                0xE4,
+                0xCC,
+                0xC3,
+                0xDA,
+                0xFA,
+                0xD2,
+                0xC2,
+                0xF2,
+                0xEA,
+                0xE2,
+                0xCA,
                 => return (@as(u16, bytes[2]) << 8) | bytes[1],
                 else => {},
             }
