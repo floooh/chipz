@@ -87,7 +87,7 @@ pub fn Type(comptime cfg: TypeConfig) type {
         pub const A7 = mask(Bus, cfg.pins.ABUS[7]);
         pub const A8 = mask(Bus, cfg.pins.ABUS[8]);
         pub const A9 = mask(Bus, cfg.pins.ABUS[9]);
-        pub const A10 = mask(Bus, cfg.pins.AB[10]);
+        pub const A10 = mask(Bus, cfg.pins.ABUS[10]);
         pub const A11 = mask(Bus, cfg.pins.ABUS[11]);
         pub const A12 = mask(Bus, cfg.pins.ABUS[12]);
         pub const A13 = mask(Bus, cfg.pins.ABUS[13]);
