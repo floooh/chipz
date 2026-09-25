@@ -272,12 +272,17 @@ pub fn draw(opts: DrawOptions) void {
     }
 
     // copy emulator pixels into framebuffer texture
-    var img_data = sg.ImageData{};
-    img_data.mip_levels[0] = switch (opts.display.fb.buffer.?) {
-        .Palette8 => |pal_buf| sg.asRange(pal_buf),
-        .Rgba8 => |rgba8_buf| sg.asRange(rgba8_buf),
-    };
-    sg.updateImage(state.fb.vidmem.img, img_data);
+    sg.writeImageTransient(.{
+        .dst = .{
+            .image = state.fb.vidmem.img,
+        },
+        .src = .{
+            .data = switch (opts.display.fb.buffer.?) {
+                .Palette8 => |pal_buf| sg.asRange(pal_buf),
+                .Rgba8 => |rgba8_buf| sg.asRange(rgba8_buf),
+            },
+        },
+    });
 
     // upscale emulator framebuffer with 2x nearest filtering
     sg.beginPass(state.offscreen.pass);
@@ -345,7 +350,7 @@ fn initImagesAndPass() void {
         .width = state.fb.dim.width,
         .height = state.fb.dim.height,
         .pixel_format = if (state.fb.paletted) .R8 else .RGBA8,
-        .usage = .{ .stream_update = true },
+        .usage = .{ .write_transient = true },
     });
     state.fb.vidmem.tex_view = sg.makeView(.{
         .texture = .{ .image = state.fb.vidmem.img },
