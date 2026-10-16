@@ -6,7 +6,7 @@ const OptimizeMode = std.builtin.OptimizeMode;
 pub const Options = struct {
     src_dir: []const u8,
     target: ResolvedTarget,
-    optimize: OptimizeMode,
+    optimize: ?OptimizeMode,
     mod_common: *Build.Module,
 };
 
@@ -27,7 +27,7 @@ const ToolOptions = struct {
     run_desc: []const u8,
     src: []const u8,
     target: ResolvedTarget,
-    optimize: OptimizeMode,
+    optimize: ?OptimizeMode,
     mod_common: *Build.Module,
 };
 

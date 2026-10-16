@@ -7,7 +7,7 @@ const Module = Build.Module;
 pub const Options = struct {
     src_dir: []const u8,
     target: ResolvedTarget,
-    optimize: OptimizeMode,
+    optimize: ?OptimizeMode,
     mod_chipz: *Module,
 };
 
