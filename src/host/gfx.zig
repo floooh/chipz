@@ -149,11 +149,7 @@ pub fn init(opts: Options) void {
             .width = 256,
             .height = 1,
             .pixel_format = .RGBA8,
-            .data = init: {
-                var data: sg.ImageData = .{};
-                data.mip_levels[0] = sg.asRange(&pal_buf);
-                break :init data;
-            },
+            .data = sg.asRange(&pal_buf),
         });
         state.fb.pal.tex_view = sg.makeView(.{
             .texture = .{ .image = state.fb.pal.img },
