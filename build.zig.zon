@@ -4,8 +4,8 @@
     .fingerprint = 0x3ecb34175baf6f81,
     .dependencies = .{
         .sokol = .{
-            .url = "git+https://github.com/floooh/sokol-zig.git#aa05f58d1d2aa225f5d7f6349838ca301de4939b",
-            .hash = "sokol-0.1.0-pb1HK0wTQwByM5efnG8xSuGl_Opo03DuAszjk-iMBJXv",
+            .url = "git+https://github.com/floooh/sokol-zig.git#39ae45eeb22ecdd06d4c96d77cd74a98a3ab1e75",
+            .hash = "sokol-0.1.0-pb1HK8QiQwDomRaZHsdF5UUkEqjgM0spI3UY3n1GBm5O",
         },
     },
     .paths = .{
