@@ -663,7 +663,7 @@ pub const Bombjack = struct {
                 const chr = self.ram.main[(0x9000 - 0x8000) + addr];
                 const clr = self.ram.main[(0x9400 - 0x8000) + addr];
                 // 512 foreground tiles, take 9th bit from color code
-                const tile_code: usize = chr | (@as(usize, clr) & 0x10) << 4;
+                const tile_code: usize = chr | ((@as(usize, clr) & 0x10) << 4);
                 // 16 color blocks at 8 colors
                 const color_block: usize = (clr & 0x0F) << 3;
                 // 8 bytes per char bitmap
