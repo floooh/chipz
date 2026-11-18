@@ -120,7 +120,7 @@ pub fn Type(comptime sys: System) type {
             },
         };
 
-        pub const Input = packed struct {
+        pub const Input = struct {
             p1_up: bool = false,
             p1_left: bool = false,
             p1_right: bool = false,

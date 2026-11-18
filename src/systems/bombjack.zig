@@ -104,7 +104,7 @@ pub const Bombjack = struct {
         },
     };
 
-    pub const Input = packed struct {
+    pub const Input = struct {
         p1_right: bool = false,
         p1_left: bool = false,
         p1_up: bool = false,
